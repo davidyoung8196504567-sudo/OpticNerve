@@ -60,7 +60,8 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
 
 - Phase 0: build hosts done (Windows and Linux at SDP-BL-005, not "SDP 8.0.5": see the config management doc); Pi 5
   boots QNX from its own microSD (the Raspberry Pi OS card is separate). QEMU target not yet booted.
-- Phase 1: the VNC question is answered (above); the design decision is not written yet.
+- Phase 1: the VNC question is answered (above). Design proposal written: [DESIGN.md](DESIGN.md), awaiting
+  David's decision.
 
 ## Hackathon project page: to do
 
