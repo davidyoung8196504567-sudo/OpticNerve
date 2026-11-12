@@ -107,9 +107,12 @@ It runs `/usr/bin/startDesktop.sh`: Weston (Wayland compositor) full screen on Q
 
 ![Each submenu opened by a click over VNC](img/2026-11-12_pi5_desktop_submenus.png)
 
-## Not checked
+- In the web browser (QNX's Developer Desktop docs open), with each position taken from the latest frame: a click on
+  the "Introduction" link raised the browser above the terminal and opened `introduction.html` (breadcrumb
+  "Home / Introduction"); a click on the Back button (714, 151) returned to the Self-Hosted Developer Desktop Guide,
+  with the browser's "previous page" tooltip showing under the pointer.
 
-- Clicks on buttons inside an application (the web browser is open for this).
+## Not checked
 - `-use_touch` mode, for touch-screen HMIs.
 - Frame rate with incremental updates, and CPU load on the Pi while serving.
 - Which user `vncserv` runs as, and its command line.
