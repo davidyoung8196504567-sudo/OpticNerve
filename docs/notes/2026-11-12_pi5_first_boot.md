@@ -87,9 +87,29 @@ layer that the readback doesn't include. Oculix knows where it clicks, so this i
 pixel format, default `rgb565`; `rgba8888` and others available), `-name=`, `-fps` (draws the frame rate in the
 corner of each frame), `-use_touch`, `-verbose`, `-password=`, `-auth`.
 
+## Developer Desktop: clicks land
+
+After a reboot David chose "Developer Desktop" from the boot launcher (`/system/etc/desktop_files/qnx_dev_desktop.desktop`).
+It runs `/usr/bin/startDesktop.sh`: Weston (Wayland compositor) full screen on QNX Screen, shell
+`qnx-desktop-shell.so`, with an XFCE session inside (`~/.config/weston.ini`, which also loads `screen-share.so`).
+`vncserv` is unchanged (`vncserv -display=1 -auth` from `/system/etc/startup/post_startup.sh`).
+
+- The first frame after the desktop came up was entirely black, while the monitor showed the desktop with the
+  Applications menu open. A few minutes later, after David opened a terminal from the menu, frames showed the whole
+  desktop. Cause not known; one black frame is worth watching for.
+- Weston draws the mouse pointer into its output, so on this desktop the pointer is in the captured frames.
+- A left click on "Applications" (55, 12) opened the menu. A click on each entry with a "more" arrow (Settings,
+  Accessories, Development, Graphics, Internet, System) opened its submenu, highlighted, with the pointer where the
+  click was sent.
+- A second-level test went wrong: a click meant for "Internet > Web Resources" was sent 15 pixels too high, near
+  "Web". The menu closed; no new window or taskbar entry appeared. Lesson for the tooling: locate the target in the
+  current frame before clicking, which is what Oculix does.
+
+![Each submenu opened by a click over VNC](img/2026-11-12_pi5_desktop_submenus.png)
+
 ## Not checked
 
-- Whether a click lands on a button: none of the samples has a clickable control. Needs a small GUI test app.
+- Clicks on buttons inside an application (the web browser is open for this).
 - `-use_touch` mode, for touch-screen HMIs.
 - Frame rate with incremental updates, and CPU load on the Pi while serving.
 - Which user `vncserv` runs as, and its command line.
