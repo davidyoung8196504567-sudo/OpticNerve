@@ -34,6 +34,26 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
 
 ## Open questions
 
-- Does QNX 8.0 already include a VNC server or a Screen remote-display component?
+- Does QNX 8.0 already include a VNC server or a Screen remote-display component? Partly answered 2026-11-12: it
+  ships `target.screen.vncserv` (VNC server for QNX Screen), installed on both hosts; not yet evaluated.
 - Which Screen API calls cover display capture and input injection, and do they need root or special permissions?
 - How does the Pi 5 quick-start image handle Screen and input (USB keyboard and mouse, touch)?
+
+## Hackathon project page: to do
+
+Registered 2026-11-12 with the "About the project" text in [submission/about-the-project.md](submission/about-the-project.md),
+the brand banner, the "Built with" tags and the GitHub repo as the "Try it out" link. Project page:
+<https://devpost.com/software/opticnerve> (a draft: on 2026-11-12 it redirected visitors to a login page).
+
+- [ ] Link the project page from the README once it is public (after submission). Until then the link would send
+      visitors to a login page.
+
+- [ ] Add the YouTube demo video link in the page's own "Demo video URL" field under "Project Media". Due with
+      phase 6, by 2026-12-14. YouTube only, public or unlisted, no password. Only the first 3 minutes are reviewed, so
+      everything needed to judge the project must be in them.
+- [ ] Add images to the "Project Media" gallery as they exist (JPG, PNG or GIF, 5 MB max, 3:2, up to 15): the Pi 5
+      screen in a stock VNC viewer, an Oculix test run going green, the Pi 5 and QEMU targets side by side. The
+      brand banner went in at registration.
+- [ ] Fill in "Link to your codelab" once the phase 6 tutorial is published (needed to compete for the Best
+      Codelab/Tutorial bonus prize). Left empty at registration.
+- [ ] Update "About the project" before the deadline: it was written on day one and says the agent doesn't exist yet.
