@@ -92,6 +92,10 @@ works over `vncserv` (shown on day 1), and Weston's own idle and lock settings (
 
 Nothing in these may change a target without being recorded.
 
+Results for S2 to S6 (2026-11-12): [notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md). In short: capture and
+update notifications work; the window list and keep-awake do not apply on this image; `vncserv` resends full frames
+even when nothing changed. The changes they suggest to this design are proposed there, not yet made here.
+
 | # | Question | How |
 |---|---|---|
 | S1 | Does Oculix's `VNCScreen` connect to `vncserv`, see the screen and click? | Oculix on Windows against the Pi: open the Applications menu, as the Python tools did |

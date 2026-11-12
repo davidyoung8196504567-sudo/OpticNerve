@@ -63,7 +63,9 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   boots QNX from its own microSD (the Raspberry Pi OS card is separate). QEMU target not yet booted.
 - Phase 1: done. Design [DESIGN.md](DESIGN.md) accepted by David: build on `vncserv`, the ON agent adds frame
   freshness, idle/keep-awake, region capture and status via `/dev/opticnerve`; the demo HMI is a native Screen
-  application; phases 2 to 4 above were rewritten to match. Next: the spikes (phase 2).
+  application; phases 2 to 4 above were rewritten to match.
+- Phase 2: spikes S2 to S6 done on the Pi ([notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md)), with proposed
+  design changes (drop keep-awake and the window list; freshness via `screen_notify` only). S1 waits for Oculix.
 
 ## Hackathon project page: to do
 
