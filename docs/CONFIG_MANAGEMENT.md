@@ -19,7 +19,7 @@ the procedure below.
 | Pi 5 BSP archive and quickstart image tarballs | they are SDP package files, so covered by the two rows above | baseline SDP-BL-001 |
 | QNX Software Center | recorded: 2.0.4 (v202501021438). Linux installer `qnx-setup-2.0.4-202501021438-linux.run`, SHA-256 `5695a0ec8a1fd91840753b2cba86a9325f6052d4f69c757166cc61b09bcbe507`. Not pinned by the check. | recorded |
 | Host OS and Python | recorded: Windows 11 10.0.26300, Python 3.14.7; Ubuntu 24.04 under WSL 2 on the same machine, Python 3.12.3 | recorded |
-| Target image written to the Pi 5 card | to come: SHA-256 of `rpi5.img` and of every file added to it | not yet |
+| Target image written to the Pi 5 card | QNX quick-start image 20260902 (package `quickstart.rpi5` 0.5.0.00050, pinned in the lock). Unpacked on 2026-11-12 outside the SDP to `C:\Users\root\opticnerve-work\rpi5-quickstart-20260902\rpi5\rpi5.img`: 12,556,199,936 bytes, SHA-256 `66ba622976ccc69112f389c9b51eee91b5295e7f7da28844d49e7b0bdae5175c`. MBR with three partitions: FAT32 boot (0.78 GiB), QNX6 (10.00 GiB), QNX6 (0.91 GiB); needs a microSD of 16 GB or more. Files added to the card later: to come | image recorded |
 | Oculix on the host | to come: exact release and its hash | not yet |
 | This repo | git commit | - |
 
@@ -62,6 +62,11 @@ Known limits:
   common 265. `--record` replaces only the entries of the host it runs on, and refuses if a package has the same
   version as on the other host but different contents. `sdp/BASELINE.txt` has one section per host.
 - The Linux host is Ubuntu 24.04 under WSL 2. Whether QNX supports that as a build host is not verified.
+
+Unpack images outside the SDP. QNX's `unpack_<target>_image.sh` extracts into `images/<target>/` inside the SDP,
+and the check would then fail on the extracted image as an extra file. Instead run, from a work folder, what the
+script does: `cat <sdp>/images/rpi5/qnx_sdp8.0_rpi5_quickstart_20260902.tar.gz.* | tar -xzvf -`, then
+`sha256sum rpi5/rpi5.img` and compare with the table above.
 
 ## Changing the QNX software
 
