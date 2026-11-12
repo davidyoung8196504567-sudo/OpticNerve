@@ -52,7 +52,8 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
   screen. Decide: turn blanking/locking off on test targets (and record the change like any target change), or have
   the test tooling detect a blank or locked screen, wake and unlock it, and report it. Check whether the native
   Screen session (without Weston) blanks too.
-- QEMU target: QNX supports Ubuntu 22.04/24.04 hosts only; whether it works under WSL is open. See
+- QEMU target: QNX supports Ubuntu 22.04/24.04 hosts only. Under WSL it ran but too slowly to be useful
+  (2026-11-12); it moves to a dedicated Ubuntu 24.04 host. See
   [notes/2026-11-12_qemu_guide.md](notes/2026-11-12_qemu_guide.md).
 
 ## Status on 2026-11-12 (day 1)

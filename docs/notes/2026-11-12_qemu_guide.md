@@ -51,3 +51,10 @@ results are not recorded here yet.
 - For OpticNerve the QEMU window matters mainly for setup: if the QEMU image also runs `vncserv`, the target screen
   goes over VNC like the Pi's. Not yet checked.
 - If the host has more than 32 GB of RAM and Screen fails to start: set `--cpu host,host-phys-bits-limit=...`.
+
+## Result under WSL (David, 2026-11-12)
+
+QEMU with the QNX image ran under WSL 2 (Ubuntu 24.04) but too slowly to be useful. Decision: run the QEMU target on
+a dedicated Ubuntu 24.04 host, which David is installing. That host will need the SDP at the same baseline and its
+own entry in `sdp/packages.lock` (the check records it as another `linux` host; how to tell two Linux hosts apart
+in the lock is still to be decided).
