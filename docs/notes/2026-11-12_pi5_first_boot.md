@@ -63,13 +63,34 @@ Each one-shot frame (new connection, login, full 1920 x 1080 frame uncompressed)
 native pixel format is 16 bpp; the frames showed no visible banding, but fine gradients may band at that depth.
 
 This bears on phase 1: QNX's own Screen VNC server already runs on the target and shows the whole display, GPU,
-Vulkan and video layers included. Next:
-its frame rate with incremental updates, and whether it accepts input (touch, mouse, keys). That decides whether
-the ON agent builds on `vncserv` or brings its own.
+Vulkan and video layers included, and (below) it accepts keyboard and pointer input. That makes building the ON
+agent on `vncserv` a real option rather than writing a VNC server. Still to measure: its frame rate with
+incremental updates and its CPU load on the Pi.
+
+## Input over VNC
+
+Sent with `host/tools/vnc_input.py` into the terminal (`st`), with frames taken before and after:
+
+| Input | Result |
+|---|---|
+| keys `o`, `n` (no Enter) | `on` appeared after the prompt; only that 30 x 20 pixel area changed |
+| BackSpace twice | the frame became pixel-identical to the one before typing |
+| pointer move in a square, 8 s | David saw the pointer trace the square on the monitor and stop in the centre |
+| left click, left-button drag | no visible change; `st` doesn't select text with a real mouse either, so this shows nothing either way |
+
+So `vncserv` forwards keyboard and pointer input to Screen, as its usage text says ("Events from the keyboard and
+mouse are forwarded to Screen"; `-use_touch` turns mouse buttons into touch contacts). The mouse cursor is never in
+the captured frames: it stays drawn at the top-left corner in every frame, so it is probably a separate cursor
+layer that the readback doesn't include. Oculix knows where it clicks, so this is not a blocker.
+
+`vncserv` options from its usage text: `-display=` (which Screen display to read), `-port=`, `-format=` (readback
+pixel format, default `rgb565`; `rgba8888` and others available), `-name=`, `-fps` (draws the frame rate in the
+corner of each frame), `-use_touch`, `-verbose`, `-password=`, `-auth`.
 
 ## Not checked
 
-- Whether `vncserv` accepts input events. No input has been sent.
+- Whether a click lands on a button: none of the samples has a clickable control. Needs a small GUI test app.
+- `-use_touch` mode, for touch-screen HMIs.
 - Frame rate with incremental updates, and CPU load on the Pi while serving.
 - Which user `vncserv` runs as, and its command line.
 - Whether a stock VNC viewer works with it (none is installed on the Windows host).
