@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>OpticNerve banner (loud)</title>
+<style>html,body{margin:0;padding:0;background:#0a0014}svg{display:block}</style></head>
+<body>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200">
+  <defs>
+    <radialGradient id="bg" cx="30%" cy="48%" r="85%">
+      <stop offset="0" stop-color="#3b0a6e"/>
+      <stop offset="0.45" stop-color="#1a0436"/>
+      <stop offset="1" stop-color="#05000c"/>
+    </radialGradient>
+    <linearGradient id="hot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#00e5ff"/>
+      <stop offset="0.5" stop-color="#b14bff"/>
+      <stop offset="1" stop-color="#ff2e88"/>
+    </linearGradient>
+    <pattern id="scan" width="6" height="6" patternUnits="userSpaceOnUse">
+      <rect width="6" height="2" fill="#000" fill-opacity="0.28"/>
+    </pattern>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="14" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="softglow" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1800" height="1200" fill="url(#bg)"/>
+
+  <!-- speed rays behind the eye -->
+  <g stroke="#ff2e88" stroke-opacity="0.18" stroke-width="4">
+    <path d="M520 560 L-200 -100M520 560 L-200 300M520 560 L-200 820M520 560 L-200 1300M520 560 L200 1400M520 560 L200 -300M520 560 L760 -300M520 560 L760 1400"/>
+  </g>
+
+  <!-- target brackets -->
+  <g fill="none" stroke="#ffe600" stroke-width="10" stroke-linecap="square">
+    <path d="M150 260 H230 M150 260 V340"/>
+    <path d="M890 260 H810 M890 260 V340"/>
+    <path d="M150 860 H230 M150 860 V780"/>
+    <path d="M890 860 H810 M890 860 V780"/>
+  </g>
+
+  <!-- the eye, with a power button for an iris: ON -->
+  <g transform="translate(520 560)" filter="url(#glow)">
+    <path d="M-340 0 Q0 -290 340 0 Q0 290 -340 0 Z" fill="#12002a" stroke="url(#hot)" stroke-width="16" stroke-linejoin="round"/>
+    <circle r="150" fill="#05000c" stroke="#00e5ff" stroke-width="14"/>
+    <path d="M-52 -66 A84 84 0 1 0 52 -66" fill="none" stroke="#ff2e88" stroke-width="22" stroke-linecap="round"/>
+    <path d="M0 -108 V-10" stroke="#ff2e88" stroke-width="22" stroke-linecap="round"/>
+  </g>
+
+  <!-- name: chromatic offset, then gradient fill -->
+  <g font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-style="italic" font-size="168" letter-spacing="-2">
+    <text x="930" y="560" fill="#00e5ff" fill-opacity="0.85">OPTIC</text>
+    <text x="922" y="552" fill="#ff2e88" fill-opacity="0.85">OPTIC</text>
+    <text x="926" y="556" fill="#ffffff">OPTIC</text>
+    <text x="930" y="720" fill="#00e5ff" fill-opacity="0.85">NERVE</text>
+    <text x="922" y="712" fill="#ff2e88" fill-opacity="0.85">NERVE</text>
+    <text x="926" y="716" fill="url(#hot)">NERVE</text>
+  </g>
+
+  <!-- slogan -->
+  <g filter="url(#softglow)">
+    <text x="932" y="850" font-family="'Segoe UI', Arial, sans-serif" font-weight="900" font-size="64" fill="#ffe600" letter-spacing="2">SEE IT. TAP IT. TEST IT.</text>
+  </g>
+  <text x="934" y="930" font-family="'Segoe UI', Arial, sans-serif" font-weight="600" font-size="34" fill="#e9d8ff" letter-spacing="3">EYES + HANDS ON ANY QNX 8.0 SCREEN</text>
+
+  <rect width="1800" height="1200" fill="url(#scan)"/>
+</svg>
+</body></html>

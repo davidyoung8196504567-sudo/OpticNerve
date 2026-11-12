@@ -38,7 +38,8 @@ with image matching and OCR. It runs on Windows, macOS and Linux. OpticNerve is 
 | `agent/` | The QNX 8.0 agent (C): Screen capture, input injection, VNC server, resource manager |
 | `host/` | Oculix scripts, a sample test suite and the connection preset |
 | `image/` | Build files for Raspberry Pi 5 and QEMU boot images that include the agent |
-| `docs/` | Plan, design notes and the tutorial |
+| `sdp/` | The pinned QNX SDP baseline and the script that checks a build host against it |
+| `docs/` | Plan, [configuration management](docs/CONFIG_MANAGEMENT.md), design notes and the tutorial |
 
 ## Build and run
 

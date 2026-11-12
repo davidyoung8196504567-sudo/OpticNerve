@@ -1,0 +1,14 @@
+[win32]
+packages = 294
+files = 24743
+bytes = 11619340302
+fingerprint = 36b0ad7f086bd69ef822344d9861b48a1a44dc7da5acf2a42bff726e546bb7be
+case_collisions = 0
+
+[linux]
+packages = 286
+files = 22862
+bytes = 10836204291
+fingerprint = 504b9a5add1e0094686d5a0a4379667d2020ab9b5959a1e34eeeb39a2856c72d
+case_collisions = 0
+
