@@ -67,6 +67,16 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 - Phase 2: spikes S2 to S6 done on the Pi ([notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md)), with proposed
   design changes (drop keep-awake and the window list; freshness via `screen_notify` only). S1 waits for Oculix.
 
+## OculiX issues found: fix after the ON agent work
+
+David contributes to OculiX through his fork <https://github.com/davidyoung8196504567-sudo/Oculix>. Problems we find
+in OculiX are recorded under [upstream/](upstream/) and fixed in the fork once the ON agent work is done; until then
+we use workarounds and stay on the pinned OculiX 4.0.0 jars.
+
+- [ ] `VNCScreen` image search throws `ClassCastException` in `Commons.getMatList`
+      ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)). Workaround: search
+      a `TYPE_3BYTE_BGR` copy of the capture with `Finder`.
+
 ## Hackathon project page: to do
 
 Registered 2026-11-12 with the "About the project" text in [submission/about-the-project.md](submission/about-the-project.md),
