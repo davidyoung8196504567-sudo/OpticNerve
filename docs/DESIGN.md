@@ -1,12 +1,13 @@
 # OpticNerve design (phase 1)
 
-Status: **proposal, 2026-11-12, for David to decide.** No agent code is written until it is accepted.
+Status: **accepted by David on 2026-11-12**, including the native Screen demo HMI (see "Scope for the demo") and
+the phase changes at the end, which are now in [PLAN.md](PLAN.md).
 
 Evidence: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md) (what `vncserv` does on the
 Pi 5), the Screen API reference installed with the SDP (`target/qnx/usr/include/screen/screen.h` and the Screen
 docs under `target/qnx/usr/help/eclipse/plugins/com.qnx.doc.screen/`), and Oculix's own documentation.
 
-## Decision proposed
+## Decision
 
 **Pixels and input go through QNX's own `vncserv`; the ON agent does what `vncserv` cannot.** We do not write or
 port a VNC server.
@@ -82,7 +83,7 @@ shows a gap.
 
 ## Scope for the demo
 
-Proposed: the demo HMI is a **native Screen application** (C, Screen API), not an app under the Weston/XFCE
+Decided: the demo HMI is a **native Screen application** (C, Screen API), not an app under the Weston/XFCE
 desktop. That keeps the keep-awake and capture paths simple and shows the QNX-specific stack. The desktop still
 works over `vncserv` (shown on day 1), and Weston's own idle and lock settings (`idle-time`, `locking=true` in
 `~/.config/weston.ini`) can be configured for test runs as a recorded target change.
@@ -114,9 +115,9 @@ Nothing in these may change a target without being recorded.
 - **Deployment:** the agent goes onto the target in a reproducible, recorded way (a script that copies the
   binary and records its hash), so the build-and-run instructions the rules require stay true.
 
-## Proposed changes to the plan (for David to accept or change)
+## Changes to the plan (accepted 2026-11-12)
 
-- Phase 2 "Capture" and phase 3 "Input" as written assume we build the VNC server. Proposed instead:
+- Phase 2 "Capture" and phase 3 "Input" as first written assumed we build the VNC server. Instead:
   - Phase 2: spikes S1 to S6, then the agent's frame-freshness, idle and keep-awake features.
   - Phase 3: region capture, the `on` command and the host helpers over SSH.
 - Phase 4: the resource manager is now part of phases 2 and 3, since it is the agent's core. Phase 4 becomes the

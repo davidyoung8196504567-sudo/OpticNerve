@@ -8,8 +8,8 @@ A Raspberry Pi 5 running QNX 8.0 shows a demo HMI on HDMI. On a laptop, an Oculi
 agent, sees the screen, taps buttons, reads text and reports pass or fail. The same works against a QEMU target. The
 demo video (under 3 minutes) shows this end to end.
 
-Category: Developer Tooling & Host Tools, or Open-Source Contribution & Ports if the VNC side is a port of an existing
-library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologies, Best Codelab/Tutorial.
+Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC library, so Open-Source Contribution
+& Ports does not apply). Bonus entries: Best Use of QNX-specific Technologies, Best Codelab/Tutorial.
 
 ## Phases
 
@@ -17,10 +17,10 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
 |---|---|---|---|
 | 0 | Setup | Linux build host on SDP 8.0.5; Pi 5 boots QNX from a spare microSD; QEMU target boots | 2026-11-19 |
 | 1 | Survey and design | Know whether QNX 8.0 ships a VNC or remote-screen component and what Screen offers for capture and input injection; choose: port a VNC library or write the server | 2026-11-21 |
-| 2 | Capture | Agent reads the display (Screen) and serves frames over VNC; a stock VNC viewer shows the Pi's screen | 2026-11-28 |
-| 3 | Input | Taps, mouse and keys from VNC reach the app under test | 2026-12-03 |
-| 4 | Resource manager | Agent runs as a resource manager (`/dev/opticnerve`): status, start and stop, region capture through message passing | 2026-12-07 |
-| 5 | Oculix suite | Demo HMI on QNX; Oculix test suite and preset on the host; runs green on Pi 5 and QEMU | 2026-12-10 |
+| 2 | Spikes and agent core | Spikes S1 to S6 answered ([DESIGN.md](DESIGN.md)); agent runs as a resource manager (`/dev/opticnerve`) with frame freshness, idle/power state and keep-awake | 2026-11-28 |
+| 3 | Capture and host access | Region capture (`screen_read_display()`); the `on` command on the target; host helpers over SSH | 2026-12-03 |
+| 4 | Window list and hardening | Window list if spike S3 allows; error handling, reproducible deployment of the agent | 2026-12-07 |
+| 5 | Oculix suite | Demo HMI (a native Screen application) on QNX; Oculix test suite and preset on the host; runs green on Pi 5 and QEMU | 2026-12-10 |
 | 6 | Submission | Build and run instructions, description naming the QNX-specific files, video, tutorial | 2026-12-14 |
 
 ## Rules to keep (from the official rules, read 2026-11-12)
@@ -38,9 +38,10 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
   `vncserv` (package `target.screen.vncserv`). On the Pi 5 quick-start image it runs by default on port 5900; it
   serves the whole display (GLES2, Vulkan, video layers, the Weston/XFCE Developer Desktop) and forwards keys,
   pointer moves and clicks. Details: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md).
-  Leaning: build the ON agent on `vncserv`, not a VNC server of our own (phase 1 decides).
+  Decided 2026-11-12: build the ON agent on `vncserv`, not a VNC server of our own ([DESIGN.md](DESIGN.md)).
 - Which Screen API calls cover display capture and input injection, and do they need root or special permissions?
-  Still open; matters for what the agent adds on top of `vncserv`.
+  Answered from the Screen docs in [DESIGN.md](DESIGN.md) (`screen_read_display()` needs root and a display
+  manager context); to be confirmed on the Pi by spikes S2 and S3.
 - How does the Pi 5 quick-start image handle Screen and input? Answered: Screen on HDMI0 at 1920 x 1080, input via
   `vncserv` works. Open: `-use_touch`, a second HDMI display, and one black frame seen after the desktop started.
 - TODO: screen blanking and the lock screen on the Developer Desktop. On the Pi 5, power management is on by
@@ -60,8 +61,9 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
 
 - Phase 0: build hosts done (Windows and Linux at SDP-BL-005, not "SDP 8.0.5": see the config management doc); Pi 5
   boots QNX from its own microSD (the Raspberry Pi OS card is separate). QEMU target not yet booted.
-- Phase 1: the VNC question is answered (above). Design proposal written: [DESIGN.md](DESIGN.md), awaiting
-  David's decision.
+- Phase 1: done. Design [DESIGN.md](DESIGN.md) accepted by David: build on `vncserv`, the ON agent adds frame
+  freshness, idle/keep-awake, region capture and status via `/dev/opticnerve`; the demo HMI is a native Screen
+  application; phases 2 to 4 above were rewritten to match. Next: the spikes (phase 2).
 
 ## Hackathon project page: to do
 
