@@ -13,12 +13,13 @@ real-time OS doesn't provide. So teams either tap through test plans manually or
 ## The idea
 
 Oculix (the open-source successor of SikuliX) already automates GUIs by **seeing** the screen and **acting** on it
-with image matching and OCR. It runs on Windows, macOS and Linux. OpticNerve is the missing link to the target:
+with image matching and OCR. It runs on Windows, macOS and Linux. OpticNerve is the missing link to the target: the
+**ON agent**, which puts eyeballs on a QNX 8.0 screen for Oculix 4.x on the host.
 
 ```
   host (Windows / macOS / Linux)                     target (QNX 8.0, e.g. Raspberry Pi 5)
  +------------------------------+                   +-------------------------------------+
- |  Oculix test scripts         |   VNC (RFB)       |  OpticNerve agent                   |
+ |  Oculix 4.x test scripts     |   VNC (RFB)       |  ON agent (OpticNerve)              |
  |  image match, OCR, asserts   | <---------------> |   - captures the display (Screen)   |
  +------------------------------+   frames out,     |   - injects touch / mouse / keys    |
                                     input in        |   - resource manager: /dev/opticnerve |
