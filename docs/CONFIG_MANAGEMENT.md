@@ -13,8 +13,8 @@ the procedure below.
 
 | Item | Pinned by | Status |
 |---|---|---|
-| QNX SDP packages (SDP 8.0, Pi 5 BSP, Screen board support, quickstart image, drivers): 258 on Windows, 286 on Linux, 229 of them common | `sdp/packages.lock`: id, exact version, SHA-256 of the package's file list, and the build hosts it is installed on | baseline SDP-BL-004 |
-| Every installed SDP file (Windows: 24,117 files, 8.08 GB; Linux: 22,862 files, 10.83 GB) | the SHA-512 of each file in QNX's own package descriptors, which the lock pins; summarised per host by `fingerprint` in `sdp/BASELINE.txt` | baseline SDP-BL-004 |
+| QNX SDP packages (SDP 8.0, Pi 5 BSP, Screen board support, quickstart image, drivers): 294 on Windows, 286 on Linux, 265 of them common | `sdp/packages.lock`: id, exact version, SHA-256 of the package's file list, and the build hosts it is installed on | baseline SDP-BL-005 |
+| Every installed SDP file (Windows: 24,743 files, 11.62 GB; Linux: 22,862 files, 10.83 GB) | the SHA-512 of each file in QNX's own package descriptors, which the lock pins; summarised per host by `fingerprint` in `sdp/BASELINE.txt` | baseline SDP-BL-005 |
 | Toolchain (qcc, gcc 12.2.0 for aarch64le and x86_64) | part of the SDP packages; `check_sdp.py` also builds a test program for both targets | baseline SDP-BL-001 |
 | Pi 5 BSP archive and quickstart image tarballs | they are SDP package files, so covered by the two rows above | baseline SDP-BL-001 |
 | QNX Software Center | recorded: 2.0.4 (v202501021438). Linux installer `qnx-setup-2.0.4-202501021438-linux.run`, SHA-256 `5695a0ec8a1fd91840753b2cba86a9325f6052d4f69c757166cc61b09bcbe507`. Not pinned by the check. | recorded |
@@ -57,9 +57,9 @@ Known limits:
 - On Linux the Software Center CLI's `-verifyInstallation` reports 0 errors, which confirms the 562 are a Windows
   file-name effect.
 - QNX SDP 8.0 build hosts are Windows and Linux only (no macOS). Both are recorded. Each line of `packages.lock`
-  ends with the hosts the package is installed on: 229 packages are on both (identical descriptors, so identical
-  files), 29 are Windows host tools and 21 are Linux host tools (the rest of the Linux-only lines are the 36 packages below). Since SDP-BL-003 the Linux host also has 36 target packages (Screen VNC server, input utilities, demos,
-  fonts, image codecs, QEMU image and drivers) that Windows does not have yet. `--record` replaces only the entries of the host it runs on, and refuses if a package has the same
+  ends with the hosts the package is installed on: 265 packages are on both (identical descriptors, so identical
+  files), 29 are Windows host tools and 21 are Linux host tools. Everything that goes onto a target is in the
+  common 265. `--record` replaces only the entries of the host it runs on, and refuses if a package has the same
   version as on the other host but different contents. `sdp/BASELINE.txt` has one section per host.
 - The Linux host is Ubuntu 24.04 under WSL 2. Whether QNX supports that as a build host is not verified.
 
@@ -95,9 +95,15 @@ What QSC is documented to do, and where to report problems with it, is in
 
 ## Reproducing the baseline on a new machine
 
-Tried once, on 2026-11-12: Ubuntu 24.04 under WSL 2, packages picked by hand in the GUI (newest versions). The
-first check found two packages different from Windows; after correcting those it matched. The patch set import
-below is still untested.
+Tried twice on 2026-11-12:
+
+- Ubuntu 24.04 under WSL 2, packages picked by hand in the GUI (newest versions). The first check found two
+  packages different from Windows; after correcting those it matched.
+- Windows, by patch set import (SDP-BL-005): the CLI's `-importAndInstall` with a text patch set listing the 258
+  installed packages plus the 36 new ones (SHA-256 of the file
+  `26838ebc2a772b01944b0dbe58186d7ba5b1f3a604fa573056220ea988728450`; it is now `sdp/qsc-patchset-win32.txt`).
+  The result was exactly the list: 294 packages, every file hash matching, and QSC's own export afterwards identical
+  to the input, `root-package` flags included.
 
 1. Install QNX Software Center 2.0.4, sign in with the myQNX account that holds the QNX Everywhere licence.
 2. Create an SDP 8.0 installation. The path is free; pass it to the check or set `QNX_SDP_DIR`.
@@ -105,9 +111,17 @@ below is still untested.
    Software Center text patch set, which is QNX's documented way to give a team identical installations: a recipe of
    packages and exact versions, with no files in it. The documented CLI sequence is `-mirror`, then
    `-importAndInstall sdp/qsc-patchset-<host>.txt -destination <path>`, both with `-myqnx.user` and `-myqnx.password`.
-   The QNX docs warn that the password is logged in clear text and recommend an `@options_file`. Use the CLI for
-   the import: in the GUI, a patch set naming a package the account cannot get fails silently (known issue
-   J2993519). This import has not been tested here.
+   The QSC 2.0.4 GUI on Windows has no import, only export, so the CLI is the only route. What the trial showed:
+   - Close every copy of the Software Center first. With a second copy open, downloads waited about 30 seconds each
+     and timed out ("Read timed out"), with no error on screen and no progress.
+   - The import does not add to the installation: it uninstalls every installed package (24,633 files) and then
+     installs every package in the list. The SDP is unusable for the minute or two this takes, and an interruption
+     in between would leave it incomplete. Run the check afterwards in every case.
+   - The password ends up in clear text in `~/.qnx/swupdate/qnxsoftwarecenter-<n>.log` and also in
+     `~/.qnx/swupdate/.metadata/.log` (the full command line). Delete or clean both after the run. The CLI help
+     does not list an `@options_file`, so whether that works is unverified.
+   - A patch set naming a package the account cannot get fails silently in the GUI (known issue J2993519); not
+     seen here, since all packages were available.
 4. Run `python sdp/check_sdp.py <path>`. The machine is ready when it prints `MATCHES THE BASELINE`.
 
 Risk: this depends on QNX keeping these exact versions on its server. The server currently lists older versions
@@ -121,3 +135,4 @@ alongside newer ones (for example four versions of the Pi 5 quickstart image).
 | SDP-BL-002 | 2026-11-12 | the commit that adds this row | Linux build host added (`/home/tester/qnx800`, Ubuntu 24.04 under WSL 2): 250 packages, 22,236 files, fingerprint `7ab0954dd91d7e44`. No package changed on Windows (fingerprint still `a49ccaf994b541e6`). Lock format changed to list the hosts per package; `qsc-patchset.txt` renamed to `qsc-patchset-win32.txt`, `qsc-patchset-linux.txt` added. To match Windows, `target.base.libxml2.v13` was added on Linux and `sf.images.rpi5` removed. |
 | SDP-BL-003 | 2026-11-12 | the commit that adds this row | Linux only: 31 packages added for the Screen survey and the QEMU target: `target.screen.vncserv` 4.2.0.00070, `screen.device_input_screen`, `screen.demos`, `screen.demos.qnxeverywhere`, `screen.demos_tutorials.source`, `quickstart.qemu` 0.5.0.00050 (4 packages), `target.qemuvirt`, `driver.virtio` (4), `screen.board.vmwgfx`, and as dependencies the font engine, fontconfig, freetype, image codecs, `hypervisor.libhyp` and `screen.base.source`. Linux: 281 packages, 22,708 files, fingerprint `1ac81965a5a5a80a`. Windows unchanged and still to be brought to the same set. `check_sdp.py` now fails on package file conflicts. |
 | SDP-BL-004 | 2026-11-12 | the commit that adds this row | Linux only: 5 packages added: `osr.googletest` 1.11.0.00021, `target.utils.gdbserver` 14.2.0.00328, `screen.fonts.dejavu` and `screen.fonts.noto` 1.0.0.00017, `screen.img_codecs.compat` 2.0.0.00166. Linux: 286 packages, 22,862 files, fingerprint `504b9a5add1e0094`. During this change the Software Center uninstalled `target.screen.vncserv` in the same operation (log, 07:17:48, cause not found); the check caught it and the package was reinstalled before recording. Windows unchanged. |
+| SDP-BL-005 | 2026-11-12 | the commit that adds this row | Windows brought to the same target packages as Linux by CLI patch set import: the 36 Linux-only target packages of SDP-BL-003 and SDP-BL-004 added. Windows: 294 packages, 24,743 files, fingerprint `36b0ad7f086bd69e`. All 36 have the same descriptors as on Linux. Hosts now differ only in host tools (29 Windows, 21 Linux). Linux unchanged. |
