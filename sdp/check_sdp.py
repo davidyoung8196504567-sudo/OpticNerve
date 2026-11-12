@@ -13,12 +13,11 @@ and compares them with the files on disk and with packages.lock. The Software
 Center's own package list is compared too, as a cross-check, when it is found.
 Nothing is installed, updated or deleted.
 """
-import argparse, base64, hashlib, json, os, platform, subprocess, sys, tempfile
+import argparse, base64, configparser, hashlib, json, os, platform, subprocess, sys, tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 LOCK = HERE / "packages.lock"
-PATCHSET = HERE / "qsc-patchset.txt"
 BASELINE = HERE / "BASELINE.txt"
 HELLO = '#include <stdio.h>\nint main(void){ printf("hello from QNX\\n"); return 0; }\n'
 TARGETS = {"gcc_ntoaarch64le": 0xB7, "gcc_ntox86_64": 0x3E}  # qcc variant -> ELF e_machine
@@ -144,19 +143,21 @@ def check_toolchain(sdp):
 
 
 def read_lock():
+    """{(id, version): (descriptor sha256, set of build hosts it is recorded for)}"""
     lock = {}
-    for line in LOCK.read_text().splitlines():
-        if line.strip() and not line.startswith("#"):
-            pid, ver, sha, *rest = line.split()
-            lock[(pid, ver)] = (sha, rest[0] if rest else "")
+    if LOCK.is_file():
+        for line in LOCK.read_text().splitlines():
+            if line.strip() and not line.startswith("#"):
+                pid, ver, sha, hosts = line.split()
+                lock[(pid, ver)] = (sha, set(hosts.split(",")))
     return lock
 
 
-def host_tag(filt):
-    for os_name in ("win32", "linux"):
-        if f"osgi.os={os_name}" in (filt or ""):
-            return os_name
-    return ""
+def read_baseline():
+    """BASELINE.txt: one [host] section per recorded build host."""
+    base = configparser.ConfigParser()
+    base.read(BASELINE)
+    return base
 
 
 def main():
@@ -198,38 +199,55 @@ def main():
             print("\nNot recording: the installation itself has problems:")
             print("\n".join("  " + f for f in failures))
             sys.exit(1)
+        # Replace this host's entries; keep what other hosts recorded.
+        here, lock = host_os(), {}
+        for k, (sha, hosts) in read_lock().items():
+            if hosts - {here}:
+                lock[k] = (sha, hosts - {here})
+        clash = [k for k in packages if k in lock and lock[k][0] != shas[k]]
+        if clash:
+            print("\nNot recording: same version, but contents differ from what another host recorded:")
+            print("\n".join(f"  {k[0]} {k[1]}" for k in clash))
+            sys.exit(1)
+        for k in packages:
+            lock[k] = (shas[k], lock.get(k, ("", set()))[1] | {here})
         lines = ["# QNX SDP package baseline. Written by check_sdp.py --record; do not edit by hand.",
-                 "# <package id> <version> <sha256 of its AssetDescriptor.json> [host OS it is limited to]"]
-        lines += [f"{pid} {ver} {shas[(pid, ver)]} {host_tag((qsc or {}).get((pid, ver)))}".rstrip()
-                  for pid, ver in sorted(packages)]
+                 "# <package id> <version> <sha256 of its AssetDescriptor.json> <build hosts it is installed on>"]
+        lines += [f"{pid} {ver} {sha} {','.join(sorted(hosts))}" for (pid, ver), (sha, hosts) in sorted(lock.items())]
         LOCK.write_text("\n".join(lines) + "\n", newline="\n")
+        patchset = HERE / f"qsc-patchset-{here}.txt"
         if raw:
-            PATCHSET.write_text(raw, newline="\n")
-        BASELINE.write_text(
-            f"packages: {len(packages)}\nfiles: {stats['files']}\nbytes: {stats['bytes']}\n"
-            f"fingerprint: {fingerprint}\ncase_collisions: {stats['case_collisions']}\n"
-            f"recorded_on_host: {host_os()}\n", newline="\n")
-        print(f"\nRecorded {len(packages)} packages to {LOCK.name}, {PATCHSET.name}, {BASELINE.name}. Review with git diff.")
+            patchset.write_text(raw, newline="\n")
+        base = read_baseline()
+        base[here] = {"packages": str(len(packages)), "files": str(stats["files"]), "bytes": str(stats["bytes"]),
+                      "fingerprint": fingerprint, "case_collisions": str(stats["case_collisions"])}
+        with open(BASELINE, "w", newline="\n") as f:
+            base.write(f)
+        print(f"\nRecorded {len(packages)} packages for host {here} to {LOCK.name}, {patchset.name}, {BASELINE.name}. "
+              "Review with git diff.")
         return
 
     print("4. Package set vs packages.lock ...", flush=True)
     lock = read_lock()
     here = host_os()
-    base = dict(l.split(": ") for l in BASELINE.read_text().splitlines())
-    same_host = base["recorded_on_host"] == here
+    base = read_baseline()
     drift = []
     for k in sorted(set(lock) | set(packages)):
         name = f"{k[0]} {k[1]}"
         if k not in packages:
-            if not lock[k][1] or lock[k][1] == here:
+            if here in lock[k][1]:
                 drift.append(f"not installed: {name}")
         elif k not in lock:
             drift.append(f"not in the lock: {name}")
+        elif here not in lock[k][1]:
+            drift.append(f"in the lock for {','.join(sorted(lock[k][1]))} only: {name}")
         elif lock[k][0] != shas[k]:
             drift.append(f"same version, different contents: {name}")
-    if same_host and fingerprint != base["fingerprint"]:
-        drift.append(f"file fingerprint {fingerprint[:16]} differs from the baseline {base['fingerprint'][:16]}")
-    print(f"   {len(drift)} differences" + ("" if same_host else f" (baseline was recorded on {base['recorded_on_host']})"))
+    if here not in base:
+        drift.append(f"no baseline has been recorded for host {here}")
+    elif fingerprint != base[here]["fingerprint"]:
+        drift.append(f"file fingerprint {fingerprint[:16]} differs from the baseline {base[here]['fingerprint'][:16]}")
+    print(f"   {len(drift)} differences")
     failures += drift
 
     if failures:
