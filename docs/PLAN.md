@@ -43,6 +43,15 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
   Still open; matters for what the agent adds on top of `vncserv`.
 - How does the Pi 5 quick-start image handle Screen and input? Answered: Screen on HDMI0 at 1920 x 1080, input via
   `vncserv` works. Open: `-use_touch`, a second HDMI display, and one black frame seen after the desktop started.
+- TODO: screen blanking and the lock screen on the Developer Desktop. On the Pi 5, power management is on by
+  default: the screen blanks when idle, and moving the mouse wakes it into a locked state that needs a click on a
+  green dot to unlock (David, 2026-11-12; seen before on another board running Wayland). A test run that meets a
+  blank or locked screen fails for the wrong reason. Leads: `~/.config/weston.ini` on the Pi has `locking=true`
+  (twice) plus `lockscreen=` and `lockscreen-icon=` in `[shell]`; Weston's idle timeout (`idle-time` in `[core]`) is
+  the likely trigger (to verify). The one black frame captured after the desktop started may have been a blanked
+  screen. Decide: turn blanking/locking off on test targets (and record the change like any target change), or have
+  the test tooling detect a blank or locked screen, wake and unlock it, and report it. Check whether the native
+  Screen session (without Weston) blanks too.
 - QEMU target: QNX supports Ubuntu 22.04/24.04 hosts only; whether it works under WSL is open. See
   [notes/2026-11-12_qemu_guide.md](notes/2026-11-12_qemu_guide.md).
 
