@@ -31,6 +31,7 @@ com.qnx.qnx800.host.linux.x86_64.utils.kdserver/0.0.1.00135T202311191043L/(&(osg
 com.qnx.qnx800.host.mkqnximage/0.5.0.00132T202605281115L/(&(osgi.arch=x86_64)(osgi.os=linux)(osgi.ws=gtk))/package
 com.qnx.qnx800.host.qnxsdp_env/0.1.0.00132T202605281115L/(&(osgi.arch=x86_64)(osgi.os=linux)(osgi.ws=gtk))/package
 com.qnx.qnx800.osr.bsdtar/3.8.8.00091T202607141410L//package
+com.qnx.qnx800.osr.googletest/1.11.0.00021T202311191344L//root-package
 com.qnx.qnx800.osr.less/0.0.670.00040T202501111907L//package
 com.qnx.qnx800.osr.libffi/3.2.1.00021T202311191417L//package
 com.qnx.qnx800.osr.libyuv/1787.0.0.00012T202507121955L//package
@@ -205,12 +206,15 @@ com.qnx.qnx800.target.screen.demos_tutorials.source/4.2.0.00070T202606011110L//r
 com.qnx.qnx800.target.screen.device_input/0.1.0.00007T202411230047L//package
 com.qnx.qnx800.target.screen.device_input_screen/4.2.0.00009T202605140950L//root-package
 com.qnx.qnx800.target.screen.docs.plugins/4.0.1.00117T202501221715L//package
+com.qnx.qnx800.target.screen.fonts.dejavu/1.0.0.00017T202512121552L//root-package
 com.qnx.qnx800.target.screen.fonts.engine/1.0.0.00017T202512121552L//package
 com.qnx.qnx800.target.screen.fonts.fontconfig/1.0.0.00011T202512121449L//package
 com.qnx.qnx800.target.screen.fonts.fontconfig.17/1.0.0.00011T202512121449L//package
 com.qnx.qnx800.target.screen.fonts.freetype.24/1.0.0.00322T202512040834L//package
 com.qnx.qnx800.target.screen.fonts.freetype.26/1.0.0.00017T202512121552L//package
+com.qnx.qnx800.target.screen.fonts.noto/1.0.0.00017T202512121552L//root-package
 com.qnx.qnx800.target.screen.img_codecs/10.0.0.00005T202605281142L//package
+com.qnx.qnx800.target.screen.img_codecs.compat/2.0.0.00166T202605232205L//root-package
 com.qnx.qnx800.target.screen.img_codecs.libgif/2.0.0.00015T202604281210L//package
 com.qnx.qnx800.target.screen.img_codecs.libgif.7/2.0.0.00015T202604281210L//package
 com.qnx.qnx800.target.screen.img_codecs.libjpeg/2.0.0.00014T202604151511L//package
@@ -269,6 +273,7 @@ com.qnx.qnx800.target.utils.base.w/0.0.1.00135T202311191043L//package
 com.qnx.qnx800.target.utils.base.x/0.0.1.00135T202311191043L//package
 com.qnx.qnx800.target.utils.debugtools/0.1.0.00132T202605281115L//package
 com.qnx.qnx800.target.utils.gawk/0.0.1.00282T202404151301L//package
+com.qnx.qnx800.target.utils.gdbserver/14.2.0.00328T202605060811L//root-package
 com.qnx.qnx800.target.utils.hw/0.2.0.00014T202411230051L//package
 com.qnx.qnx800.target.utils.libunwind/1.8.2.00175T202605211154L//package
 com.qnx.qnx800.target.utils.python3/3.13.7.00013T202603200501L//package
