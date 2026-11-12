@@ -26,19 +26,30 @@ not known yet.
 
 ## A VNC server is already running
 
-Port 5900 answers `RFB 003.008` and offers one security type: VNC password. The password was not tried and is not
-known; the image's documentation may give it.
+Port 5900 answers `RFB 003.008` and offers one security type: VNC password. The login message (`/etc/motd`) says the
+VNC server runs by default with the default password `qnxuser`, and that it can be changed with
+`sudo vncserv -password=<new-password>`.
+
+First frame, taken with `host/tools/vnc_snapshot.py` (view-only; it sends no input): authentication OK, framebuffer
+1920 x 1080, server pixel format 16 bpp, desktop name `RaspberryPi5`. One full frame in raw encoding took 0.29 to
+0.41 s over Ethernet and Wi-Fi. The HDMI screen showed the terminal (`st`) with the login message:
+
+![First frame from the Pi 5 over VNC](img/2026-11-12_pi5_vnc_first_frame.png)
+
+The login message also says the image has the `apk` package manager (`sudo apk add`) for adding target software.
+Anything added that way changes the target, so it has to be recorded like an SDP change.
 
 `/system/bin/vncserv` (also at `/bin` and `/usr/bin`) is byte-identical to the SDP's
 `target/qnx/aarch64le/bin/vncserv` from `target.screen.vncserv` 4.2.0.00070 (SHA-256
 `fb0f57653e733bb8f1fad8e77c546f615fd2726313ee3247beed8c78004fcdac`).
 
-This bears on phase 1: QNX's own Screen VNC server already runs on the target. Next, with a VNC viewer and the
-password: what it shows (the whole display or one window), its frame rate on the Pi 5, and whether it accepts input
-(touch, mouse, keys). That decides whether the ON agent builds on `vncserv` or brings its own.
+This bears on phase 1: QNX's own Screen VNC server already runs on the target and shows the whole display. Next:
+its frame rate with incremental updates, and whether it accepts input (touch, mouse, keys). That decides whether
+the ON agent builds on `vncserv` or brings its own.
 
 ## Not checked
 
-- What the HDMI display shows, and whether a demo app starts.
+- Whether `vncserv` accepts input events. No input has been sent.
+- Frame rate with incremental updates, and CPU load on the Pi while serving.
 - Which user `vncserv` runs as, and its command line.
-- Whether the QNX Everywhere documentation states the VNC password.
+- Whether a stock VNC viewer works with it (none is installed on the Windows host).
