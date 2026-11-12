@@ -43,7 +43,27 @@ Anything added that way changes the target, so it has to be recorded like an SDP
 `target/qnx/aarch64le/bin/vncserv` from `target.screen.vncserv` 4.2.0.00070 (SHA-256
 `fb0f57653e733bb8f1fad8e77c546f615fd2726313ee3247beed8c78004fcdac`).
 
-This bears on phase 1: QNX's own Screen VNC server already runs on the target and shows the whole display. Next:
+## The bundled samples over VNC
+
+David started each sample from the login message on the Pi (display on HDMI0), and frames were taken with
+`host/tools/vnc_snapshot.py` while it ran. Every one came through, with consecutive frames differing, so the capture
+is live:
+
+| Sample | Rendering | Captured | Notes |
+|---|---|---|---|
+| `st` | terminal | yes | the first frame above |
+| `gles2-gears` | OpenGL ES 2 | yes | all three gears, the blue one on the blue background included; shading changes with the light angle |
+| `gles2-maze` | OpenGL ES 2, textures and shaders | yes | brick texture detail sharp |
+| `vkcubepp` | Vulkan | yes | the cube shows LunarG's logo, a third-party trademark: keep it out of the demo video |
+| `camera_example3_viewfinder` | camera / video | yes | a moving colour-bar test pattern: no camera driver is configured for the case's CSI camera |
+
+![The samples over VNC](img/2026-11-12_pi5_vnc_samples.png)
+
+Each one-shot frame (new connection, login, full 1920 x 1080 frame uncompressed) took 0.25 to 0.45 s. The server's
+native pixel format is 16 bpp; the frames showed no visible banding, but fine gradients may band at that depth.
+
+This bears on phase 1: QNX's own Screen VNC server already runs on the target and shows the whole display, GPU,
+Vulkan and video layers included. Next:
 its frame rate with incremental updates, and whether it accepts input (touch, mouse, keys). That decides whether
 the ON agent builds on `vncserv` or brings its own.
 
