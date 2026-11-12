@@ -34,10 +34,23 @@ library (decided in phase 1). Bonus entries: Best Use of QNX-specific Technologi
 
 ## Open questions
 
-- Does QNX 8.0 already include a VNC server or a Screen remote-display component? Partly answered 2026-11-12: it
-  ships `target.screen.vncserv` (VNC server for QNX Screen), installed on both hosts; not yet evaluated.
+- Does QNX 8.0 already include a VNC server or a Screen remote-display component? Answered 2026-11-12: yes,
+  `vncserv` (package `target.screen.vncserv`). On the Pi 5 quick-start image it runs by default on port 5900; it
+  serves the whole display (GLES2, Vulkan, video layers, the Weston/XFCE Developer Desktop) and forwards keys,
+  pointer moves and clicks. Details: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md).
+  Leaning: build the ON agent on `vncserv`, not a VNC server of our own (phase 1 decides).
 - Which Screen API calls cover display capture and input injection, and do they need root or special permissions?
-- How does the Pi 5 quick-start image handle Screen and input (USB keyboard and mouse, touch)?
+  Still open; matters for what the agent adds on top of `vncserv`.
+- How does the Pi 5 quick-start image handle Screen and input? Answered: Screen on HDMI0 at 1920 x 1080, input via
+  `vncserv` works. Open: `-use_touch`, a second HDMI display, and one black frame seen after the desktop started.
+- QEMU target: QNX supports Ubuntu 22.04/24.04 hosts only; whether it works under WSL is open. See
+  [notes/2026-11-12_qemu_guide.md](notes/2026-11-12_qemu_guide.md).
+
+## Status on 2026-11-12 (day 1)
+
+- Phase 0: build hosts done (Windows and Linux at SDP-BL-005, not "SDP 8.0.5": see the config management doc); Pi 5
+  boots QNX from its own microSD (the Raspberry Pi OS card is separate). QEMU target not yet booted.
+- Phase 1: the VNC question is answered (above); the design decision is not written yet.
 
 ## Hackathon project page: to do
 
