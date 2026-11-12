@@ -1,8 +1,9 @@
 # Draft: OculiX bug report (not filed yet)
 
 Plan (David, 2026-11-12): David contributes fixes to OculiX through his fork
-<https://github.com/davidyoung8196504567-sudo/Oculix>. OculiX problems found in this project are fixed there after the
-ON agent work is done; until then OpticNerve uses the workaround below and stays on the pinned 4.0.0 jars.
+<https://github.com/davidyoung8196504567-sudo/Oculix>, and usually submits the fix for a bug together with the issue
+he raises. So this issue is raised together with its fix (a pull request from the fork) after the ON agent work is
+done; until then OpticNerve uses the workaround below and stays on the pinned 4.0.0 jars.
 
 For <https://github.com/oculix-org/Oculix/issues/new?template=bug_report.yml>. Fields follow the "Bug report" form.
 Searched existing issues on 2026-11-12 ("VNCScreen", "ClassCastException DataBufferInt", "getMatList"): no duplicate.

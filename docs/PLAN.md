@@ -70,7 +70,8 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 ## OculiX issues found: fix after the ON agent work
 
 David contributes to OculiX through his fork <https://github.com/davidyoung8196504567-sudo/Oculix>. Problems we find
-in OculiX are recorded under [upstream/](upstream/) and fixed in the fork once the ON agent work is done; until then
+in OculiX are recorded under [upstream/](upstream/). Once the ON agent work is done, each is raised as an issue together
+with its fix (a pull request from the fork), as David usually does; until then
 we use workarounds and stay on the pinned OculiX 4.0.0 jars.
 
 - [ ] `VNCScreen` image search throws `ClassCastException` in `Commons.getMatList`
