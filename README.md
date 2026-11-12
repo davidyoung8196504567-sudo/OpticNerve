@@ -1,5 +1,7 @@
 # OpticNerve
 
+![OpticNerve: eyes and hands on any QNX 8.0 screen](docs/brand/opticnerve-banner-serious.png)
+
 **Gives your test tools eyes and hands on any QNX 8.0 screen.**
 
 > Status: work in progress for the QNX Global Hackathon (November to December 2026). Nothing here builds yet.
