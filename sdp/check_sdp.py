@@ -75,9 +75,12 @@ def qsc_export(sdp):
 def check_files(sdp, packages):
     """Compare every file listed by every package with the disk. Returns (stats, problems, fingerprint)."""
     case_blind = (sdp.parent / sdp.name.swapcase()).exists()
-    listed, owners, links = {}, {}, {}
+    listed, owners, links, conflicts = {}, {}, {}, []
     for (pid, ver), desc in packages.items():
         for a in json.loads(desc.read_text(encoding="utf-8", errors="replace"))["assets"]:
+            # Two packages that ship one path with different contents: the disk can only hold one of them.
+            if a["name"] in listed and listed[a["name"]][1] != a["digestSHA512"]:
+                conflicts.append(f"conflict  {a['name']}  ({owners[a['name']]} and {pid} ship different contents)")
             listed[a["name"]] = (int(a["size"]), a["digestSHA512"])
             owners[a["name"]] = pid
             if "linkto" in a:
@@ -85,7 +88,7 @@ def check_files(sdp, packages):
     folded = {}
     for name in listed:
         folded.setdefault(name.lower(), []).append(name)
-    problems, collisions, nbytes = [], 0, 0
+    problems, collisions, nbytes = conflicts, 0, 0
     for name, (size, want) in sorted(listed.items()):
         # Two packaged paths that differ only by case share one file on a case-blind disk.
         clash = case_blind and len(folded[name.lower()]) > 1
