@@ -56,6 +56,7 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 - QEMU target: QNX supports Ubuntu 22.04/24.04 hosts only. Under WSL it ran but too slowly to be useful
   (2026-11-12); it moves to a dedicated Ubuntu 24.04 host. See
   [notes/2026-11-12_qemu_guide.md](notes/2026-11-12_qemu_guide.md).
+  WSL is no longer used in the project at all (David, 2026-11-12); UBUNTU24 is the Linux build host as well.
   The host exists: UBUNTU24 at 10.30.1.132, surveyed 2026-11-12; its SDP (8.0.6) does not yet match the baseline
   and QEMU is not installed. State and next steps: [notes/2026-11-12_ubuntu24_host.md](notes/2026-11-12_ubuntu24_host.md).
 

@@ -18,7 +18,7 @@ the procedure below.
 | Toolchain (qcc, gcc 12.2.0 for aarch64le and x86_64) | part of the SDP packages; `check_sdp.py` also builds a test program for both targets | baseline SDP-BL-001 |
 | Pi 5 BSP archive and quickstart image tarballs | they are SDP package files, so covered by the two rows above | baseline SDP-BL-001 |
 | QNX Software Center | recorded: 2.0.4 (v202501021438). Linux installer `qnx-setup-2.0.4-202501021438-linux.run`, SHA-256 `5695a0ec8a1fd91840753b2cba86a9325f6052d4f69c757166cc61b09bcbe507`. Not pinned by the check. | recorded |
-| Host OS and Python | recorded: Windows 11 10.0.26300, Python 3.14.7; Ubuntu 24.04 under WSL 2 on the same machine, Python 3.12.3 | recorded |
+| Host OS and Python | recorded: Windows 11 10.0.26300, Python 3.14.7. Linux: UBUNTU24, a dedicated Ubuntu 24.04 LTS machine (10.30.1.132, kernel 7.0.0-43-generic), Python version to record; it replaces Ubuntu 24.04 under WSL 2 (Python 3.12.3), which is no longer used (see below) | Windows recorded; UBUNTU24 to record |
 | Target image written to the Pi 5 card | QNX quick-start image 20260902 (package `quickstart.rpi5` 0.5.0.00050, pinned in the lock). Unpacked on 2026-11-12 outside the SDP to `C:\Users\root\opticnerve-work\rpi5-quickstart-20260902\rpi5\rpi5.img`: 12,556,199,936 bytes, SHA-256 `66ba622976ccc69112f389c9b51eee91b5295e7f7da28844d49e7b0bdae5175c`. MBR with three partitions: FAT32 boot (0.78 GiB), QNX6 (10.00 GiB), QNX6 (0.91 GiB); needs a microSD of 16 GB or more. Files added to the card later: to come | image recorded |
 | Oculix on the host | OculiX **4.0.0** (latest stable; 4.1.0-rc1 is a pre-release), <https://github.com/oculix-org/Oculix/releases/tag/v4.0.0>. Windows host: `oculixide-4.0.0-windows.jar` (130,253,369 bytes, SHA-256 `7eda19dff0e14ce462b535b788a7b48afda2ca163f33307579541706dab6cd0e`) and `oculixapi-4.0.0-windows.jar` (69,511,190 bytes, SHA-256 `b8ff76a74e582c7d36df2ca1dfb3f09bf564395d47502a9da5db84a304f70638`), both equal to GitHub's published digests; downloaded 2026-11-12 to `C:\Users\root\opticnerve-work\oculix-4.0.0\` with a `SHA256SUMS` file. Linux jars not yet downloaded (published digests: `oculixapi-4.0.0-linux.jar` `bfebf7841eeca171e632739c00eeba879683c32d7530e9af624ae447010c9554`, `oculixide-4.0.0-linux.jar` `95bd353ddd92af9779845c83c36646bc5e5ca5e767196818615444c02d49533d`). **Pin by hash, not by version:** the release was published 2026-07-09, but its jars were replaced on 2026-08-26 (21:28 UTC, a minute before 4.1.0-rc1) and are still named and versioned 4.0.0, so a 4.0.0 jar downloaded before then is a different build. Java on the Windows host: Temurin 25.0.4+7. | Windows recorded |
 | This repo | git commit | - |
@@ -61,7 +61,12 @@ Known limits:
   files), 29 are Windows host tools and 21 are Linux host tools. Everything that goes onto a target is in the
   common 265. `--record` replaces only the entries of the host it runs on, and refuses if a package has the same
   version as on the other host but different contents. `sdp/BASELINE.txt` has one section per host.
-- The Linux host is Ubuntu 24.04 under WSL 2. Whether QNX supports that as a build host is not verified.
+- **WSL is no longer part of the project (David, 2026-11-12).** The `[linux]` entries of the baseline were recorded on
+  Ubuntu 24.04 under WSL 2; they stay as the specification for the Linux host, which is now UBUNTU24, a dedicated
+  Ubuntu 24.04 machine (QNX supports Ubuntu 22.04/24.04 hosts). UBUNTU24 is used only once `check_sdp.py` matches
+  those entries; until then the project has one usable build host, Windows. State of UBUNTU24:
+  [notes/2026-11-12_ubuntu24_host.md](notes/2026-11-12_ubuntu24_host.md). History rows below that mention WSL are
+  left as they were.
 
 Unpack images outside the SDP. QNX's `unpack_<target>_image.sh` extracts into `images/<target>/` inside the SDP,
 and the check would then fail on the extracted image as an extra file. Instead run, from a work folder, what the
