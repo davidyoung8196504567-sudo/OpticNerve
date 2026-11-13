@@ -196,8 +196,20 @@ def t_close_camera():
     return close_app("camera", "camera_example3_viewfinder")
 
 
-def t_close_terminal():
-    return close_app("terminal", "st")
+def t_shutdown_to_launcher():
+    """The way out of the terminal on this image (David, 2026-11-13): sudo shutdown, which reboots the Pi."""
+    vnc("text:sudo shutdown", "key:0xff0d", "wait:2", "text:" + need("ON_LOGIN_PASSWORD"), "key:0xff0d")
+    launcher = Image.open(RUNS / "vnc_frame.png").convert("RGB")
+    t0 = time.time()
+    time.sleep(20)
+    while time.time() - t0 < 180:
+        try:
+            if share_changed(launcher, frame("after_shutdown")) < 0.01:
+                return "PASS", f"the Pi rebooted to the welcome launcher in about {time.time() - t0:.0f} s"
+        except subprocess.CalledProcessError:
+            pass  # vncserv not up yet
+        time.sleep(5)
+    return "FAIL", "no welcome launcher within 180 s"
 
 
 def tile_app(name, proc):
@@ -274,7 +286,8 @@ TESTS = [
     ("U03", "unboxing: welcome text is right for this release", "nothing", ["U02"], t_ocr_motd),
     ("A01", "camera viewfinder runs", "moving colour bars", ["U01"], t_camera),
     ("A02", "Alt+Del closes an app", "back to the terminal", ["A01"], t_close_camera),
-    ("A03", "Alt+Del closes the terminal", "back to the welcome screen", ["A02"], t_close_terminal),
+    ("A03", "sudo shutdown returns to the launcher", "'sudo shutdown' typed, the Pi reboots to the welcome "
+     "launcher", ["A02"], t_shutdown_to_launcher),
     ("A04", "Gears tile", "gears turn, then the welcome screen", ["F03", "A02"], t_gears),
     ("A05", "Maze tile", "the brick maze, then the welcome screen", ["F03", "A02"], t_maze),
     ("A06", "cube tile (vkcubepp)", "a spinning cube with LunarG's logo (keep it out of demo footage), then the "
