@@ -38,7 +38,7 @@ only on David's go, and non-visible tests.
 | 13 | S6b: the same with ZRLE | 1.22 MB a frame, 2.2 frames/s, ~0.4 s CPU a frame | 0.51 MB a frame, 22 in 4.1 s (5.3/s), ~0.15 s CPU a frame | pass; size and speed depend on screen content (the launcher compresses better than the lock-screen photo) |
 | 14 / V3 | S1: OculiX connect, capture, `exists`, workaround `Finder`, click | ClassCastException; found at 1.0 at (958,768); click launched gears | start 3.29 s, capture 0.21 s; the same ClassCastException; found at 1.0000 at (958,768) in 0.10-0.24 s; click launched `gles3-gears` (process checked, capture confirms) | pass |
 
-V1 to V3 are the visible tests (the pointer moves, gears opening), run one at a time on David's go, so he could watch and record them.
+V1 to V3 are the visible tests (the pointer moves, gears opening), run one at a time on David's go, so David could watch and record them.
 Tests 1 to 9 ran before the split; test 1, 7 and 9 also moved the pointer.
 
 ## What the failures mean
