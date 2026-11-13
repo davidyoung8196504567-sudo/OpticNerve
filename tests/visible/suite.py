@@ -176,10 +176,18 @@ def t_ocr_motd():
 
 
 def t_camera():
+    """Last test (David, 2026-11-13). The Pi is at the launcher after A03, so open the terminal from its tile, log
+    in, then start the viewfinder. Reports whether the app is running separately from whether its frames change."""
+    vnc(f"click:{TILE['terminal'][0]},{TILE['terminal'][1]}", "wait:3", "text:qnxuser", "key:0xff0d", "wait:1.5",
+        "text:" + need("ON_LOGIN_PASSWORD"), "key:0xff0d", "wait:3")
     vnc("text:camera_example3_viewfinder", "key:0xff0d", "wait:4")
+    running_now = running("camera_example3_viewfinder")
     a, b = frame("camera_1"), (time.sleep(1), frame("camera_2"))[1]
     live = changed(a, b) is not None
-    return ("PASS", "the viewfinder runs, consecutive frames differ") if live else ("FAIL", "frames identical: not live")
+    app = f"app running: {running_now}"
+    if live:
+        return "PASS", f"the viewfinder runs, consecutive frames differ ({app})"
+    return "FAIL", f"frames identical: not live ({app})"
 
 
 def close_app(name, proc):
@@ -222,7 +230,17 @@ def tile_app(name, proc):
 
 
 def t_gears():
-    return tile_app("gears", "gles3-gears")
+    """A04 opens Gears and leaves it running; A02 closes it with Alt+Del."""
+    vnc(f"click:{TILE['gears'][0]},{TILE['gears'][1]}", "wait:4")
+    a, b = frame("gears_1"), (time.sleep(1), frame("gears_2"))[1]
+    if changed(a, b) is None:
+        return "FAIL", "gears: frames identical, not live"
+    return "PASS", f"gears ran, consecutive frames differ (process running: {running('gles3-gears')})"
+
+
+def t_close_gears():
+    """A02 closes the Gears app that A04 left running; it needs no camera."""
+    return close_app("gears_close", "gles3-gears")
 
 
 def t_maze():
@@ -284,18 +302,18 @@ TESTS = [
     ("U01", "unboxing: log in", "login as qnxuser, the welcome message appears", ["F05"], t_login),
     ("U02", "unboxing: OculiX capture and OCR", "nothing", ["U01"], t_capture),
     ("U03", "unboxing: welcome text is right for this release", "nothing", ["U02"], t_ocr_motd),
-    ("A01", "camera viewfinder runs", "moving colour bars", ["U01"], t_camera),
-    ("A02", "Alt+Del closes an app", "back to the terminal", ["A01"], t_close_camera),
     ("A03", "sudo shutdown returns to the launcher", "'sudo shutdown' typed, the Pi reboots to the welcome "
-     "launcher", ["A02"], t_shutdown_to_launcher),
-    ("A04", "Gears tile", "gears turn, then the welcome screen", ["F03", "A02"], t_gears),
-    ("A05", "Maze tile", "the brick maze, then the welcome screen", ["F03", "A02"], t_maze),
+     "launcher", ["U01"], t_shutdown_to_launcher),
+    ("A04", "Gears tile", "gears turn, then Alt+Del is pressed later to close them", ["A03"], t_gears),
+    ("A02", "Alt+Del closes an app", "the Gears app closes and the launcher is back", ["A04"], t_close_gears),
+    ("A05", "Maze tile", "the brick maze, then the welcome screen", ["A03"], t_maze),
     ("A06", "cube tile (vkcubepp)", "a spinning cube with LunarG's logo (keep it out of demo footage), then the "
-     "welcome screen", ["F03", "A02"], t_cube),
+     "welcome screen", ["A03"], t_cube),
     ("S01", "update pulses = Screen's update count", "the pointer jumps to 5 spots", ["F02"], t_update_count),
     ("S02", "the same with re-arming", "the same 5 jumps", ["S01"], t_update_rearm),
     ("O01", "OculiX finds the Gears tile and clicks it", "gears open, then the welcome screen",
-     ["F01", "F03", "A02"], t_oculix_click),
+     ["F01", "A03"], t_oculix_click),
+    ("A01", "camera viewfinder runs (last)", "moving colour bars", ["A03"], t_camera),
 ]
 BY_ID = {t[0]: t for t in TESTS}
 
