@@ -299,6 +299,14 @@ TESTS = [
 ]
 BY_ID = {t[0]: t for t in TESTS}
 
+# Tests that cannot show anything on this image: recorded as N/A with the reason, not run.
+KNOWN_LIMITS = {
+    "F06": "the quick-start image's terminal is sandboxed and ignores the mouse, even a real one (David, "
+           "2026-11-13); test mouse text functions in an app that takes the mouse",
+    "F07": "the quick-start image's terminal is sandboxed and ignores the mouse, even a real one (David, "
+           "2026-11-13); test mouse text functions in an app that takes the mouse",
+}
+
 
 def label(tid):
     """ID and title together: the ID is the key, the title is what a person follows."""
@@ -327,7 +335,9 @@ def run(tid, state):
     _, _, _, requires, fn = BY_ID[tid]
     results = state["results"]
     unhealthy = next((r for r in results.values() if r.get("unhealthy")), None)
-    if unhealthy:
+    if tid in KNOWN_LIMITS:
+        result, detail = "N/A", "known limitation: " + KNOWN_LIMITS[tid]
+    elif unhealthy:
         result, detail = "SKIP", f"target unhealthy since {label(unhealthy['id'])}: {unhealthy['unhealthy']}"
     else:
         blocking = [(p, results.get(p, {}).get("result", "not run")) for p in requires
@@ -343,7 +353,7 @@ def run(tid, state):
                 result, detail = "FAIL", f"error: {e!r}"
             detail = f"{detail} [{time.time() - t0:.0f} s]"
     entry = {"id": tid, "result": result, "detail": str(detail), "at": datetime.now(timezone.utc).isoformat()}
-    if result != "SKIP":
+    if result not in ("SKIP", "N/A"):
         cores, down = health()
         if cores is not None:
             new = sorted(set(cores) - set(state["baseline"] or []))
