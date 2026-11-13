@@ -287,6 +287,11 @@ TESTS = [
 BY_ID = {t[0]: t for t in TESTS}
 
 
+def label(tid):
+    """ID and title together: the ID is the key, the title is what a person follows."""
+    return f"{tid} ({BY_ID[tid][1]})"
+
+
 def load():
     return json.loads(STATE.read_text()) if STATE.exists() else {"started": None, "results": {}, "baseline": None}
 
@@ -306,17 +311,17 @@ def health():
 
 
 def run(tid, state):
-    _, title, _, requires, fn = BY_ID[tid]
+    _, _, _, requires, fn = BY_ID[tid]
     results = state["results"]
     unhealthy = next((r for r in results.values() if r.get("unhealthy")), None)
     if unhealthy:
-        result, detail = "SKIP", f"target unhealthy since {unhealthy['id']}: {unhealthy['unhealthy']}"
+        result, detail = "SKIP", f"target unhealthy since {label(unhealthy['id'])}: {unhealthy['unhealthy']}"
     else:
         blocking = [(p, results.get(p, {}).get("result", "not run")) for p in requires
                     if results.get(p, {}).get("result") != "PASS"]
         if blocking:
             result = "SKIP"
-            detail = "prerequisite " + ", ".join(f"{p} ({BY_ID[p][1]}) {r}" for p, r in blocking)
+            detail = "prerequisite " + ", ".join(f"{label(p)} {r}" for p, r in blocking)
         else:
             t0 = time.time()
             try:
@@ -334,7 +339,7 @@ def run(tid, state):
                 entry["result"] = "FAIL"
     results[tid] = entry
     save(state)
-    print(f"{tid} {title}: {entry['result']} - {entry['detail']}" +
+    print(f"{label(tid)}: {entry['result']} - {entry['detail']}" +
           (f" - TARGET UNHEALTHY: {entry['unhealthy']}" if "unhealthy" in entry else ""))
 
 
@@ -350,14 +355,16 @@ def main():
             print(f"new run; core dumps already on the target: {cores}")
             return
     if cmd == "list":
-        for tid, title, sees, requires, _ in TESTS:
+        for n, (tid, title, sees, requires, _) in enumerate(TESTS, 1):
             r = state["results"].get(tid, {})
-            print(f"{tid}  {title:<48} needs {','.join(requires) or '-':<12} {r.get('result', ''):<12} {sees}")
+            print(f"{n:2}/{len(TESTS)}  {label(tid)}: {r.get('result') or 'not run'}")
+            print(f"        you see: {sees}")
+            print(f"        needs:   {'; '.join(label(p) for p in requires) or 'nothing'}")
     elif cmd == "next":
         pending = [t[0] for t in TESTS if t[0] not in state["results"]]
         waiting = [i for i, r in state["results"].items() if r["result"] == "CONFIRM"]
         if waiting:
-            print(f"waiting for confirmation of {waiting}: suite.py confirm ID pass|fail")
+            print("waiting for confirmation of " + "; ".join(label(i) for i in waiting) + ": suite.py confirm ID pass|fail")
         elif pending:
             run(pending[0], state)
         else:
@@ -370,7 +377,7 @@ def main():
         entry["result"] = verdict
         entry["detail"] += f"; observer: {verdict}" + (f" ({' '.join(sys.argv[4:])})" if sys.argv[4:] else "")
         save(state)
-        print(f"{tid}: {verdict}")
+        print(f"{label(tid)}: {verdict}")
     else:
         sys.exit(__doc__)
 
