@@ -6,6 +6,8 @@
 Actions, done in order:
     text:STRING        type the characters (key press and release each)
     key:KEYSYM         press and release one X11 keysym, e.g. key:0xff08 (BackSpace), key:0xff0d (Return)
+    combo:KS+KS...     hold the keysyms in order, release in reverse, e.g. combo:0xffe9+0xffff (Alt+Delete)
+    wait:SECONDS       pause
     move:X,Y           move the pointer, no buttons
     click:X,Y          left click at X,Y
     drag:X1,Y1,X2,Y2   left-button drag in ten steps
@@ -70,6 +72,14 @@ def main():
                 key(s, ord(ch))
         elif kind == "key":
             key(s, int(arg, 0))
+        elif kind == "combo":
+            syms = [int(k, 0) for k in arg.split("+")]
+            for down, order in ((1, syms), (0, syms[::-1])):
+                for k in order:
+                    s.sendall(struct.pack(">BBxxI", 4, down, k))
+                    time.sleep(0.05)
+        elif kind == "wait":
+            time.sleep(float(arg))
         else:
             v = [int(n) for n in arg.split(",")]
             if kind == "move":

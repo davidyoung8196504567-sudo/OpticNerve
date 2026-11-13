@@ -70,6 +70,19 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 - Phase 2: spikes S2 to S6 done on the Pi ([notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md)), with proposed
   design changes (drop keep-awake and the window list; freshness via `screen_notify` only). S1 waits for Oculix.
 
+## Test library ideas
+
+- Setup test after a fresh install of the Pi 5 image (David, 2026-11-13): log in on the HDMI terminal as the default
+  `qnxuser`, create an `opticnerve` user, log out and log in as that user. The default `qnxuser` login and password
+  are documented by QNX (`/etc/motd`), not secret, and showing them is useful for marketing material; creating the
+  user is a target change and is recorded like any other.
+- **Unboxing scenario** (David, 2026-11-13): tie the tests to how a QNX customer verifies a new development board
+  "out of the box", as a new user would: open the terminal, log in as `qnxuser`, then capture the screen with the
+  welcome message (MOTD) and OCR it, and check that the first instructions are shown and are the right ones for that
+  software release. The expected text is pinned per release (for the quick-start image 20260902, SHA-256
+  `66ba6229...`), recorded once in the repo, so a later image or a changed MOTD is caught. The fresh-install setup
+  test above (create the `opticnerve` user) follows in the same scenario.
+
 ## OculiX issues found: fix after the ON agent work
 
 David contributes to OculiX through his fork <https://github.com/davidyoung8196504567-sudo/Oculix>. Problems we find
