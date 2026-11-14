@@ -84,22 +84,29 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Move the pointer, `hover` | yes | pointer events, smooth move, by design | **measured: works** with our VNC tool: Screen counted 41 of 41 moves, F02 (pointer moves); with OculiX: not measured | measure |
-| Click at a position | yes | by design | **measured: works** with OculiX, O01 (OculiX finds the Gears tile and clicks it); and with our VNC tool, F03 (click opens an app) | none |
-| Double click, right click, middle click | yes | buttons 1 to 3, by design | not measured: the launcher and the terminal give nothing to show it | needs an app that takes the mouse (our demo HMI) |
-| Wheel | yes | buttons 4 and 5, by design | not measured | as above |
-| Drag and drop | yes | by design | not measurable on this image: the terminal ignores the mouse, F06 (click puts the cursor), F07 (drag selects text), both N/A | as above |
+| Move the pointer, `hover` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works**, `hover` and `mouseMove` send 6 interpolated moves in 0.5 s; the first move of a session starts at 0,0 | **measured: works** with our VNC tool: Screen counted 41 of 41 moves, F02 (pointer moves); with OculiX: not measured | measure |
+| Click at a position | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works** (button mask 1) | **measured: works** with OculiX, O01 (OculiX finds the Gears tile and clicks it); and with our VNC tool, F03 (click opens an app) | none |
+| Double click, right click, middle click | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `doubleClick` and `rightClick` **measured: work**; `mouseDown(Button.LEFT or MIDDLE)` + `mouseUp()` **measured: fails**, only moves with no button are sent, yet the call returns success | not measured: the launcher and the terminal give nothing to show it | needs an app that takes the mouse (our demo HMI) |
+| Wheel | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works**, down mask 16 (X button 5), up mask 8 (X button 4) | not measured | as above |
+| Drag and drop | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `dragDrop` and `drag` + `dropAt` **measured: work** (press, 6 moves with the button held, release) | not measurable on this image: the terminal ignores the mouse, F06 (click puts the cursor), F07 (drag selects text), both N/A | as above |
 | Touch | no | no | `vncserv -use_touch` turns buttons into touch contacts; not tried | open |
 
 ### Keyboard
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Type text: `type`, `write` | yes | X keysyms, 2200+ defined, by design | **measured: works** with our VNC tool: F04 (keys reach the app), U01 (unboxing: log in); with OculiX: not measured | measure |
-| Special keys (Enter, Backspace, arrows, F-keys) | yes | by design | Enter and Backspace **measured: work** with our VNC tool, F05 (Backspace); others not measured | measure |
-| Modifiers and combinations, `keyDown`/`keyUp` | yes | by design | **measured: fails** for Alt+Del with our VNC tool: the app stays open, A02 (Alt+Del closes an app). Cause open: the launcher's config says "Alt+TAB+Del"; a real keyboard not tried | find the cause; app close is the ON agent's job anyway |
-| Paste text, Unicode: `paste` | clipboard + Ctrl+V | **no**: `paste` fills the local clipboard and sends Ctrl+V; the client has no clipboard transfer to the server | no | type the text instead; or ON agent |
+| Type text: `type`, `write` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works** for lowercase, uppercase, digits and all ASCII punctuation (Shift wrapped around shifted characters); `write("ab#ENTER.")` works | **measured: works** with our VNC tool: F04 (keys reach the app), U01 (unboxing: log in); with OculiX: not measured | measure |
+| Special keys (Enter, Backspace, arrows, F-keys) | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `type("\r")` sends Return and works; Tab, Esc, Backspace, Space, arrows, Home, End, Page Up, Insert, F5 work; **`Key.ENTER` sends Linefeed (0xff0a), not Return**; **`Key.DELETE` sends KP_Delete (0xff9f), not Delete** | Enter and Backspace **measured: work** with our VNC tool, F05 (Backspace); others not measured | measure |
+| Modifiers and combinations, `keyDown`/`keyUp` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): Ctrl, Ctrl+Alt, Alt+Tab, `keyDown(Key.CTRL)`/`type`/`keyUp`, Shift + click **measured: work**; **Ctrl+Shift+letter sends the lowercase keysym with Shift held**, and the TigerVNC server answers with Caps Lock, which stays on afterwards; **`KeyModifier.META` sends Meta_L, not Super** (TigerVNC turned it into Alt) | **measured: fails** for Alt+Del with our VNC tool: the app stays open, A02 (Alt+Del closes an app). Cause open: the launcher's config says "Alt+TAB+Del"; a real keyboard not tried | find the cause; app close is the ON agent's job anyway |
+| Paste text, Unicode: `paste` | clipboard + Ctrl+V | **measured: no** (TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked)): `paste()` and `type()` with a non-ASCII character send only Ctrl+V, no clipboard message, the text never arrives, and the call returns 1; by design `paste` fills the local clipboard and sends Ctrl+V; the client has no clipboard transfer to the server | no | type the text instead; or ON agent |
 | Keyboard layouts | yes | keysyms, layout-independent, by design | not measured | measure |
+
+Input was measured by ON-UBUNTU24 against its private TigerVNC display at depth 16 (not the Pi), with an event
+viewer on the display (what the X server received) and an RFB proxy in between (what OculiX sent): Ubuntu 24.04,
+Temurin 25.0.4+7, 38 steps, one run each with 4.0.0 alone and with the 2.0.4 jar first; **both send identical
+input**. Every call returns success, including those that delivered nothing. For the Pi this means: send Enter as
+`type("\r")`, Delete as the Delete keysym, avoid `mouseDown`/`mouseUp`, and check Ctrl+Shift combinations and
+Caps Lock there (QNX not measured). Input on the Pi waits for a slot David schedules.
 
 ### Around the screen
 
@@ -162,7 +169,8 @@ bits (for example 65527 x 65527 at 10,10): `refreshFramebuffer` passes width and
 come back stale is not tested.
 
 **Acceptance checks of the proposed test configuration "ON-VNC-1"** (from the Oculix-MacBookM4Pro-macOS-27 session:
-2.0.4 first on the classpath, hash-verified jars, security types limited to `VncAuth,None`, Enter as `type("")`),
+2.0.4 first on the classpath, hash-verified jars, security types limited to `VncAuth,None`, Enter as `type("
+")`),
 Windows host to the Pi, 2026-11-14, Eclipse Adoptium 25.0.4+7-LTS, read-only: both jars' SHA-256 match;
 `-verbose:class` loads `com.sikulix.vnc.VNCClient` and `com.tigervnc.rfb.ZRLEDecoder` from the 2.0.4 jar; the log
 says "Choosing security type VncAuth(2)"; no `Thread-N` exception; capture type 1; 0 wrong pixels against two
