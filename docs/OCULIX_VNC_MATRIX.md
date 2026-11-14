@@ -209,6 +209,12 @@ not a fair speed comparison).
      native 3024 x 1964, set to "looks like" 1352 x 878 at 2x, so the backing framebuffer is 2704 x 1756; the VNC
      frame may be either size, to be recorded from what OculiX sees. Application firewall off, stealth mode off.
      Screen Sharing turned on by David on 2026-11-13 (recorded in CONFIG_MANAGEMENT.md); the server offers VncAuth.
+     **Read-only probe from Windows, 2026-11-14:** connects in 3.3 s (Apple's `RFB 003.889` negotiated down to 3.8,
+     VncAuth works); framebuffer 2704 x 1756, 32 bpp depth 24; OculiX receives only ZRLE and its decoder dies with
+     the same assertion as against TigerVNC (`ZRLEDecoder.java:135`). Every call then "works" on a frame that is
+     **100% black** (the raw-encoding frame of the same screen is 36.7% black): `getColor` black at 5 of 5 points,
+     `exists`/`find` score 1.00 at (0,0), `findAll` 543 matches, OCR 19 characters of noise. No `ClassCastException`
+     (image type 1). So macOS Screen Sharing is the third 32 bpp server where OculiX 4.0.0 cannot see the screen.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
    - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host) and input
      tests against the Mac. The release has one macOS jar, `oculixapi-4.0.0-macos.jar` (61,441,991 bytes, SHA-256

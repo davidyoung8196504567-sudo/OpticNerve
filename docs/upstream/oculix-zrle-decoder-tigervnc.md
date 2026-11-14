@@ -49,6 +49,9 @@ with `com.tigervnc.rdr.Exception: ZlibInStream: inflate failed` (`ZlibInStream.j
 encoding for client", 35 ZRLE rectangles. Its raw-encoding frame equals TigerVNC's except the pointer, so the fault
 is on the client side.
 
+**Also seen with macOS Screen Sharing** (macOS 27.2.1, banner `RFB 003.889`, 2704 x 1756, 32 bpp depth 24): the
+same assertion at `ZRLEDecoder.java:135` during start; every capture is entirely black.
+
 **Works at 16 bits per pixel:** against QNX 8.0's `vncserv` (rgb565) OculiX receives only ZRLE and decodes it
 correctly. Likely cause: ZRLE's 3-byte compact pixels (CPIXEL), used only at 32 bits per pixel (compare #443). Not
 proved. There is no API to choose another encoding (`VNCClient.currentEncoding` is private).
