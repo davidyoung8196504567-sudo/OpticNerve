@@ -1,0 +1,31 @@
+os Linux, java 25.0.4
+start: [7.227s][info][class,load] jdk.internal.math.FormattedFPDecimal source: jrt:/java.base
+4.20 s, running true, bounds [7.230s][info][class,load] java.lang.String$$StringConcat/0x000000009e18c800 source: __JVM_LookupDefineClass__
+java.awt.Rectangle[x=0,y=0,width=1920,height=1080]
+capture() #1: OK in 0.175 s: 1920x1080, image type 1, DirectColorModel / DataBufferInt
+capture() #2: OK in 0.169 s: 1920x1080, image type 1, DirectColorModel / DataBufferInt
+capture() #3: OK in 0.170 s: 1920x1080, image type 1, DirectColorModel / DataBufferInt
+capture(100,100,400,300): OK in 0.201 s: 400x300, image type 1, DirectColorModel / DataBufferInt, pixels differing from the full capture: 0
+Location(10,10).getColor: OK in 0.161 s: java.awt.Color[r=32,g=64,b=96], capture pixel java.awt.Color[r=32,g=64,b=96]
+Location(484,90).getColor: OK in 0.151 s: java.awt.Color[r=255,g=255,b=255], capture pixel java.awt.Color[r=255,g=255,b=255]
+Location(485,92).getColor: OK in 0.151 s: java.awt.Color[r=255,g=255,b=255], capture pixel java.awt.Color[r=255,g=255,b=255]
+Location(486,94).getColor: OK in 0.151 s: java.awt.Color[r=255,g=255,b=255], capture pixel java.awt.Color[r=255,g=255,b=255]
+Location(198,1052).getColor: OK in 0.151 s: java.awt.Color[r=32,g=64,b=96], capture pixel java.awt.Color[r=32,g=64,b=96]
+pattern: 360x35 cut at (470,75), centre (650,92)
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-68933-10416602677144449625/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+VNCScreen.exists(Pattern): OK in 1.984 s: M[470,75 360x35]@S(VNC 127.0.0.1:5906) S:1.00 C:650,92 [781 msec]
+VNCScreen.find(Pattern): OK in 0.740 s: M[470,75 360x35]@S(VNC 127.0.0.1:5906) S:1.00 C:650,92 [736 msec]
+VNCScreen.findAll(Pattern): OK in 0.766 s: 1 matches
+Finder on BGR copy at 0.99: OK in 0.788 s: score 1.0000, target L[650,92]@S(0)
+Finder on BGR copy at 0.80: OK in 0.545 s: score 1.0000, target L[650,92]@S(0)
+OCR.readText(BGR copy): OK in 2.041 s: 181 chars, 4 lines
+OCR.readText(raw capture): OK in 1.421 s: 181 chars
+VNCScreen.text(): OK in 1.628 s: 181 chars
+Region(100,100,800,400).text(): OK in 0.852 s: 42 chars
+waitForScreenStable(3000,500): OK in 0.573 s: true
+stopped
+[3.120s][info][class,load] com.sikulix.vnc.VNCClient source: file:/home/tester/opticnerve-work/tigervnc-java/tigervnc-java-oculix-2.0.2.jar
+[4.149s][info][class,load] com.tigervnc.rfb.ZRLEDecoder source: file:/home/tester/opticnerve-work/tigervnc-java/tigervnc-java-oculix-2.0.2.jar

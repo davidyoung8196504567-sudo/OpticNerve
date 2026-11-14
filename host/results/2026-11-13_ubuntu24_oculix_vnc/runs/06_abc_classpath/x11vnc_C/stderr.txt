@@ -1,0 +1,8 @@
+ReadOnlyProbe.java:125: warning: [deprecation] waitForScreenStable(long,long) in VNCScreen has been deprecated
+        step("waitForScreenStable(3000,500)", () -> screen.waitForScreenStable(3000, 500));
+                                                          ^
+1 warning
+DecodeManager: Detected 4 CPU core(s)
+DecodeManager: Creating 4 decoder thread(s)
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8

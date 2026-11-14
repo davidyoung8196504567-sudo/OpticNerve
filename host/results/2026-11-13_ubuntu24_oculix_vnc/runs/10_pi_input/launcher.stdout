@@ -1,0 +1,41 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, phase launcher
+secTypes: VncAuth,None
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+before: returned nothing sent
+    OculiX sent: NOTHING
+    capture: launcher_01.png
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-72014-2992540974309289069/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+hover(gears tile 958,768): returned 1
+    OculiX sent: mask 0@0,0 x5 to 958,768
+    capture: launcher_02.png
+hover(terminal tile 1107,460): returned 1
+    OculiX sent: mask 0@958,768 x5 to 1107,460
+    capture: launcher_03.png
+mouseMove(empty 300,600): returned 1
+    OculiX sent: mask 0@1107,460 x5 to 300,600
+    capture: launcher_04.png
+[log] CLICK on L[300,600]@S(VNC 127.0.0.1:5915) (505 msec)
+click(empty 300,600): returned 1
+    OculiX sent: mask 0@300,600 x5 to 300,600 mask 1@300,600 mask 0@300,600
+    capture: launcher_05.png
+[log] RIGHT CLICK on L[300,600]@S(VNC 127.0.0.1:5915) (504 msec)
+rightClick(empty 300,600): returned 1
+    OculiX sent: mask 0@300,600 x5 to 300,600 mask 4@300,600 mask 0@300,600
+    capture: launcher_06.png
+dragDrop(empty 300,600 -> 500,650): returned 1
+    OculiX sent: mask 0@300,600 x5 to 300,600 mask 1@300,600 x6 to 500,650 mask 0@500,650
+    capture: launcher_07.png
+mouseDown(Mouse.LEFT), mouseMove(300,600), mouseUp(Mouse.LEFT): returned ok
+    OculiX sent: mask 1@500,650 x6 to 300,600 mask 0@300,600
+    capture: launcher_08.png
+mouseDown LEFT, MIDDLE, RIGHT then mouseUp(LEFT|MIDDLE|RIGHT): returned ok
+    OculiX sent: mask 1@300,600 mask 3@300,600 mask 7@300,600 mask 0@300,600
+    capture: launcher_09.png
+[log] CLICK on L[1107,460]@S(VNC 127.0.0.1:5915) (504 msec)
+click(terminal tile 1107,460): returned 1
+    OculiX sent: mask 0@300,600 x5 to 1107,460 mask 1@1107,460 mask 0@1107,460
+    capture: launcher_10.png
+stopped

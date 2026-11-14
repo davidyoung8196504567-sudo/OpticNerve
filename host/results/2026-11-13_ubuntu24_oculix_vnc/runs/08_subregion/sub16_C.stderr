@@ -1,0 +1,5 @@
+DecodeManager: Detected 4 CPU core(s)
+DecodeManager: Creating 4 decoder thread(s)
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+CConnection: Enabling continuous updates

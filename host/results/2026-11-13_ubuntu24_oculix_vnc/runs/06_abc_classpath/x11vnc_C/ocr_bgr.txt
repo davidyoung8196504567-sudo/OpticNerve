@@ -1,0 +1,4 @@
+, Welcome to the OpticNerve reference YNC server on UBUNTU24.
+| |This text is here for the OculiX find and OCR tests.
+U The quick brown fox jumps over the lazy dog 0123456789.
+, , |

@@ -1,0 +1,10 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 0
+capture(100,100,400,300), 120000 px: stale in 0 of 6 rounds, max 0 px
+capture(0,0,500,500), 250000 px: stale in 0 of 6 rounds, max 0 px
+capture(300,200,300,200), 60000 px: stale in 0 of 6 rounds, max 0 px
+capture(300,100,300,400), 120000 px: stale in 0 of 6 rounds, max 0 px
+capture(1000,600,400,300), 120000 px: stale in 0 of 6 rounds, max 0 px
+capture(200,600,500,300), 150000 px: stale in 0 of 6 rounds, max 0 px
+capture(50,50,1800,1000), 1800000 px: stale in 0 of 6 rounds, max 0 px
+stopped

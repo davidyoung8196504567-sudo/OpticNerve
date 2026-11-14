@@ -1,0 +1,29 @@
+os Linux, java 25.0.4
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 0
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-70864-394737376999568485/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+hover(300,300): returned 1 in 1.69 s
+    OculiX sent:  move x6 0,0 -> 300,300
+    X server got: Motion x1 0,0 -> 0,0 Motion x1 60,60 -> 60,60 Motion x4 120,120 -> 300,300
+mouseDown(Mouse.LEFT): returned ok in 0.00 s
+    OculiX sent:  mask 0->1@300,300
+    X server got: +button1@300,300(state 0x0)
+mouseDown(Mouse.MIDDLE): returned ok in 0.00 s
+    OculiX sent:  mask 0->3@300,300
+    X server got: +button2@300,300(state 0x100)
+mouseDown(Mouse.RIGHT): returned ok in 0.00 s
+    OculiX sent:  mask 0->7@300,300
+    X server got: +button3@300,300(state 0x300)
+mouseUp() bare: returned ok in 0.00 s
+    OculiX sent:  mask 0->7@300,300
+    X server got: NO EVENTS
+mouseUp(Mouse.LEFT | Mouse.MIDDLE | Mouse.RIGHT): returned ok in 0.00 s
+    OculiX sent:  move x1 300,300 -> 300,300
+    X server got: -button1@300,300(state 0x700) -button2@300,300(state 0x600) -button3@300,300(state 0x400)
+[log] CLICK on L[900,600]@S(VNC 127.0.0.1:5915) (504 msec)
+click(900,600) afterwards: returned 1 in 0.51 s
+    OculiX sent:  move x6 300,300 -> 900,600 mask 0->1@900,600 mask 1->0@900,600
+    X server got: Motion x5 421,360 -> 900,600 +button1@900,600(state 0x0) -button1@900,600(state 0x100)
+stopped

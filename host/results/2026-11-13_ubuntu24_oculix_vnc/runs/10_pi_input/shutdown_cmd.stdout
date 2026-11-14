@@ -1,0 +1,8 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, phase type
+secTypes: VncAuth,None
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-72551-11516944180810086064/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+[log]  TYPE "sudo shutdown#ENTER."

@@ -1,0 +1,14 @@
+ReadOnlyProbe.java:125: warning: [deprecation] waitForScreenStable(long,long) in VNCScreen has been deprecated
+        step("waitForScreenStable(3000,500)", () -> screen.waitForScreenStable(3000, 500));
+                                                          ^
+1 warning
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+Exception in thread "Thread-0" com.tigervnc.rfb.Exception: ZRLEDecoder: assertion (len <= end - ptr) failed
+	at com.tigervnc.rfb.ZRLEDecoder.readRect(ZRLEDecoder.java:135)
+	at com.tigervnc.rfb.CMsgReader.readRect(CMsgReader.java:110)
+	at com.tigervnc.rfb.CMsgReaderV3.readMsg(CMsgReaderV3.java:91)
+	at com.tigervnc.rfb.CConnection.processMsg(CConnection.java:67)
+	at com.sikulix.vnc.VNCClient.processMessages(VNCClient.java:246)
+	at org.sikuli.vnc.VNCScreen$1.run(VNCScreen.java:96)
+	at java.base/java.lang.Thread.run(Thread.java:1474)

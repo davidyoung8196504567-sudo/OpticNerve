@@ -1,0 +1,39 @@
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=16 depth=16 max=31,63,31 shift=11,5,0
+SetEncodings [-224, -313, -312, 16, 1, 5, 2, 0, -224]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+PointerEvent mask=0 60,60
+PointerEvent mask=0 120,120
+PointerEvent mask=0 181,181
+PointerEvent mask=0 241,241
+PointerEvent mask=0 300,300
+PointerEvent mask=0 300,300
+PointerEvent mask=0 300,300
+PointerEvent mask=1 300,300
+PointerEvent mask=1 300,300
+PointerEvent mask=3 300,300
+PointerEvent mask=3 300,300
+PointerEvent mask=7 300,300
+PointerEvent mask=7 300,300
+PointerEvent mask=7 300,300
+PointerEvent mask=7 300,300
+PointerEvent mask=7 420,360
+PointerEvent mask=7 541,420
+PointerEvent mask=7 661,480
+PointerEvent mask=7 782,541
+PointerEvent mask=7 900,600
+PointerEvent mask=6 900,600
+PointerEvent mask=7 900,600
+PointerEvent mask=7 900,600
+client closed

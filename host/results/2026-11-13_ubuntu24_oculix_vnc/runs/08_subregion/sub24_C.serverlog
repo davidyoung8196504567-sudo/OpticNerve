@@ -1,0 +1,2 @@
+     12  VNCSConnST:  FramebufferUpdateRequest 300x65236 at 200,600 exceeds framebuffer
+     12  VNCSConnST:  FramebufferUpdateRequest 64936x65236 at 1000,600 exceeds

@@ -1,0 +1,33 @@
+3
+W W W
+TPPP W ZW Tj
+Q Q W 4 T] Welcome to QNX 8.0 Non-Commercial!
+Q Q W Q TW
+Z T) TW QT] wW
+ZPP P] QZ W QZP] ZP]
+Qz A)
+ZP] ZPPP]
+This QNX 8 target is now ready for your QNX applications. There are
+some sample applications included here to help you get started with
+development. Find the source code for most of them at gitlab.com/qnx.
+Here's how to run some of the bundled samples:
+| $ gles2-gears | Displays hardware-rendered content using OpenGL ES 2.x. |
+| $ gles2-maze | Shows how to use texture, vertex, and fragment shaders. |
+| $ vkcubepp | Demonstrates 3D rendering capabilities using Vulkan. |
+| $ camera_example3_viewfinder | Displays a simulated camera signal or live camera feed. |
+| $ st | The default terminal. Run it to open a new instance.
+(You can use ALT-TAB to switch between windows. )
+The apk package manager is now available to further customize your target software.
+To use, run:
+# sudo apk update
+to sync with the configured repositories, and then run:
+# apk list --available
+to see the list of available packages on the repositories, and then run:
+# sudo apk add [PACKAGE]
+, aS required, to add more software.
+Note: The VNC server is now run by default. It is setup with a default password=qnxuser.
+It is recommended you change the default password. To change the password run:
+# sudo vncserv -password=<new-password>
+Have questions? Find the community in Discord at https://discord.gg/Jj4EkkrFTT,
+on Reddit at https://reddit.com/r/QNX, or log an issue at https://gitlab.com/qnx.
+[qnxuser@qnxpi ~]$ J

@@ -1,0 +1,19 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, phase start
+secTypes: VncAuth,None
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+before: returned nothing sent
+    OculiX sent: NOTHING
+    capture: start_01.png
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-72345-538419848156053773/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+[log]  TYPE "cat -v#ENTER."
+type("cat -v\r"): returned 1
+    OculiX sent: +0x0063 -0x0063 +0x0061 -0x0061 +0x0074 -0x0074 +0x0020 -0x0020 +0x002d -0x002d +0x0076 -0x0076 +0xff0d -0xff0d
+    capture: start_02.png
+[log]  TYPE "abc xyz 0123456789#ENTER."
+type("abc xyz 0123456789\r"): returned 1
+    OculiX sent: +0x0061 -0x0061 +0x0062 -0x0062 +0x0063 -0x0063 +0x0020 -0x0020 +0x0078 -0x0078 +0x0079 -0x0079 +0x007a -0x007a +0x0020 -0x0020 +0x0030 -0x0030 +0x0031 -0x0031 +0x0032 -0x0032 +0x0033 -0x0033 +0x0034 -0x0034 +0x0035 -0x0035 +0x0036 -0x0036 +0x0037 -0x0037 +0x0038 -0x0038 +0x0039 -0x0039 +0xff0d -0xff0d
+    capture: start_03.png
+stopped
