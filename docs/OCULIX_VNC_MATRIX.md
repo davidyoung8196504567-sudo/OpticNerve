@@ -208,7 +208,7 @@ not a fair speed comparison).
      ON-MacBookM4Pro session (2026-11-13): build 26B131, Apple M4 Pro; one display, the built-in Liquid Retina XDR,
      native 3024 x 1964, set to "looks like" 1352 x 878 at 2x, so the backing framebuffer is 2704 x 1756; the VNC
      frame may be either size, to be recorded from what OculiX sees. Application firewall off, stealth mode off.
-     Screen Sharing waits for David's OK on the Mac; its change and undo go into CONFIG_MANAGEMENT.md once done.
+     Screen Sharing turned on by David on 2026-11-13 (recorded in CONFIG_MANAGEMENT.md); the server offers VncAuth.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
    - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host) and input
      tests against the Mac. The release has one macOS jar, `oculixapi-4.0.0-macos.jar` (61,441,991 bytes, SHA-256
