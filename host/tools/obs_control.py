@@ -84,6 +84,14 @@ class Obs:
             if b0 & 0x80:
                 return json.loads(data)
 
+    def close(self):
+        """Close the WebSocket properly (close frame, then the socket)."""
+        try:
+            self.s.sendall(bytes([0x88, 0x82]) + bytes(4) + struct.pack(">H", 1000))
+        except OSError:
+            pass
+        self.s.close()
+
     def request(self, kind, data=None):
         rid = str(uuid.uuid4())
         self.send({"op": 6, "d": {"requestType": kind, "requestId": rid, "requestData": data or {}}})
@@ -92,7 +100,7 @@ class Obs:
             if msg["op"] == 7 and msg["d"]["requestId"] == rid:
                 status = msg["d"]["requestStatus"]
                 if not status["result"]:
-                    sys.exit(f"{kind} failed: {status.get('comment', status['code'])}")
+                    raise RuntimeError(f"{kind} failed: {status.get('comment', status['code'])}")
                 return msg["d"].get("responseData", {})
 
 
@@ -103,15 +111,20 @@ def password():
     return json.loads(cfg.read_text())["server_password"]
 
 
-def start_record(obs):
-    """Start recording, unless a file with OBS's fixed recording name is still there (it would be overwritten)."""
+def recording_blocker(obs):
+    """A file with OBS's fixed recording name that the next recording would overwrite, or None."""
     folder = Path(obs.request("GetRecordDirectory")["recordDirectory"])
     name = obs.request("GetProfileParameter", {"parameterCategory": "Output",
                                                "parameterName": "FilenameFormatting"})["parameterValue"]
-    if "%" not in name:
-        left = sorted(folder.glob(name + ".*"))
-        if left:
-            sys.exit(f"not started: {left[0]} is still there; rename or move it first")
+    left = sorted(folder.glob(name + ".*")) if "%" not in name else []
+    return left[0] if left else None
+
+
+def start_record(obs):
+    """Start recording, unless a file with OBS's fixed recording name is still there (it would be overwritten)."""
+    left = recording_blocker(obs)
+    if left:
+        raise RuntimeError(f"not started: {left} is still there; rename or move it first")
     obs.request("StartRecord")
 
 
@@ -158,4 +171,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as e:
+        sys.exit(str(e))

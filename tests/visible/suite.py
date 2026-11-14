@@ -3,7 +3,7 @@
 
     python tests/visible/suite.py list        the tests in order, their prerequisites and last results
     python tests/visible/suite.py all         record with OBS and run every test, captions on the video
-    python tests/visible/suite.py run ID      run (or rerun) one test, no recording
+    python tests/visible/suite.py run ID      run (or rerun) one main test: no recording, no setup or teardown
     python tests/visible/suite.py reset       forget all results
 
 Channels:
@@ -12,6 +12,11 @@ Channels:
   VNC     is the function under test: input goes in through QNX's vncserv, frames come out of it.
   camera  is the independent witness: a webcam pointed at the HDMI monitor, read through OBS
           (host/tools/obs_control.py), shows what a person would see. OBS also records the run.
+
+The run has three parts. Setup tests (SU..) make the connections and check everything the suite depends on, save the
+initial condition and start the recording; if one fails, every main test is skipped with that reason. Then the main
+tests. Teardown tests (TD..) always run: they put the target back, stop and rename the recording, restore OBS to
+the saved condition and disconnect.
 
 Every test first puts the target into the state it needs over SSH, so a failed test does not leave the next one in
 the wrong place. Prerequisites are only functions a test really reuses; if one did not pass, the test is recorded as
@@ -199,7 +204,138 @@ def java(*args):
     return subprocess.run(["java", "-cp", need("ON_OCULIX_JAR"), *args], capture_output=True, text=True, cwd=ROOT)
 
 
-# --- the tests: each returns (result, detail) -------------------------------------------------------------------
+# --- setup and teardown tests ----------------------------------------------------------------------------------
+
+RUN = {}  # the state of the run in progress (set by run()), where the initial condition is kept
+
+
+def obs_condition():
+    """The parts of OBS's state the suite changes: program scene, the caption source, audio mutes."""
+    inputs = [i["inputName"] for i in obs_request("GetInputList")["inputs"]]
+    mutes = {}
+    for name in inputs:
+        try:
+            mutes[name] = obs_request("GetInputMute", {"inputName": name})["inputMuted"]
+        except RuntimeError:
+            pass  # not an audio source
+    shown = None
+    if CAPTION in inputs:
+        item = obs_request("GetSceneItemId", {"sceneName": CAMERA_SCENE, "sourceName": CAPTION})["sceneItemId"]
+        shown = obs_request("GetSceneItemEnabled", {"sceneName": CAMERA_SCENE,
+                                                    "sceneItemId": item})["sceneItemEnabled"]
+    return {"scene": obs_request("GetCurrentProgramScene")["currentProgramSceneName"],
+            "caption_present": CAPTION in inputs, "caption_shown": shown, "mutes": mutes,
+            "recording": obs_request("GetRecordStatus")["outputActive"]}
+
+
+def t_su_obs():
+    v = obs().request("GetVersion")  # opens the one connection of the run
+    scenes = [x["sceneName"] for x in obs_request("GetSceneList")["scenes"]]
+    inputs = [i["inputName"] for i in obs_request("GetInputList")["inputs"]]
+    RUN["initial_obs"] = c = obs_condition()
+    ok = CAMERA_SCENE in scenes and CAMERA in inputs and not c["recording"]
+    return ("PASS" if ok else "FAIL"), (
+        f"OBS {v['obsVersion']}, obs-websocket {v['obsWebSocketVersion']}: connected; scene '{CAMERA_SCENE}' "
+        f"present {CAMERA_SCENE in scenes}; camera source '{CAMERA}' present {CAMERA in inputs}; not already "
+        f"recording {not c['recording']}; initial condition saved: scene '{c['scene']}', caption source present "
+        f"{c['caption_present']}, muted {c['mutes']}")
+
+
+def t_su_host():
+    checks = {
+        "java": shutil.which("java") is not None,
+        "OculiX jar": Path(os.environ.get("ON_OCULIX_JAR", "-")).is_file(),
+        "expected welcome text for this release": EXPECTED_MOTD.is_file(),
+        "VNC and login passwords set": bool(os.environ.get("ON_VNC_PASSWORD") and os.environ.get("ON_LOGIN_PASSWORD")),
+        "no unnamed recording waiting to be overwritten": obs_control.recording_blocker(obs()) is None,
+    }
+    bad = [k for k, v in checks.items() if not v]
+    return ("PASS", "present: " + ", ".join(checks)) if not bad else ("FAIL", "missing: " + ", ".join(bad))
+
+
+def t_su_record():
+    obs_request("SetCurrentProgramScene", {"sceneName": CAMERA_SCENE})
+    obs_control.start_record(obs())
+    time.sleep(2)
+    c = cam("setup")
+    active = obs_request("GetRecordStatus")["outputActive"]
+    ok = active and brightness(c) > 5
+    return ("PASS" if ok else "FAIL"), (f"OBS on scene '{CAMERA_SCENE}', recording {active}; camera frame "
+                                        f"{c.width}x{c.height}, brightness {brightness(c):.0f}/255")
+
+
+def t_su_ssh():
+    out = (pi("uname -sr; hostname; date -u '+%Y-%m-%d %H:%M UTC'; rs id -u", timeout=30) or "").splitlines()
+    out = [l.strip() for l in out if l.strip()]
+    ok = len(out) == 4 and out[-1] == "0"
+    return ("PASS" if ok else "FAIL"), (f"SSH to {HOST}: {', '.join(out[:3]) or 'no answer'}; root through sudo "
+                                        f"{bool(out) and out[-1] == '0'}")
+
+
+def t_su_target():
+    procs = processes()
+    apps = [a for a in APPS if running(a, procs)]
+    down = [g for g in GRAPHICS if not running(g, procs)]
+    probe = "yes" in (pi("test -x /tmp/screen_probe && echo yes") or "")
+    v = frame("initial")
+    RUN["initial_target"] = {"apps": apps, "cores": RUN.get("baseline")}
+    ok = not apps and not down and probe and v.size == (1920, 1080)
+    return ("PASS" if ok else "FAIL"), (
+        f"SSH: graphics processes all up {not down}{' (down: ' + ', '.join(down) + ')' if down else ''}; no app "
+        f"open on the launcher {not apps}{' (open: ' + ', '.join(apps) + ')' if apps else ''}; /tmp/screen_probe "
+        f"present {probe}; initial condition saved: launcher frame, core dumps {RUN.get('baseline')}")
+
+
+def t_td_target():
+    closed = to_launcher()
+    out = pi("rs ls /data/var/dumper") or ""
+    procs = processes()
+    apps = [a for a in APPS if running(a, procs)]
+    down = [g for g in GRAPHICS if not running(g, procs)]
+    new = sorted(set(out.split()) - set(RUN.get("baseline") or []))
+    v = frame("final")
+    diff = share(Image.open(RUNS / "initial_vnc.png").convert("RGB"), v)
+    k = agree(cam("final"), v) if _obs is not None else None  # no camera if OBS never connected
+    ok = not apps and not down and not new and diff < 0.01 and (k is None or k > 0.6)
+    return ("PASS" if ok else "FAIL"), (
+        f"SSH: apps closed now {closed or 'none'}, still open {apps or 'none'}, graphics processes down "
+        f"{down or 'none'}, new core dumps {new or 'none'}; VNC frame differs from the initial launcher frame by "
+        f"{diff:.2%}; " + (f"camera sees the launcher (correlation {k:.2f})" if k is not None
+                      else "camera not checked: OBS was never connected"))
+
+
+def t_td_record():
+    target = obs_control.stop_record(obs(), "visible-suite")
+    RUN["recording"] = str(target)
+    ok = target.is_file() and target.stat().st_size > 0
+    return ("PASS" if ok else "FAIL"), f"recording stopped and renamed: {target} ({target.stat().st_size / 1e6:.1f} MB)"
+
+
+def t_td_obs():
+    global _obs
+    want = RUN["initial_obs"]
+    if want["caption_present"]:
+        caption("")
+        item = obs_request("GetSceneItemId", {"sceneName": CAMERA_SCENE, "sourceName": CAPTION})["sceneItemId"]
+        obs_request("SetSceneItemEnabled", {"sceneName": CAMERA_SCENE, "sceneItemId": item,
+                                            "sceneItemEnabled": bool(want["caption_shown"])})
+    elif obs_condition()["caption_present"]:
+        obs_request("RemoveInput", {"inputName": CAPTION})
+    for name, muted in want["mutes"].items():
+        obs_request("SetInputMute", {"inputName": name, "inputMuted": muted})
+    obs_request("SetCurrentProgramScene", {"sceneName": want["scene"]})
+    time.sleep(0.5)
+    now = obs_condition()
+    differs = [k for k in want if now[k] != want[k]]
+    obs().close()
+    _obs = None
+    return ("PASS" if not differs else "FAIL"), (
+        f"OBS back to the saved condition: scene '{now['scene']}', caption source present {now['caption_present']}, "
+        f"muted {now['mutes']}, recording {now['recording']}" +
+        (f"; NOT restored: {differs}" if differs else "") + "; WebSocket closed")
+
+
+# --- the main tests: each returns (result, detail) ---------------------------------------------------------------
 
 def t_vnc_frame():
     to_launcher()
@@ -456,7 +592,19 @@ MOUSE = ("the quick-start image's terminal is sandboxed and ignores the mouse, e
          "to be tested in an app that takes the mouse")
 
 # (id, title, what the monitor shows, prerequisites, function)
-TESTS = [
+SETUP = [
+    ("SU01", "OBS connects, initial condition saved", "nothing", [], t_su_obs),
+    ("SU02", "host prerequisites", "nothing", ["SU01"], t_su_host),
+    ("SU03", "recording starts on the camera scene", "nothing", ["SU02"], t_su_record),
+    ("SU04", "SSH to the target", "nothing", [], t_su_ssh),
+    ("SU05", "target prerequisites, initial condition saved", "the welcome launcher", ["SU04"], t_su_target),
+]
+TEARDOWN = [
+    ("TD01", "target back to its initial condition", "the welcome launcher", ["SU05"], t_td_target),
+    ("TD02", "recording stopped and renamed", "nothing", ["SU03"], t_td_record),
+    ("TD03", "OBS restored and disconnected", "nothing", ["SU01"], t_td_obs),
+]
+MAIN = [
     ("F01", "VNC connect and full frame", "the welcome launcher", [], t_vnc_frame),
     ("C01", "camera sees the monitor", "the welcome launcher", ["F01"], t_camera_sees_monitor),
     ("F02", "pointer moves", "the pointer traces a square and stops in the centre", ["F01"], t_pointer_square),
@@ -480,7 +628,10 @@ TESTS = [
     ("A03", "sudo shutdown returns to the launcher", "login, 'sudo shutdown', the Pi reboots to the launcher",
      ["U01"], t_shutdown_to_launcher),
 ]
+TESTS = SETUP + MAIN + TEARDOWN
 BY_ID = {t[0]: t for t in TESTS}
+GATE = [t[0] for t in SETUP]  # every main test needs all of setup
+HOST_ONLY = {"SU01", "SU02", "SU03", "TD02", "TD03"}  # no target health check after these
 KNOWN_LIMITS = {"F06": MOUSE, "F07": MOUSE}
 
 
@@ -515,13 +666,18 @@ def health(state):
     return sorted(set(cores) - set(state["baseline"])), down, flagged
 
 
-def run(tid, state):
+def run(tid, state, gate=True):
+    global RUN
+    RUN = state
     _, _, _, requires, fn = BY_ID[tid]
     results = state["results"]
+    main = tid not in GATE and not tid.startswith("TD")
+    if main and gate:
+        requires = GATE + requires
     unhealthy = next((r for r in results.values() if r.get("unhealthy") and r["id"] != tid), None)
     if tid in KNOWN_LIMITS:
         result, detail = "N/A", "known limitation: " + KNOWN_LIMITS[tid]
-    elif unhealthy:
+    elif unhealthy and main:
         result, detail = "SKIP", f"target unhealthy since {label(unhealthy['id'])}: {unhealthy['unhealthy']}"
     else:
         blocking = [(p, results.get(p, {}).get("result", "not run")) for p in requires
@@ -536,7 +692,7 @@ def run(tid, state):
                 result, detail = "FAIL", f"error: {e!r}"
             detail = f"{detail} [{time.time() - t0:.0f} s]"
     entry = {"id": tid, "result": result, "detail": str(detail), "at": datetime.now(timezone.utc).isoformat()}
-    if result not in ("SKIP", "N/A"):
+    if result not in ("SKIP", "N/A") and tid not in HOST_ONLY:
         new_cores, down, flagged = health(state)
         if flagged:
             with open(RUNS / "log_flags.txt", "a", encoding="utf-8") as f:
@@ -562,29 +718,27 @@ def fresh():
 
 
 def run_all():
-    """Record the whole run: camera scene, a caption per test, the file renamed at the end."""
+    """Setup tests, main tests, teardown tests; a caption per test on the recording."""
     state = fresh()
-    print(f"core dumps already on the target: {state['baseline']}", flush=True)
-    obs_request("SetCurrentProgramScene", {"sceneName": CAMERA_SCENE})
-    caption("OpticNerve visible test suite: Raspberry Pi 5, QNX 8.0 quick-start image")
-    obs_control.start_record(obs())
-    time.sleep(3)
-    tally, summary = {}, "interrupted"
-    try:
-        for n, (tid, title, _, _, _) in enumerate(TESTS, 1):
-            caption(f"{n}/{len(TESTS)}  {tid} ({title}): running")
-            entry = run(tid, state)
-            tally[entry["result"]] = tally.get(entry["result"], 0) + 1
-            caption(f"{n}/{len(TESTS)}  {tid} ({title}): {entry['result']}")
-            time.sleep(2.5 if entry["result"] in ("PASS", "FAIL") else 1.5)
-        summary = ", ".join(f"{v} {k}" for k, v in sorted(tally.items()))
-        caption(f"{len(TESTS)} tests: {summary}")
-        time.sleep(5)
-    finally:
-        caption("")
-        target = obs_control.stop_record(obs(), "visible-suite")
-        print(f"recording stopped: {target} ({target.stat().st_size / 1e6:.1f} MB)")
-    print(f"{len(TESTS)} tests: {summary}")
+    tally = {}
+
+    def show(text):
+        if _obs is not None:  # captions only while the run's connection is open
+            try:
+                caption(text)
+            except (RuntimeError, OSError, EOFError):
+                pass
+
+    for n, (tid, title, _, _, _) in enumerate(TESTS, 1):
+        if tid == "TD02":  # last thing on the video: the tally so far
+            show(f"{n - 1} tests so far: " + ", ".join(f"{v} {k}" for k, v in sorted(tally.items())))
+            time.sleep(5)
+        show(f"{n}/{len(TESTS)}  {tid} ({title}): running")
+        entry = run(tid, state)
+        tally[entry["result"]] = tally.get(entry["result"], 0) + 1
+        show(f"{n}/{len(TESTS)}  {tid} ({title}): {entry['result']}")
+        time.sleep(2.5 if entry["result"] in ("PASS", "FAIL") else 1.5)
+    print(f"{len(TESTS)} tests: " + ", ".join(f"{v} {k}" for k, v in sorted(tally.items())))
 
 
 def main():
@@ -604,7 +758,7 @@ def main():
     elif cmd == "run":
         if state["started"] is None:
             state = fresh()
-        run(sys.argv[2], state)
+        run(sys.argv[2], state, gate=False)
     else:
         sys.exit(__doc__)
 
