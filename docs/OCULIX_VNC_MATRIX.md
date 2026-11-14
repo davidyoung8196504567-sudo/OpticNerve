@@ -110,20 +110,26 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 
 ## Host differences: Windows 11 and Ubuntu 24.04
 
-Same Pi, same OculiX version, read-only calls. Windows: ON-ASUSROG-win-11, `oculixapi-4.0.0-windows.jar`. Ubuntu:
-UBUNTU24 (x86_64, X11), `oculixapi-4.0.0-linux.jar`, measured by the ON-UBUNTU24 session.
+The same read-only probe, `host/spikes/probe/ReadOnlyProbe.java` (written by the ON-UBUNTU24 session, run unchanged on
+both hosts), against the same Pi showing the terminal with the welcome message, on 2026-11-14. It sends no pointer or
+key events. Windows: ON-ASUSROG-win-11, `oculixapi-4.0.0-windows.jar`. Ubuntu: UBUNTU24 (x86_64, X11),
+`oculixapi-4.0.0-linux.jar`, run by ON-UBUNTU24. Both Temurin 25.0.4+7.
 
 | Function | Windows 11 | Ubuntu 24.04 |
 |---|---|---|
-| `VNCScreen.start` | works, about 3.3 s | works, 3.45 to 3.48 s |
-| `capture()`, 1920 x 1080 | works, 0.21 s, image type 0 | works, 0.46 to 0.59 s, image type 0 (`DirectColorModel`, `DataBufferInt`) |
-| `capture(x, y, w, h)` | not measured | works, 0.21 s, identical to the full capture's area |
-| Colour at a point | not measured | works, 0.15 s |
-| `exists`, `find`, `findAll` on the `VNCScreen` | fails, `ClassCastException` | fails, the same exception |
-| `Finder` on a BGR copy | works, 0.1 to 0.8 s | works, 0.59 to 0.90 s |
-| OCR on a BGR copy | works out of the box | works **only with `LD_LIBRARY_PATH`** set to Legerix's folder (`~/.cache/legerix/5.5.0-8/linux-x86-64/`): otherwise `libtesseract.so.5` cannot find `libleptonica.so.6`, OculiX falls back to a `tesseract` program that is not installed, and every OCR call fails. 13.8 s for the full screen including the engine start |
-| `text()` on the `VNCScreen` | not measured | fails, `ClassCastException` |
-| `waitForScreenStable` | not measured | works |
+| `VNCScreen.start` | works, 3.26 s | works, 3.45 to 3.48 s |
+| `capture()`, 1920 x 1080 | works, 0.20 to 0.23 s; image type 0 (`DirectColorModel`, `DataBufferInt`) | works, 0.46 to 0.59 s; the same image type |
+| `capture(100, 100, 400, 300)` | works, 0.17 s, 0 pixels differ from the full capture | works, 0.21 to 0.23 s, 0 pixels differ |
+| `Location.getColor`, 5 points | works, 0.15 s each, all equal to the capture | works, 0.15 to 0.16 s, all equal |
+| `exists`, `find`, `findAll` on the `VNCScreen` | **fail**, `ClassCastException` | **fail**, the same exception |
+| `Finder` on a BGR copy | works, score 1.0000 at 0.99 and 0.80, 0.09 to 0.21 s | works, score 1.0000, 0.59 to 0.90 s |
+| `OCR.readText` on a BGR copy | works out of the box, 2.6 s (first call, engine start included), 1528 characters, 33 lines | works **only with `LD_LIBRARY_PATH`** set to Legerix's folder (`~/.cache/legerix/5.5.0-8/linux-x86-64/`), 13.8 s, 32 lines. Without it `libtesseract.so.5` cannot find `libleptonica.so.6`, OculiX falls back to a `tesseract` program that is not installed, and every OCR call fails |
+| `OCR.readText` on the raw capture, `VNCScreen.text()`, `Region.text()` | **fail**, `ClassCastException` | **fail**, the same exception |
+| `waitForScreenStable(3000, 500)` | works, true after 0.70 s | works, true after 1.16 s |
+
+So OculiX behaves the same on both hosts against QNX's `vncserv`, apart from two things: Linux needs the OCR library
+workaround, and Windows is two to three times faster for captures, searches and OCR (different machines, so this is
+not a fair speed comparison).
 
 ## What this says so far
 
