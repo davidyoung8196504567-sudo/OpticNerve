@@ -136,6 +136,34 @@ So OculiX behaves the same on both hosts against QNX's `vncserv`, apart from two
 workaround, and Windows is two to three times faster for captures, searches and OCR (different machines, so this is
 not a fair speed comparison).
 
+## Newer VNC client library: tigervnc-java-oculix 2.0.4 first on the classpath
+
+Asked for by the Oculix-MacBookM4Pro-macOS-27 session; run read-only by ON-UBUNTU24 (arms A = 4.0.0 alone,
+B = 2.0.2 first, C = 2.0.4 first) and arm C repeated from Windows, 2026-11-14. Jars from Maven Central
+(`io.github.oculix-org:tigervnc-java-oculix`), SHA-256 2.0.2 `3ec287d9...6698`, 2.0.4 `de6fc7ca...24ca6`;
+`-verbose:class` confirmed the override loads. **Most of the defects above go away with 2.0.4:**
+
+| Server | A: 4.0.0 alone | B: 2.0.2 first | C: 2.0.4 first |
+|---|---|---|---|
+| QNX `vncserv` (Pi), from UBUNTU24 | 75,919 wrong pixels, `ClassCastException` | the same | **0 wrong pixels**, find, `findAll`, `text()` and `getColor` right, no exception; capture 0.17 to 0.25 s (A: 0.46 to 0.58 s) |
+| QNX `vncserv` (Pi), from Windows | 75,919 wrong pixels, `ClassCastException` | not run | **0 wrong pixels** against two identical raw frames; `exists`, `find` at the right place (score 1.00), `findAll` 1 match, `OCR.readText` on the raw capture and `VNCScreen.text()` 1528 characters, `Region.text()` works; capture 0.15 to 0.19 s |
+| TigerVNC, depth 24 | 72,666 wrong | 0 wrong | 0 wrong |
+| x11vnc | frame black (both the `:135` and `:85` errors seen in different runs) | correct except the 94-pixel pointer | the same as B |
+| TigerVNC, depth 16 | 1,757,793 wrong, `ClassCastException` | the same | 0 wrong, find and OCR work |
+| macOS Screen Sharing, from Windows | frame all black | not run | **login fails**: `AuthFailureException` straight after the 3.8 handshake, with the password that works for 4.0.0 and for our raw tool; which security type 2.0.4 picks from Apple's list (30, 33, 36, 31, 32, 2, 35) not identified; not retried, to avoid locking the account |
+
+Why (Oculix session, from the source; seen in the TigerVNC depth 16 server log): 2.0.2 fixes the 32 bpp ZRLE decoder;
+2.0.4 also asks every server for 32 bpp rgb888, so the rgb565 colour model and the `TYPE_CUSTOM` image are never
+used. The colour-model and `getMatList` defects are still in the code, only not reached.
+
+Also seen: `Location.getColor` and `capture(x, y, w, h)` send update requests sized (w - x, h - y), wrapped to 16
+bits (for example 65527 x 65527 at 10,10): `refreshFramebuffer` passes width and height where `Rect` takes corners
+(`VNCClient.java:167`, still in 2.0.4). The server clips them, so results are right; whether a partial capture can
+come back stale is not tested.
+
+Not tested with 2.0.4: any input, more than one run, the Mac login failure's cause. It is a classpath override of a
+pinned release, recorded in CONFIG_MANAGEMENT.md as a trial host component; the suite does not use it yet.
+
 ## What this says so far
 
 1. **The path works end to end:** OculiX connects to QNX's `vncserv`, sees the screen, finds an image, clicks it and
@@ -180,7 +208,8 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
   differently (`ZRLEDecoder.java:135` assertion), so #443 covers those two only if one fix covers both. Not proved.
 - A decoder exception kills the reader thread and the script carries on, so a pass or a `FindFailed` may come from a
   dead framebuffer. **Every probe run checks stderr for `Thread-N` exceptions and keeps one capture.**
-- `Key.ENTER` sends XK_Linefeed, not Return: input probes try both `type("")` and `Key.ENTER`.
+- `Key.ENTER` sends XK_Linefeed, not Return: input probes try both `type("
+")` and `Key.ENTER`.
 - `type()` with non-ASCII text pastes from the local clipboard with the local hotkey, so expect it to fail over VNC.
 - Colour-mapped (palette) servers are not supported; 16 bpp has its own code path.
 
