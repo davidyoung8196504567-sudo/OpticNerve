@@ -56,6 +56,13 @@ same assertion at `ZRLEDecoder.java:135` during start; every capture is entirely
 correctly. Likely cause: ZRLE's 3-byte compact pixels (CPIXEL), used only at 32 bits per pixel (compare #443). Not
 proved. There is no API to choose another encoding (`VNCClient.currentEncoding` is private).
 
+**Relation to #443** (Oculix-MacBookM4Pro-macOS-27 session, 2026-11-13): #443's own report quotes the line-135
+assertion, and x11vnc fails at line 85 (inflate) in the same decoder. #443 is fixed in tigervnc-java 2.0.2, which
+no OculiX release contains. ON-UBUNTU24 is testing 4.0.0 against tigervnc-java 2.0.2 and 2.0.4 by swapping the
+classpath. The hypothesis to test is that 2.0.4 always asks the server for 32 bpp: that would avoid the 16 bpp
+defects on QNX but would put QNX on the 32 bpp ZRLE path instead. So this may be a duplicate of #443: check before
+drafting.
+
 **Not checked yet**
 
 - Whether later captures stay stale (the reader thread is dead, so they likely do).

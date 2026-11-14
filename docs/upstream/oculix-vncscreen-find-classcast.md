@@ -20,6 +20,10 @@ Any image search on a `VNCScreen` (`exists`, `find`, `wait`, `click(Pattern)`) f
 image backed by a `DataBufferInt` and `Commons.makeMat` sends every `TYPE_CUSTOM` image to `getMatList`, which
 assumes a byte buffer.
 
+**Confirmed in the source** (Oculix-MacBookM4Pro-macOS-27 session, 2026-11-13): `Commons.getMatList` (line 2541)
+casts every `TYPE_CUSTOM` image to `DataBufferByte`; unfixed on master and on every dev branch. Reproduced there
+with no server (`fleet/repro-2026-11-13-vnc-rgb565/`).
+
 **Steps to reproduce**
 
 1. Run a VNC server with a 16 bpp rgb565 pixel format and VNC password authentication: `Xtigervnc -depth 16`
