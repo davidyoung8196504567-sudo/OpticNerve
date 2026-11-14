@@ -171,6 +171,19 @@ not a fair speed comparison).
 
 ## Next measurements
 
+Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's OculiX fork, relayed by ON-MacBookM4Pro,
+2026-11-13), **read from the 4.0.0 source, not run**, to use in the input probes:
+
+- 4.0.0's VNC client (tigervnc-java-oculix 2.0.1) offers only VncAuth and None security.
+- ZRLE is hard-coded. Issue #443 ("ZlibInStream: inflate failed" at 32 bpp) is fixed in tigervnc-java 2.0.2 and
+  later, which no OculiX release contains. Our x11vnc failure has that exact message; TigerVNC and macOS fail
+  differently (`ZRLEDecoder.java:135` assertion), so #443 covers those two only if one fix covers both. Not proved.
+- A decoder exception kills the reader thread and the script carries on, so a pass or a `FindFailed` may come from a
+  dead framebuffer. **Every probe run checks stderr for `Thread-N` exceptions and keeps one capture.**
+- `Key.ENTER` sends XK_Linefeed, not Return: input probes try both `type("")` and `Key.ENTER`.
+- `type()` with non-ASCII text pastes from the local clipboard with the local hotkey, so expect it to fail over VNC.
+- Colour-mapped (palette) servers are not supported; 16 bpp has its own code path.
+
 1. **An OculiX probe on the Pi:** one program that calls each `VNCScreen` function (type, special keys, modifiers,
    hover, double and right click, wheel, drag, region capture, colour, `waitForStable`, observe, OCR methods) and
    checks each result over SSH and in the frames. It turns the "not measured" cells of the QNX column into
