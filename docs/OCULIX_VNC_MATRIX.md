@@ -302,6 +302,24 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      sent is lowercase (TigerVNC adds Caps_Lock instead), so the ON agent types capitals as capitals; `paste(text)` and
      `type("é")` send only Ctrl+V and paste whatever is on the target's clipboard (the marker appeared twice), while
      `paste` puts its text on the client's clipboard.
+   - **Input, UBUNTU24 → this Windows 11 laptop's real desktop (slot 2)**, 2026-11-14 18:53 to 19:02 UTC, David's
+     go in this session; ON-VNC-1 for TightVNC 2.8.90 (2.0.2 first), ON-UBUNTU24's `StepProbe` through its tap on
+     UBUNTU24 (what OculiX sent) and UI Automation on this host (what arrived in Notepad); target an empty, never saved
+     Notepad tab, maximised on the laptop panel (framebuffer y 1080 to 2520), safe rectangle x 200-2300, y 1280-2330.
+     The first look-only capture showed Notepad not maximised and this terminal inside the safe rectangle, so
+     ON-UBUNTU24 sent nothing; after the window was maximised, a second look matched, then one click was checked here
+     before the rest. Run A (34 steps), then run B in two connections. **Work:** `click`, `hover`, `doubleClick`,
+     `rightClick` (menu opens, Esc closes it), `dragDrop` and `mouseDown(Mouse.LEFT)` + move + `mouseUp(Mouse.LEFT)`
+     select text, letters, digits, capitals, Return `"\r"`, Tab, Backspace, arrows, Home, End, Page Up and Down,
+     **`Key.DELETE` from a Linux client (keypad Delete, 0xff9f) deletes**, Ctrl+A then typing replaces; wheel
+     buttons are sent (nothing to scroll). **Do not work:** **shifted punctuation is intermittently typed unshifted**:
+     every keysym arrived at the tap as the right one with Shift_L around it, but in run A 7 of 21 shifted
+     characters arrived as the unshifted character of the same US key (@ as 2, # as 3, _ as -, + as =, < as ",", >
+     as ".", ~ as "`"; checked here by codepoint), and in a repeat of those 7 (B1, from ON-UBUNTU24's capture only,
+     since B2 replaced the text) only @ and # failed. The same characters arrived right on x11vnc in slot 1, so this
+     points at the TightVNC server, not OculiX; no cause is claimed. `Key.ENTER` adds no line; `type("a", SHIFT)`
+     gives "a" (as on x11vnc); `paste(text)` and `type("é")` send only Ctrl+V (this host's clipboard marker appeared
+     twice). Afterwards: Caps Lock off, no modifier or button held, no connection left on 5900, file still 0 bytes.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
