@@ -25,11 +25,12 @@ checked: a new core dump or a missing graphics process fails the test and skips 
 with its title.
 
 Environment: ON_HOST (default 10.30.1.116), ON_VNC_PASSWORD and ON_LOGIN_PASSWORD (the image's documented defaults;
-not stored here), ON_OCULIX_JAR (the pinned oculixapi jar, docs/CONFIG_MANAGEMENT.md), ON_CAMERA (OBS source name,
+not stored here), ON_OCULIX_JAR (the pinned oculixapi jar) and ON_TIGERVNC_JAR (the pinned
+tigervnc-java-oculix 2.0.4 jar, first on the classpath: test configuration ON-VNC-1, docs/CONFIG_MANAGEMENT.md), ON_CAMERA (OBS source name,
 default "Video Capture Device"), ON_CAMERA_SCENE (default "Scene"). The update tests need /tmp/screen_probe on the
 target (agent/spikes/screen_probe.c). Results and frames go to tests/visible/runs/ (not in git).
 """
-import base64, json, os, re, shutil, subprocess, sys, threading, time
+import base64, hashlib, json, os, re, shutil, subprocess, sys, threading, time
 from datetime import datetime, timezone
 from pathlib import Path
 from PIL import Image, ImageChops, ImageStat
@@ -200,8 +201,25 @@ def live(tag, grab):
     return share(a, grab(f"{tag}_2"))
 
 
+# Test configuration ON-VNC-1: the newer VNC client library first on the classpath, both jars checked by hash.
+PINNED = {"ON_TIGERVNC_JAR": "de6fc7ca87d9fd704b2b1b2d172f19e55c34f53cadd7e664739315ac15224ca6",
+          "ON_OCULIX_JAR": {"b8ff76a74e582c7d36df2ca1dfb3f09bf564395d47502a9da5db84a304f70638",   # windows
+                            "bfebf7841eeca171e632739c00eeba879683c32d7530e9af624ae447010c9554",   # linux
+                            "e26cc3daa7bf064d222a2457801b79f5a22007a84bba6853631edc54f6074bd3"}}  # macos
+
+
+def jar_ok(var):
+    path = Path(os.environ.get(var, "-"))
+    if not path.is_file():
+        return False
+    want = PINNED[var]
+    return hashlib.sha256(path.read_bytes()).hexdigest() in ({want} if isinstance(want, str) else want)
+
+
 def java(*args):
-    return subprocess.run(["java", "-cp", need("ON_OCULIX_JAR"), *args], capture_output=True, text=True, cwd=ROOT)
+    cp = os.pathsep.join([need("ON_TIGERVNC_JAR"), need("ON_OCULIX_JAR")])
+    return subprocess.run(["java", "--enable-native-access=ALL-UNNAMED", "-cp", cp, *args],
+                          capture_output=True, text=True, cwd=ROOT)
 
 
 # --- setup and teardown tests ----------------------------------------------------------------------------------
@@ -244,7 +262,8 @@ def t_su_obs():
 def t_su_host():
     checks = {
         "java": shutil.which("java") is not None,
-        "OculiX jar": Path(os.environ.get("ON_OCULIX_JAR", "-")).is_file(),
+        "OculiX jar with its pinned hash": jar_ok("ON_OCULIX_JAR"),
+        "tigervnc-java-oculix 2.0.4 jar with its pinned hash (ON-VNC-1)": jar_ok("ON_TIGERVNC_JAR"),
         "expected welcome text for this release": EXPECTED_MOTD.is_file(),
         "VNC and login passwords set": bool(os.environ.get("ON_VNC_PASSWORD") and os.environ.get("ON_LOGIN_PASSWORD")),
         "no unnamed recording waiting to be overwritten": obs_control.recording_blocker(obs()) is None,

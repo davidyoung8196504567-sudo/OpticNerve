@@ -174,7 +174,7 @@ come back stale is not tested.
 Windows host to the Pi, 2026-11-14, Eclipse Adoptium 25.0.4+7-LTS, read-only: both jars' SHA-256 match;
 `-verbose:class` loads `com.sikulix.vnc.VNCClient` and `com.tigervnc.rfb.ZRLEDecoder` from the 2.0.4 jar; the log
 says "Choosing security type VncAuth(2)"; no `Thread-N` exception; capture type 1; 0 wrong pixels against two
-identical raw frames. All five pass. Adopting ON-VNC-1 for the suite is David's decision (not made yet).
+identical raw frames. All five pass. **Adopted by David for the suite and all OculiX testing on 2026-11-14.**
 
 Not tested with 2.0.4: any input, more than one run, the Mac login failure's cause. It is a classpath override of a
 pinned release, recorded in CONFIG_MANAGEMENT.md as a trial host component; the suite does not use it yet.

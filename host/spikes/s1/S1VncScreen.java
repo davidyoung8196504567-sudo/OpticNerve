@@ -36,6 +36,7 @@ public class S1VncScreen {
 
     public static void main(String[] a) throws Exception {
         String host = a[0], password = a[1], mode = a[2];
+        com.tigervnc.rfb.SecurityClient.secTypes.setParam("VncAuth,None"); // ON-VNC-1: never Apple's DH login
         long t0 = System.nanoTime();
         VNCScreen screen = VNCScreen.start(host, 5900, password, 10, 1000);
         System.out.printf("start: %.2f s, running %s, bounds %s%n", since(t0), screen.isRunning(), screen.getBounds());

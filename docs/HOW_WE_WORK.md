@@ -54,6 +54,12 @@ Details and history are in the linked documents.
 
 ## OculiX
 
+- **Test configuration ON-VNC-1** (2026-11-14) for all OculiX and VNC testing: tigervnc-java-oculix 2.0.4 first on
+  the classpath, then the OculiX 4.0.0 jar, both checked by SHA-256; security types limited to `VncAuth,None` before
+  the first `VNCScreen.start`; Enter as `type("\r")`; the JDK stated in every result
+  ([CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md)). Each probe run checks stderr for `Thread-N` exceptions and keeps
+  one capture.
+
 - Problems found in OculiX are recorded under [upstream/](upstream/) and worked around. After the ON agent work,
   David raises each issue together with its fix, as a pull request from his fork ([PLAN.md](PLAN.md)).
 

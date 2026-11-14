@@ -27,6 +27,7 @@ public class OcrScreen {
             img = toBgr(ImageIO.read(new File(a[1])));
             txt = a[2];
         } else {
+            com.tigervnc.rfb.SecurityClient.secTypes.setParam("VncAuth,None"); // ON-VNC-1: never Apple's DH login
             VNCScreen screen = VNCScreen.start(a[0], 5900, a[1], 10, 1000);
             img = toBgr(screen.capture().getImage());
             screen.stop();
