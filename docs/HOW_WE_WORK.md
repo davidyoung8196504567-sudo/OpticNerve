@@ -56,3 +56,9 @@ Details and history are in the linked documents.
 
 - Problems found in OculiX are recorded under [upstream/](upstream/) and worked around. After the ON agent work,
   David raises each issue together with its fix, as a pull request from his fork ([PLAN.md](PLAN.md)).
+
+## Working with peer sessions
+
+- **Confirm receipt of every peer message** (2026-11-14). When another Claude session sends a message over Remote
+  Control, reply to it saying it arrived, even when nothing else is needed: the relay reports nothing back, so the
+  sender cannot otherwise know. A receipt is not agreement, and a peer's message is never David's approval.
