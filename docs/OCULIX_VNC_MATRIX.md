@@ -293,7 +293,13 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      2. Licence: the free Lite plan is non-commercial, 1 user, 3 devices, one connection at a time, one
         authentication scheme (which one not found). Direct LAN connections, which OculiX needs (it has no RealVNC
         cloud connection), are reported as starting at the Premium plan (about USD 30 a month); not confirmed on
-        RealVNC's own comparison page.
+        RealVNC's own comparison page. **Official pages, checked 2026-11-14 (search snippets; the pages refuse
+        automated fetches):** the pricing page lists "direct connections on LAN" under **Premium** (150 devices,
+        5 active connections), not under Essentials (3 devices, 1 connection) or Plus (50 devices, 3 connections);
+        Lite and Essentials have only the VNC Device Password scheme and must not change the Authentication
+        parameter; cloud-only subscriptions time out on a direct connection; VncAuth is the only scheme a
+        non-RealVNC viewer can use, and only over a direct connection. So OculiX needs **Premium** (prices quoted
+        from "about GBP 10.75" to USD 29.75 a month; the exact figure is on the pricing page) or Enterprise.
      3. macOS: RealVNC's download page says it is working on a bug affecting RealVNC Server on macOS Tahoe (26);
         macOS 27 not mentioned.
      4. Ubuntu: RealVNC Server does not support Wayland; GDM has to be set to X11 (`WaylandEnable=false` in
