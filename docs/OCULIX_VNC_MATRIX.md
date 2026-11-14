@@ -285,8 +285,13 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      2.3 s. Both hosts give the same result.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
    - **First pass, decided 2026-11-14:** a free server per host with the same settings (VNC password, port 5900,
-     the real desktop): macOS Screen Sharing (in place), a free Windows server (to choose), and on UBUNTU24 GNOME's
-     own sharing or x11vnc in an X11 session (to check). RealVNC Premium later for a retest on one product.
+     the real desktop): macOS Screen Sharing (in place), a free Windows server (to choose), and on UBUNTU24 x11vnc on the real
+     desktop. UBUNTU24, checked read-only by ON-UBUNTU24 on 2026-11-14: the session is X11 (display :1, laptop panel
+     1366 x 768, depth 24; GNOME Shell 46.0); gnome-remote-desktop 46.2 offers RDP only (no VNC backend), so the route
+     is x11vnc 0.9.16-10 (libvncserver 0.9.14) on :1, port 5900, VncAuth, started by hand for the runs: no reboot, no
+     GDM change, nothing in /etc; ufw is not filtering. It serves 32 bpp, so it needs ON-VNC-1 (decoded correctly in
+     the earlier tests, apart from the pointer, which x11vnc draws into the frame). Input against it drives David's
+     real desktop on UBUNTU24, so input runs need a slot. Waiting for David's OK in ON-UBUNTU24's session. RealVNC Premium later for a retest on one product.
    - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
      is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
      nothing installed:
