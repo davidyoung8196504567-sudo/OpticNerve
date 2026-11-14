@@ -257,7 +257,7 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
    | OculiX runs on → / VNC to ↓ | Windows 11 | Ubuntu 24.04 | macOS (MacBook M4 Pro) |
    |---|---|---|---|
    | QNX 8 (Pi 5) | measured | measured | later |
-   | Ubuntu 24.04 desktop | **read-only: works** (ON-VNC-1, 0 wrong pixels) | local column | later |
+   | Ubuntu 24.04 desktop | **read-only: works** (ON-VNC-1, 0 wrong pixels) | local column | **read-only: works** (ON-VNC-1; every differing pixel explained by the live desktop; no OCR) |
    | Windows 11 desktop | local column | **read-only: works** from UBUNTU24 with 2.0.2 first (0 wrong pixels) | **read-only: works** (2.0.2 and 2.0.4 first; OCR does not load on the Mac) |
    | macOS desktop | planned | planned | local column |
 
@@ -275,6 +275,17 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      after the probe (raw frames from before it differ from both in one 162 x 477 box where the live desktop
      changed). The capture and OCR text stay on the Windows host (David's real desktop). The VNC handshake log was
      not on, so the chosen security type is inferred: x11vnc with `-rfbauth` offers only VncAuth.
+   - **MacBook M4 Pro → UBUNTU24's desktop, read-only** (ON-MacBookM4Pro, 2026-11-14 10:50 EST, David's go in that
+     session; macOS 27.2.1 arm64, Temurin 25.0.4.1+1; ON-VNC-1: 2.0.4 first, then `oculixapi-4.0.0-macos.jar`,
+     `-Don.secTypes=VncAuth,None`, `-verbose:class`, 120 s limit, no debug log; `ReadOnlyProbe` from e770a5f; raw
+     frames right before and after; no input sent; no OCR, Legerix#20). Raw client: `RFB 003.008`, VncAuth works,
+     1366 x 768, 32 bpp depth 24, server name "UBUNTU24:1". `SecurityClient`, `CConnection`, `VNCClient` and
+     `ZRLEDecoder` from 2.0.4; the limit applied; no `Thread-N` exception; done in 11 s. Start 4.06 s; captures 0.17 s
+     (the first 0.55 s), type 1; a sub-capture equals the full one; `getColor` equals the capture at 4 points (the
+     fifth is off this screen, as from Windows). Pixels: the frame is an intermediate state of a live desktop: 148
+     against the before-frame (the clock), 2,486 against the after-frame (one text line), and the two raw frames
+     differ in exactly those two regions combined (2,634); **no unexplained pixel**. `exists` 1.3 s, `find` 0.40 s
+     score 1.00 at the right place (650,92), `findAll` 1 match, `waitForScreenStable` true.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
