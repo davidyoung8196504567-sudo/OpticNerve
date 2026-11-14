@@ -112,6 +112,7 @@ In every run, every call returned success, including calls that delivered nothin
 |---|---|---|---|---|---|---|---|---|---|
 | UBUNTU24 → TigerVNC depth 16 | A and C (the same input) | **all work** | `Mouse.*` works; **`Button.*` does nothing**; a bare `mouseUp()` after `mouseDown(Mouse.LEFT)` **leaves the button held** (gap 3) | **works**, all ASCII punctuation | works / **Linefeed, ignored** | sends keypad Delete | Tab, Esc, Backspace, arrows, Home, End, Page Up, Insert and F5 work | Ctrl, Ctrl+Alt and Alt+Tab work; **Ctrl+Shift+letter leaves Caps Lock on**; `META` sends Meta_L (Alt) | **fails**: only Ctrl+V is sent |
 | UBUNTU24 → Pi | ON-VNC-1 | `click` and moves work (68 of 68 events); drag selects text in gtk4-demo; double and middle click not measured; wheel N/A | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **does nothing on QNX** | **arrives as "."** | Tab and Backspace work; arrows, Home, End, Page Up, Insert and F5 arrive as escape sequences | Ctrl+letter and held Shift work; Ctrl+Shift reaches GUI apps; Alt and `META` give the plain letter | **fails**: only Ctrl+V is sent |
+| Windows → Pi | ON-VNC-1 | `click`, moves (68 of 68 events), `rightClick`, `dragDrop` and **`doubleClick`** work; **wheel scrolls** a gtk4-demo list; middle click sent | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **does nothing on QNX** | **sends "." (0x2e)**, shown as "." | **`Key.INSERT` "-", `PRINTSCREEN` ",", `META` "["; `F13` to `F15` and `ALTGR` throw**; **`write` with `#ENTER.` throws** (keycode 13); Tab, Backspace, arrows, Home, End, Page Up and F5 work | as from UBUNTU24 | **fails**: only Ctrl+V is sent |
 | Windows → x11vnc (UBUNTU24 desktop), slots 1 and 3 | ON-VNC-1 | **all work** | `Mouse.LEFT` down + move + up works | **works**, all ASCII punctuation | works / **Linefeed, ignored** | **sends "." (0x2e)**: a Windows key code read as a Java one | **`Key.INSERT` "-", `PRINTSCREEN` ",", `META` "["; `F13`, `F14`, `F15` and `ALTGR` throw `IllegalArgumentException` and send nothing**; Tab, Backspace, arrows, Home, End, Page Up and Down work | Ctrl+A works; **`type("a", SHIFT)` gives "a"** | **fails**: only Ctrl+V is sent, so the target's own clipboard is pasted |
 | UBUNTU24 → TightVNC (Windows desktop), slot 2 | ON-VNC-1 (B) | **all work** (right-click menu, Esc closes it) | `Mouse.LEFT` down + move + up works | letters, digits and capitals work; **shifted punctuation intermittently arrives unshifted** (7 of 21, then 2 of 7; sent correctly, so it points at the server) | works / **adds no line** | **deletes** (keypad Delete from a Linux client) | Tab, Backspace, arrows, Home, End, Page Up and Down work | Ctrl+A works; **`type("a", SHIFT)` gives "a"** | **fails**: only Ctrl+V is sent, so the target's own clipboard is pasted |
 
@@ -126,9 +127,7 @@ Not yet measured with OculiX:
 - Touch.
 - `observe` and `onChange`.
 - Keyboard layouts.
-- Double and middle click on the Pi.
-- Full input from Windows to the Pi. The only OculiX input from Windows so far is the click in O01 (OculiX finds the
-  Gears tile and clicks it); the full input run on the Pi came from UBUNTU24.
+- The cause of the one `vncserv` crash during the Windows → Pi run (it did not reproduce).
 - `vncserv -format=rgba8888` on the Pi. This is a target change.
 - Repeat runs. Most results above come from one run each; only the TightVNC runs and the Mac → TightVNC 2.0.2 runs
   were repeated.
@@ -427,6 +426,41 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      `IllegalArgumentException: Cannot type keycode 124` (125, 126, 165) and send nothing. From a Windows client
      these keys cannot be used; the ON agent sends their keysyms itself. Received side (ON-UBUNTU24, `xinput test-xi2`,
      XTEST devices only): everything sent arrived as sent, and nothing arrived for the four keys that threw.
+   - **Input, Windows host → the Pi**, 2026-11-14 23:36 to 23:49 UTC, David's go; ON-VNC-1 (2.0.4 first,
+     `VncAuth,None`), Temurin 25.0.4+7 on Windows 11. ON-UBUNTU24's Pi runs repeated unchanged (its run 12 step
+     files and `PiInputProbe.java` phases, from the share, checked against its SHA256SUMS) through `rfb_tap.py` on
+     this host, with `StepProbe` v3, plus new steps: double click, middle click and wheel in gtk4-demo, and slot 3's
+     keys in st under `cat -v`. GTK Inspector (Ctrl+Shift+I) left out. A check after every phase that `vncserv` was
+     running and no core dump was new; recordings `OpticNerve_2026-11-14_2338Z_win-pi-input.mp4` (up to the crash)
+     and `OpticNerve_2026-11-14_2349Z_win-pi-input.mp4`.
+     - **`vncserv` crashed once** (core `vncserv.core`, 13,893,632 bytes, 23:37 UTC, copied off the Pi and checked by
+       cksum; kept on this host, not in the repo). It happened after g2a's last step (Ctrl+Shift+A, whose capture was
+       normal), most likely at g2a's disconnect: the next connection was refused. The last messages the client sent
+       were complete `FramebufferUpdateRequest`s; `vncserv` saw the tap's close, as in every phase before. g2a's wire
+       bytes are identical to ON-UBUNTU24's run 12, which did not crash. `vncserv` was restarted by hand as at boot
+       (`vncserv -display=1 -auth`, as root); a bare connect, capture and stop, then g2a again, did **not** crash, and
+       nothing crashed in the rest of the run. So the cause is not known and the crash did not reproduce. The Pi log's
+       repeating "uhub0/uhub1: detached" lines continue with `vncserv` up, so they are not part of the crash. A
+       backtrace needs the SDP's debugger.
+     - **The same as from UBUNTU24:** pointer events 68 of 68 counted by Screen in the launcher phase; `click`,
+       `hover`, `rightClick`, `dragDrop`; `Button.*` does nothing; a bare `mouseUp()` leaves the button held (the
+       selection kept growing); `mouseUp(ALL)` recovers; typing, capitals and all ASCII punctuation exact; Return
+       works, `Key.ENTER` (0xff0a) does nothing; Backspace erases at the login and shell prompts; Tab, arrows, Home,
+       End, Page Up, F5 arrive as their sequences; Ctrl+letter, held Shift and held Ctrl work; Ctrl+Shift+letter and
+       Ctrl+Alt+letter give ^@ in st; Alt and Meta give the plain letter; no Caps Lock left on; `type("é")` and
+       `paste` send only Ctrl+V and nothing arrives (`paste` put "pasted text" on this host's clipboard).
+     - **New on the Pi:** `doubleClick` selects a word in gtk4-demo; the wheel (masks 16 and 8) scrolls gtk4-demo's
+       sidebar list (the scroll is animated, so captures lag the events); a middle click (mask 2) is sent, with
+       nothing to see on empty space.
+     - **Different from a Linux client, as on x11vnc (slot 3):** `Key.DELETE` sends 0x2e, a literal "." (from Linux
+       0xff9f, which QNX also shows as "."; same screen, different cause); `Key.INSERT` sends "-" (0x2d) and types
+       it; `Key.PRINTSCREEN` "," and `Key.META` "["; `Key.F13`, `F14`, `F15` and `Key.ALTGR` throw
+       `IllegalArgumentException` and send nothing. **New: `write("write:ab#ENTER.")` throws `Cannot type keycode
+       13`** after typing "write:ab", so `#ENTER.` in `write` fails from a Windows client (it works from Linux). Cause (Oculix session, from the source): the Windows layout maps "
+" and "" to VK_RETURN (13), and
+       `VNCRobot.keyToXlib` knows only Java's VK_ENTER (10); the Linux layout maps them to VK_ENTER, hence Return.
+     - Teardown: Ctrl+D, `sudo shutdown`; VNC back after 33 s; the frame equals the frame before the run (0 pixels
+       differ); no new core dump after the restart; no app open; `/tmp/screen_probe` still present.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
