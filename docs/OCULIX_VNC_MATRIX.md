@@ -41,6 +41,81 @@ Two limits of this version:
 Where the QNX column says "with our VNC tool", the function was proved with `host/tools/vnc_input.py` or
 `vnc_snapshot.py`, which send the same RFB messages as OculiX, but **not with OculiX itself**.
 
+## Master table: what was measured, per host, target and configuration
+
+A summary of every measured result in this document, as of 2026-11-14 (slots 1 to 3 included). Each row is one
+combination: the host OculiX ran on, the VNC server it drove, and the VNC client library. The sections below hold
+the details, numbers and sources. Only measured results with OculiX itself are listed; results with our own VNC tool
+and the "by design" cells are left out. The local-host column has not been measured on any host.
+
+Configurations:
+
+- **A**: OculiX 4.0.0 alone (its own VNC client, tigervnc-java-oculix 2.0.1).
+- **B**: tigervnc-java-oculix 2.0.2 first on the classpath (its security types already default to `VncAuth,None`).
+- **C**: tigervnc-java-oculix 2.0.4 first on the classpath, with no security-type limit.
+- **ON-VNC-1**: the adopted configuration. It is C with the security types limited to `VncAuth,None`, and B for
+  TightVNC 2.8.90. Both jars and the OculiX jar are checked by SHA-256.
+
+The JDK is Temurin 25.0.4+7 on Windows and UBUNTU24, and 25.0.4.1+1 on the Mac. Gap 3 on UBUNTU24 was also run with
+17.0.21+9, with identical results.
+
+Hosts and servers:
+
+- **Pi**: QNX 8.0 quick-start `vncserv` 4.2.0, rgb565.
+- **TigerVNC**: Xtigervnc 1.13.1, a private test display on UBUNTU24.
+- **x11vnc**: x11vnc 0.9.16, on UBUNTU24's real desktop when run from Windows or the Mac.
+- **TightVNC**: TightVNC 2.8.90 on this Windows laptop's real desktop.
+- **Mac**: macOS 27.2.1 Screen Sharing.
+
+### Seeing the screen (read-only probes and the visible suite)
+
+| OculiX on → server | Config | Connect / login | Capture correct? | `find`, `findAll` on the screen | OCR (`text()`) | `getColor` | Other |
+|---|---|---|---|---|---|---|---|
+| Windows → Pi | A | works, 3.3 s | **no**: 75,919 wrong pixels (rgb565 decoded wrongly) | **fails**, `ClassCastException`; `Finder` on a BGR copy works | **fails**, `ClassCastException`; on a BGR copy works, 2.6 s | equals the capture, so wrong colours | O01 (OculiX finds the Gears tile and clicks it) passes with the `Finder` workaround; `waitForScreenStable` true |
+| UBUNTU24 → Pi | A | works, 3.5 s | **no**: 75,919 wrong pixels | **fails**, `ClassCastException`; `Finder` on a copy works | **fails**; on a copy works only with `LD_LIBRARY_PATH` set | equals the capture, wrong colours | `waitForScreenStable` true |
+| UBUNTU24 → Pi | B | works | **no**: as A | **fails**, as A | **fails**, as A | as A | |
+| UBUNTU24 → Pi | ON-VNC-1 | works | **yes**: 0 wrong pixels | **works** | **works** | right | also with Temurin 17.0.21+9 |
+| Windows → Pi | ON-VNC-1 | works, VncAuth(2) | **yes**: 0 wrong pixels | **works**, score 1.00, `findAll` 1 match | **works**, 1,528 characters | right | **O01 (OculiX finds the Gears tile and clicks it) PASS** in the visible suite |
+| UBUNTU24 → TigerVNC depth 24 | A | works | **no**: 72,666 wrong pixels (ZRLE decoder dies) | does not throw, but matches on a corrupt frame | does not throw, but the text is useless | | |
+| UBUNTU24 → TigerVNC depth 24 | B, C | works | **yes**: 0 wrong | | | | |
+| UBUNTU24 → TigerVNC depth 16 | A, B | works | **no**: 1,757,793 wrong pixels | **fails**, `ClassCastException` | **fails** | | reproduces the Pi's defects without a Pi |
+| UBUNTU24 → TigerVNC depth 16 | C | works | **yes**: 0 wrong | **works** | **works** | | |
+| UBUNTU24 → x11vnc | A | works | **no**: frame black (decoder dies) | | | | |
+| UBUNTU24 → x11vnc | B, C / ON-VNC-1 | works, VncAuth(2) | **yes**: 0 wrong apart from the pointer x11vnc draws | | | | |
+| Windows → x11vnc (UBUNTU24 desktop) | ON-VNC-1 | works | **yes**: 0 wrong of 1,049,088 | **works**, score 1.00, `findAll` 1 match | **works**, 918 characters, 1.5 s | equals the capture | `waitForScreenStable` true |
+| Mac → x11vnc (UBUNTU24 desktop) | ON-VNC-1 | works, 4.1 s | **yes**: every differing pixel is the live desktop | **works**, score 1.00, `findAll` 1 match | not run (Legerix#20: OCR does not load on the Mac) | equals the capture | `waitForScreenStable` true |
+| UBUNTU24 → TightVNC (Windows desktop) | A | works | **no**: all black (decoder dies) | | | | |
+| UBUNTU24 → TightVNC (Windows desktop) | B / ON-VNC-1 | works | **yes**: 0 wrong pixels | **works** | **works**, about 11 s for the full frame | | |
+| UBUNTU24 → TightVNC (Windows desktop) | C | **fails in 3 of 4 runs** (2.0.4 loops on the security-type list) | 1 run correct | | | | the reason ON-VNC-1 uses B for TightVNC |
+| Mac → TightVNC (Windows desktop) | B | works, 3.3 s | **yes**: 28 pixels differ, a blinking text cursor | does not throw, score 1.00, but the pattern was nearly uniform (`findAll` 448 matches), so position not proved | **does not load** (Legerix#20) | right, 5 of 5 points | 2 runs, the same result |
+| Mac → TightVNC (Windows desktop) | C | works (1 run, no loop) | **yes**: 0 wrong | **works** | does not load | | one run does not overturn UBUNTU24's 3 of 4 |
+| Windows → Mac | A | works | **no**: 100 % black (decoder dies) | does not throw, matches on black | 19 characters of noise | black | |
+| UBUNTU24 → Mac | A | works | **no**: black | does not throw, `findAll` 549 matches | | | |
+| Windows → Mac | C | **login fails**: Apple DH (30) chosen | | | | | |
+| Windows → Mac | ON-VNC-1 | **works**: VncAuth(2) chosen | **yes**: 44 px differ, all in the Screen Sharing indicator dot | does not throw, score 1.00, but the pattern was uniform (`findAll` 418 matches), so position not proved | **works**, 578 characters (Windows, so not hit by Legerix#20) | right, 5 of 5 points | `waitForScreenStable` false (the dot changes) |
+
+### Input (sent side from an RFB tap, received side on the target)
+
+In every run, every call returned success, including calls that delivered nothing.
+
+| OculiX on → server | Config | Pointer: `click`, `hover`, `doubleClick`, `rightClick`, wheel, `dragDrop` | `mouseDown`/`mouseUp` | `type` ASCII text | Return: `type("\r")` / `Key.ENTER` | `Key.DELETE` | Other special keys | Modifiers | `paste`, non-ASCII `type` |
+|---|---|---|---|---|---|---|---|---|---|
+| UBUNTU24 → TigerVNC depth 16 | A and C (the same input) | **all work** | `Mouse.*` works; **`Button.*` does nothing**; a bare `mouseUp()` after `mouseDown(Mouse.LEFT)` **leaves the button held** (gap 3) | **works**, all ASCII punctuation | works / **Linefeed, ignored** | sends keypad Delete | Tab, Esc, Backspace, arrows, Home, End, Page Up, Insert and F5 work | Ctrl, Ctrl+Alt and Alt+Tab work; **Ctrl+Shift+letter leaves Caps Lock on**; `META` sends Meta_L (Alt) | **fails**: only Ctrl+V is sent |
+| UBUNTU24 → Pi | ON-VNC-1 | `click` and moves work (68 of 68 events); drag selects text in gtk4-demo; double and middle click not measured; wheel N/A | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **does nothing on QNX** | **arrives as "."** | Tab and Backspace work; arrows, Home, End, Page Up, Insert and F5 arrive as escape sequences | Ctrl+letter and held Shift work; Ctrl+Shift reaches GUI apps; Alt and `META` give the plain letter | **fails**: only Ctrl+V is sent |
+| Windows → x11vnc (UBUNTU24 desktop), slots 1 and 3 | ON-VNC-1 | **all work** | `Mouse.LEFT` down + move + up works | **works**, all ASCII punctuation | works / **Linefeed, ignored** | **sends "." (0x2e)**: a Windows key code read as a Java one | **`Key.INSERT` "-", `PRINTSCREEN` ",", `META` "["; `F13`, `F14`, `F15` and `ALTGR` throw `IllegalArgumentException` and send nothing**; Tab, Backspace, arrows, Home, End, Page Up and Down work | Ctrl+A works; **`type("a", SHIFT)` gives "a"** | **fails**: only Ctrl+V is sent, so the target's own clipboard is pasted |
+| UBUNTU24 → TightVNC (Windows desktop), slot 2 | ON-VNC-1 (B) | **all work** (right-click menu, Esc closes it) | `Mouse.LEFT` down + move + up works | letters, digits and capitals work; **shifted punctuation intermittently arrives unshifted** (7 of 21, then 2 of 7; sent correctly, so it points at the server) | works / **adds no line** | **deletes** (keypad Delete from a Linux client) | Tab, Backspace, arrows, Home, End, Page Up and Down work | Ctrl+A works; **`type("a", SHIFT)` gives "a"** | **fails**: only Ctrl+V is sent, so the target's own clipboard is pasted |
+
+Not yet measured with OculiX:
+- OculiX running on the local host, on any host.
+- Input from the Mac.
+- Input to the Mac.
+- Input from UBUNTU24 to x11vnc.
+- SSH tunnel.
+- Several sessions at once.
+- Touch.
+- `observe` and `onChange`.
+- Keyboard layouts.
+
 ## The table
 
 ### Connection
@@ -293,7 +368,8 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      gnome-text-editor draft, every coordinate inside a safe rectangle, a first phase (one click) checked for focus
      before the rest; 34 steps in 47 s, one run. **Everything sent arrived as sent.** In the editor: `click`, `hover`,
      `doubleClick`, `rightClick` (menu opens; `type("")` closes it), `type` of lowercase, capitals, digits and
-     all ASCII punctuation exact (Shift sent around capitals and shifted symbols), Return `""`, Tab, Backspace,
+     all ASCII punctuation exact (Shift sent around capitals and shifted symbols), Return `"
+"`, Tab, Backspace,
      arrows, Home, End, Page Up and Down, wheel (buttons 5 and 4 arrive; nothing to scroll), `mouseDown(Mouse.LEFT)`
      + move + `mouseUp(Mouse.LEFT)` and `dragDrop` select text, Ctrl+A then typing replaces it: **work**.
      **Do not work:** `Key.ENTER` (Linefeed arrives, the editor ignores it); **`Key.DELETE` from a Windows client
