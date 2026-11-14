@@ -3,6 +3,8 @@
 
     python tests/visible/suite.py list        the tests in order, their prerequisites and last results
     python tests/visible/suite.py all         record with OBS and run every test, captions on the video
+    python tests/visible/suite.py all ID ...  the same with only these main tests (setup and teardown tests still run;
+                                              prerequisites outside the list are not required, and that is noted)
     python tests/visible/suite.py run ID      run (or rerun) one main test: no recording, no setup or teardown
     python tests/visible/suite.py reset       forget all results
 
@@ -685,12 +687,15 @@ def health(state):
     return sorted(set(cores) - set(state["baseline"])), down, flagged
 
 
-def run(tid, state, gate=True):
+def run(tid, state, gate=True, prereqs=True):
     global RUN
     RUN = state
     _, _, _, requires, fn = BY_ID[tid]
     results = state["results"]
     main = tid not in GATE and not tid.startswith("TD")
+    waived = [] if prereqs or not main else requires
+    if waived:
+        requires = []
     if main and gate:
         requires = GATE + requires
     unhealthy = next((r for r in results.values() if r.get("unhealthy") and r["id"] != tid), None)
@@ -710,6 +715,8 @@ def run(tid, state, gate=True):
             except Exception as e:  # a broken test is a failed test, never a silent pass
                 result, detail = "FAIL", f"error: {e!r}"
             detail = f"{detail} [{time.time() - t0:.0f} s]"
+            if waived:
+                detail += "; prerequisite not run in this subset: " + ", ".join(label(p) for p in waived)
     entry = {"id": tid, "result": result, "detail": str(detail), "at": datetime.now(timezone.utc).isoformat()}
     if result not in ("SKIP", "N/A") and tid not in HOST_ONLY:
         new_cores, down, flagged = health(state)
@@ -736,8 +743,12 @@ def fresh():
     return state
 
 
-def run_all():
-    """Setup tests, main tests, teardown tests; a caption per test on the recording."""
+def run_all(only=()):
+    """Setup tests, main tests (all, or only those named), teardown tests; a caption per test on the recording."""
+    unknown = [t for t in only if t not in BY_ID or t in GATE or t.startswith("TD")]
+    if unknown:
+        sys.exit(f"not main tests: {', '.join(unknown)}")
+    tests = [t for t in TESTS if not only or t[0] in only or t[0] in GATE or t[0].startswith("TD")]
     state = fresh()
     tally = {}
 
@@ -748,16 +759,16 @@ def run_all():
             except (RuntimeError, OSError, EOFError):
                 pass
 
-    for n, (tid, title, _, _, _) in enumerate(TESTS, 1):
+    for n, (tid, title, _, _, _) in enumerate(tests, 1):
         if tid == "TD02":  # last thing on the video: the tally so far
             show(f"{n - 1} tests so far: " + ", ".join(f"{v} {k}" for k, v in sorted(tally.items())))
             time.sleep(5)
-        show(f"{n}/{len(TESTS)}  {tid} ({title}): running")
-        entry = run(tid, state)
+        show(f"{n}/{len(tests)}  {tid} ({title}): running")
+        entry = run(tid, state, prereqs=not only)
         tally[entry["result"]] = tally.get(entry["result"], 0) + 1
-        show(f"{n}/{len(TESTS)}  {tid} ({title}): {entry['result']}")
+        show(f"{n}/{len(tests)}  {tid} ({title}): {entry['result']}")
         time.sleep(2.5 if entry["result"] in ("PASS", "FAIL") else 1.5)
-    print(f"{len(TESTS)} tests: " + ", ".join(f"{v} {k}" for k, v in sorted(tally.items())))
+    print(f"{len(tests)} tests: " + ", ".join(f"{v} {k}" for k, v in sorted(tally.items())))
 
 
 def main():
@@ -773,7 +784,7 @@ def main():
             print(f"        monitor: {sees}")
             print(f"        needs:   {'; '.join(label(p) for p in requires) or 'nothing'}")
     elif cmd == "all":
-        run_all()
+        run_all(tuple(sys.argv[2:]))
     elif cmd == "run":
         if state["started"] is None:
             state = fresh()
