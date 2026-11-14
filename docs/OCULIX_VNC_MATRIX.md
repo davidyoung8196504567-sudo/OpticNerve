@@ -196,7 +196,8 @@ not a fair speed comparison).
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
      with password" on, since OculiX only does VncAuth; that setting is recorded. A third real server next to
-     TigerVNC and `vncserv`, and a Retina-size frame. Needs the Mac's address and macOS version.
+     TigerVNC and `vncserv`, and a Retina-size frame. The Mac is at 10.30.1.128 (2026-11-14: ports
+     5900 and 22 refused, so Screen Sharing is off); macOS version not checked yet.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
    - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host; Apple
      Silicon builds of OculiX's native libraries and OCR not checked yet) and input tests against the Mac.
