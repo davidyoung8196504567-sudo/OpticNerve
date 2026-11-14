@@ -45,7 +45,8 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 
 A summary of every measured result in this document, as of 2026-11-14 (slots 1 to 3 included). Each row is one
 combination: the host OculiX ran on, the VNC server it drove, and the VNC client library. The sections below hold
-the details, numbers and sources. Only measured results with OculiX itself are listed; results with our own VNC tool
+the details, numbers and sources. A printable copy of this section is [OCULIX_MASTER_TABLE.pdf](OCULIX_MASTER_TABLE.pdf)
+(made from commit a71690e). Only measured results with OculiX itself are listed; results with our own VNC tool
 and the "by design" cells are left out. The local-host column has not been measured on any host.
 
 Configurations:
@@ -457,7 +458,8 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
        it; `Key.PRINTSCREEN` "," and `Key.META` "["; `Key.F13`, `F14`, `F15` and `Key.ALTGR` throw
        `IllegalArgumentException` and send nothing. **New: `write("write:ab#ENTER.")` throws `Cannot type keycode
        13`** after typing "write:ab", so `#ENTER.` in `write` fails from a Windows client (it works from Linux). Cause (Oculix session, from the source): the Windows layout maps "
-" and "" to VK_RETURN (13), and
+" and "
+" to VK_RETURN (13), and
        `VNCRobot.keyToXlib` knows only Java's VK_ENTER (10); the Linux layout maps them to VK_ENTER, hence Return.
      - Teardown: Ctrl+D, `sudo shutdown`; VNC back after 33 s; the frame equals the frame before the run (0 pixels
        differ); no new core dump after the restart; no app open; `/tmp/screen_probe` still present.
