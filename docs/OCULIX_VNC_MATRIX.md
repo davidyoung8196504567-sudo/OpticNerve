@@ -150,7 +150,7 @@ B = 2.0.2 first, C = 2.0.4 first) and arm C repeated from Windows, 2026-11-14. J
 | TigerVNC, depth 24 | 72,666 wrong | 0 wrong | 0 wrong |
 | x11vnc | frame black (both the `:135` and `:85` errors seen in different runs) | correct except the 94-pixel pointer | the same as B |
 | TigerVNC, depth 16 | 1,757,793 wrong, `ClassCastException` | the same | 0 wrong, find and OCR work |
-| macOS Screen Sharing, from Windows | frame all black | not run | **login fails**: `AuthFailureException` straight after the 3.8 handshake, with the password that works for 4.0.0 and for our raw tool; which security type 2.0.4 picks from Apple's list (30, 33, 36, 31, 32, 2, 35) not identified; not retried, to avoid locking the account |
+| macOS Screen Sharing, from Windows | frame all black | not run | **login fails**: `AuthFailureException` straight after the 3.8 handshake, with the password that works for 4.0.0 and for our raw tool; which security type 2.0.4 picks from Apple's list (30, 33, 36, 31, 32, 2, 35) not identified; not retried, to avoid locking the account. Likely cause (ON-MacBookM4Pro, from `javap` on the jars, not verified): 2.0.1's default security list is `VncAuth,None`; 2.0.4's adds Apple's DH (type 30), which the Mac offers first, and DH needs the macOS account name and password. Test (one run, only when David says so): `VNCClient.onDebugging()` to see the chosen type, and `SecurityClient.secTypes = "VncAuth"` before connecting as the workaround. A failed DH login is a failed login against David's account |
 
 Why (Oculix session, from the source; seen in the TigerVNC depth 16 server log): 2.0.2 fixes the 32 bpp ZRLE decoder;
 2.0.4 also asks every server for 32 bpp rgb888, so the rgb565 colour model and the `TYPE_CUSTOM` image are never
