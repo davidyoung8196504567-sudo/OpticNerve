@@ -65,7 +65,10 @@ Details and history are in the linked documents.
   the classpath, then the OculiX 4.0.0 jar, both checked by SHA-256; security types limited to `VncAuth,None` before
   the first `VNCScreen.start`; Enter as `type("\r")`; the JDK stated in every result
   ([CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md)). Each probe run checks stderr for `Thread-N` exceptions and keeps
-  one capture.
+  one capture. Revised by the Oculix session on 2026-11-14 to depend on the server: 2.0.4 first for QNX `vncserv`,
+  Xtigervnc and x11vnc; 2.0.2 first for TightVNC 2.8.90 (2.0.4 hangs in its handshake there); 2.0.4 under a
+  timeout for unknown servers. **Every OculiX VNC run has a wall-clock limit, and the VNC client's debug log is
+  never on without a time or size limit** (a hung run wrote 1.8 GB).
 
 - Problems found in OculiX are recorded under [upstream/](upstream/) and worked around. After the ON agent work,
   David raises each issue together with its fix, as a pull request from his fork ([PLAN.md](PLAN.md)).

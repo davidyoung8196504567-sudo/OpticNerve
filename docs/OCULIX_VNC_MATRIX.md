@@ -310,8 +310,10 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
        next to VncAuth. Cause not investigated.
      - Reference frames: `vnc_snapshot.py`'s first frame from TightVNC is all black; a second full request 2 s later
        returns the screen, so the reference against TightVNC takes two frames.
-     So ON-VNC-1 as defined does not work against TightVNC; 2.0.2 first does. Which client configuration to use
-     per server is open (David and the Oculix session). RealVNC Premium later for a retest on one product.
+     So ON-VNC-1 as defined does not work against TightVNC; 2.0.2 first does. **Cause** (Oculix-MacBookM4Pro-macOS-27
+     session, reproduced on the M4 Pro): when a server sends the security-type count and the list in separate TCP
+     writes, 2.0.4 loses the count byte and loops; 2.0.1 inside 4.0.0 is not affected. ON-VNC-1 is revised to depend
+     on the server (docs/HOW_WE_WORK.md): 2.0.2 first for TightVNC 2.8.90. RealVNC Premium later for a retest on one product.
    - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
      is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
      nothing installed:

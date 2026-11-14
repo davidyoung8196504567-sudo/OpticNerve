@@ -219,7 +219,7 @@ def jar_ok(var):
 def java(*args):
     cp = os.pathsep.join([need("ON_TIGERVNC_JAR"), need("ON_OCULIX_JAR")])
     return subprocess.run(["java", "--enable-native-access=ALL-UNNAMED", "-cp", cp, *args],
-                          capture_output=True, text=True, cwd=ROOT)
+                          capture_output=True, text=True, cwd=ROOT, timeout=300)  # a hung VNC handshake fails the test
 
 
 # --- setup and teardown tests ----------------------------------------------------------------------------------
