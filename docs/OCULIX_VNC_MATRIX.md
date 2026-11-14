@@ -304,13 +304,17 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
        `ZRLEDecoder.java:68`); every capture is black (5,751,466 wrong pixels).
      - B, 2.0.2 first: connects, **0 wrong pixels** (the 121 that differ from a later raw frame changed on the live
        desktop); find works, OCR of the full frame about 11 s.
-     - **C, 2.0.4 first (ON-VNC-1): cannot connect.** It loops on "Processing security types message" without end,
-       with and without the `VncAuth,None` limit (38 million log lines in 240 s with debug on, so debug can fill a
-       disk); no capture. The obvious difference from the other servers is the Tight (16) security type offered
-       next to VncAuth. Cause not investigated.
+     - **C, 2.0.4 first (ON-VNC-1): fails in 3 of 4 runs** (one run each). Debug log with `VncAuth,None`: loops on
+       "Processing security types message" for 240 s (38 million log lines, so debug can fill a disk); debug without
+       the limit: loops, killed at 120 s; no debug with `VncAuth,None`: no capture in 45 s. **No debug and no limit:
+       connected**, capture written 8 s after start, 2560 x 2520, differing from a raw frame 23 s earlier in 130
+       pixels, all inside the box 2240,1044-2497,2478 where raw frames differ from each other (live desktop), so a
+       correct capture (corrected by ON-UBUNTU24 from its logs, 2026-11-14: the 45 s limit killed that probe during
+       its OCR steps and lost its output, first read as a hang). A connection that depends on the run fits the
+       cause below.
      - Reference frames: `vnc_snapshot.py`'s first frame from TightVNC is all black; a second full request 2 s later
        returns the screen, so the reference against TightVNC takes two frames.
-     So ON-VNC-1 as defined does not work against TightVNC; 2.0.2 first does. **Cause** (Oculix-MacBookM4Pro-macOS-27
+     So ON-VNC-1 as defined is not reliable against TightVNC; 2.0.2 first works. **Cause** (Oculix-MacBookM4Pro-macOS-27
      session, reproduced on the M4 Pro): when a server sends the security-type count and the list in separate TCP
      writes, 2.0.4 loses the count byte and loops; 2.0.1 inside 4.0.0 is not affected. ON-VNC-1 is revised to depend
      on the server (docs/HOW_WE_WORK.md): 2.0.2 first for TightVNC 2.8.90. RealVNC Premium later for a retest on one product.
