@@ -215,6 +215,9 @@ not a fair speed comparison).
      **100% black** (the raw-encoding frame of the same screen is 36.7% black): `getColor` black at 5 of 5 points,
      `exists`/`find` score 1.00 at (0,0), `findAll` 543 matches, OCR 19 characters of noise. No `ClassCastException`
      (image type 1). So macOS Screen Sharing is the third 32 bpp server where OculiX 4.0.0 cannot see the screen.
+     **The same from UBUNTU24** (ON-UBUNTU24, about 22:33 EST): start 3.36 s, the same assertion; captures 0.18 to
+     0.27 s, 4,747,183 of 4,748,224 pixels black; `findAll` 549 matches in 9.76 s; the raw-encoding frame correct in
+     2.3 s. Both hosts give the same result.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
    - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host) and input
      tests against the Mac. The release has one macOS jar, `oculixapi-4.0.0-macos.jar` (61,441,991 bytes, SHA-256
