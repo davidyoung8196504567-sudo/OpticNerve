@@ -70,7 +70,9 @@ Details and history are in the linked documents.
   timeout for unknown servers. In 2.0.2 `SecurityClient.secTypes` is package-private (public in 2.0.4) and already
   defaults to `VncAuth,None`, so `SecurityClient.secTypes.setParam(...)` in source does not compile against 2.0.2;
   set it through reflection with `getDeclaredField` and `setAccessible` (as `ReadOnlyProbe` does), or leave it out
-  with 2.0.2 (found by ON-MacBookM4Pro, 2026-11-14). **Every OculiX VNC run has a wall-clock limit, and the VNC client's debug log is
+  with 2.0.2 (found by ON-MacBookM4Pro, 2026-11-14). On the Mac, an OCR load failure is not a VNC result (Legerix#20:
+  OculiX 4.0.0 pins Legerix 5.5.0-8, fixed in 5.5.0-9): Mac VNC results report capture, find and pixels, and OCR
+  checks run from Linux or Windows until a Mac OCR setup has been measured. **Every OculiX VNC run has a wall-clock limit, and the VNC client's debug log is
   never on without a time or size limit** (a hung run wrote 1.8 GB).
 
 - Problems found in OculiX are recorded under [upstream/](upstream/) and worked around. After the ON agent work,

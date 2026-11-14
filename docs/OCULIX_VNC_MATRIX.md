@@ -346,8 +346,11 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      - **OCR does not load on the Mac** (all four OCR steps fail, with either jar): `libtesseract.dylib` from
        Legerix's cache asks for `libleptonica.6.dylib` at the CI runner's path
        (`/Users/runner/work/_temp/legerix-prefix/lib/`), baked into its load commands. A standalone `OCR.readText`
-       with the same jar works when `-Djna.library.path` points at the cache, so it depends on load order: the
-       macOS counterpart of the Linux RUNPATH problem (Legerix#26). Not VNC; passed to the Oculix session.
+       with the same jar works when `-Djna.library.path` points at the cache, so it depends on load order. Known:
+       **Legerix#20** (filed by the Oculix session 2026-08-15; the CI install name in the darwin libtesseract), fixed
+       in Legerix 5.5.0-9 with `@loader_path` names, but OculiX 4.0.0 pins 5.5.0-8, so the stale pin is what remains.
+       Not VNC: under ON-VNC-1, Mac VNC results report capture, find and pixels, and OCR is measured from Linux or
+       Windows until a Mac OCR setup has been measured.
      - Probe defect found there: with 2.0.2 first, `-Don.secTypes` died with `NoSuchFieldException: secTypes`
        (the field is package-private in 2.0.2); fixed in `ReadOnlyProbe` (`getDeclaredField` plus `setAccessible`)
        and checked on Windows against UBUNTU24's x11vnc with 2.0.2 first: classes from 2.0.2, limit applied, no
