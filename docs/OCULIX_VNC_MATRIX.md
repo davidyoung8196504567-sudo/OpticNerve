@@ -10,6 +10,8 @@ cells are not measured yet, and each cell says what it rests on.
   `org/sikuli/vnc/VNCScreen.java`, `VNCRobot.java`, the README and release notes; the VNC client classes
   (`com.sikulix.vnc.VNCClient`, `VNCFrameBuffer`, `VNCClipboard`) from the pinned jar, since their source is in a
   separate repository (`tigervnc-java-oculix`).
+- **ON-UBUNTU24's read-only run** from UBUNTU24 against the Pi (2026-11-14): `oculixapi-4.0.0-linux.jar` (SHA-256
+  `bfebf784...`, the published digest), Temurin 25.0.4+7; no input sent.
 - **Our measurements on the Pi 5** (QNX 8.0 quick-start image 20260902, `vncserv` 4.2.0, native session):
   [notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md), [notes/2026-11-13_spike_rerun.md](notes/2026-11-13_spike_rerun.md)
   and the visible suite `tests/visible/suite.py` (run of 2026-11-14 00:28 UTC: 17 pass, 1 fail, 2 N/A).
@@ -52,9 +54,9 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
 | Capture the whole screen | yes | `capture()`, by design | **measured: works**, 0.21 s for 1920 x 1080, O01 (OculiX finds the Gears tile and clicks it), U02 (unboxing: OculiX capture and OCR) | none |
-| Capture a region | yes | `capture(x, y, w, h)`, by design | not measured | measure |
+| Capture a region | yes | `capture(x, y, w, h)`, by design | **measured: works** from UBUNTU24: 0.21 s for 400 x 300, identical to the same area of a full capture | none |
 | Exact pixels | yes | depends on the server's pixel format | **measured:** `vncserv` reads back rgb565, so values are off by up to about 8 levels against Screen's own capture | ON agent: exact region capture (`screen_read_display()`); or `vncserv -format=rgba8888` |
-| Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | not measured; subject to the rgb565 rounding above | as above |
+| Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | **measured: works** from UBUNTU24 (`Location.getColor`, 0.15 s, 5 of 5 points equal to the capture); subject to the rgb565 rounding above | as above |
 | Pointer in the picture | yes | depends on the server | **measured:** the real pointer is not in the frames in the native session; `vncserv` draws an extra white pointer at (0,0) | avoid matching in the top-left 8 x 15 pixels |
 | Is the picture live or frozen? | n/a | VNC cannot tell | **measured:** `vncserv` sends a full frame on every request, changed or not | **ON agent: frame freshness** (`screen_notify`) |
 | Is the monitor on, blank or locked? | n/a | VNC cannot tell | **measured:** the monitor went black while VNC frames and Screen's power state stayed normal | **ON agent: status**; a camera sees it (C01 (camera sees the monitor)) |
@@ -66,11 +68,11 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 |---|---|---|---|---|
 | Find an image: `find`, `exists`, `has`, `wait`, `waitVanish`, `click(image)` | yes | by design; **see the bug** | **measured: fails** with `ClassCastException` in `Commons.getMatList` ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)) | **OculiX fix** (David's fork, later); workaround below |
 | The same through `Finder` on a copy of the capture | yes | by design | **measured: works**, score 0.99 to 1.00 in 0.1 to 0.8 s, O01 (OculiX finds the Gears tile and clicks it) | workaround in use |
-| `findAll`, `findBest`, `findAny` | yes | by design; same code path as the bug | not measured | measure after the fix or through `Finder` |
+| `findAll`, `findBest`, `findAny` | yes | by design; same code path as the bug | `findAll` **measured: fails** from UBUNTU24, same `ClassCastException`; `findBest`, `findAny` not measured | OculiX fix; `Finder` workaround |
 | Similarity tolerance | yes | yes | **measured** only with a pattern cut from the same VNC source; patterns from elsewhere not measured | measure; allow for the rgb565 rounding |
-| Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design | **measured: works** on a copy of the capture: 24 of 24 expected lines, U03 (unboxing: welcome text is right for this release); the `Region` methods called on the `VNCScreen` itself: not measured | measure |
+| Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design | on a BGR copy of the capture **measured: works**: 24 of 24 expected lines, U03 (unboxing: welcome text is right for this release); `VNCScreen.text()`, `Region.text()` on the VNC screen and `OCR.readText` on the raw capture **measured: fail** from UBUNTU24 with the same `ClassCastException`; on Linux OCR only loads with a workaround (see Host differences) | OculiX fix; workaround: OCR a BGR copy |
 | Watch for change: `onAppear`, `onVanish`, `onChange`, `observe` | yes | by design (compares captures) | not measured; the image-based ones share the bug's code path | measure |
-| Wait until the screen is stable: `waitForStable` | yes | `VNCScreen.waitForStable`, by design | not measured | measure; the ON agent's freshness signal is the cheaper way |
+| Wait until the screen is stable: `waitForStable` | yes | `VNCScreen.waitForStable`, by design | `waitForScreenStable(3000, 500)` **measured: works** from UBUNTU24 (true after 1.16 s; deprecated in 4.0.0); `waitForStable(long, long, double)` not measured | the ON agent's freshness signal is the cheaper way |
 | Highlight a region on screen | yes | **no**: skipped for remote screens (`Region.highlight`) | no | none needed |
 
 ### Mouse
@@ -106,11 +108,28 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 | Global hotkeys, recorder, capture prompt | yes | local to the host | local to the host | none needed |
 | Android over ADB, MCP audit module, script runners | yes | not VNC | not VNC | out of scope |
 
+## Host differences: Windows 11 and Ubuntu 24.04
+
+Same Pi, same OculiX version, read-only calls. Windows: ON-ASUSROG-win-11, `oculixapi-4.0.0-windows.jar`. Ubuntu:
+UBUNTU24 (x86_64, X11), `oculixapi-4.0.0-linux.jar`, measured by the ON-UBUNTU24 session.
+
+| Function | Windows 11 | Ubuntu 24.04 |
+|---|---|---|
+| `VNCScreen.start` | works, about 3.3 s | works, 3.45 to 3.48 s |
+| `capture()`, 1920 x 1080 | works, 0.21 s, image type 0 | works, 0.46 to 0.59 s, image type 0 (`DirectColorModel`, `DataBufferInt`) |
+| `capture(x, y, w, h)` | not measured | works, 0.21 s, identical to the full capture's area |
+| Colour at a point | not measured | works, 0.15 s |
+| `exists`, `find`, `findAll` on the `VNCScreen` | fails, `ClassCastException` | fails, the same exception |
+| `Finder` on a BGR copy | works, 0.1 to 0.8 s | works, 0.59 to 0.90 s |
+| OCR on a BGR copy | works out of the box | works **only with `LD_LIBRARY_PATH`** set to Legerix's folder (`~/.cache/legerix/5.5.0-8/linux-x86-64/`): otherwise `libtesseract.so.5` cannot find `libleptonica.so.6`, OculiX falls back to a `tesseract` program that is not installed, and every OCR call fails. 13.8 s for the full screen including the engine start |
+| `text()` on the `VNCScreen` | not measured | fails, `ClassCastException` |
+| `waitForScreenStable` | not measured | works |
+
 ## What this says so far
 
 1. **The path works end to end:** OculiX connects to QNX's `vncserv`, sees the screen, finds an image, clicks it and
    reads text. That is measured.
-2. **One OculiX bug is in the way of the normal API:** image search called on the `VNCScreen` fails. The workaround
+2. **One OculiX bug is in the way of the normal API:** image search and text reading called on the `VNCScreen` fail, on Windows and on Linux. The workaround
    (search a converted copy) is measured. Whether the bug shows with other VNC servers is not known: the capture's
    image type follows the pixel format, so it may depend on the server. `vncserv -format=rgba8888` might avoid it;
    not tried (it is a target change).

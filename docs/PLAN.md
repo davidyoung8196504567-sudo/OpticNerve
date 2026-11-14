@@ -92,7 +92,11 @@ we use workarounds and stay on the pinned OculiX 4.0.0 jars.
 
 - [ ] `VNCScreen` image search throws `ClassCastException` in `Commons.getMatList`
       ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)). Workaround: search
-      a `TYPE_3BYTE_BGR` copy of the capture with `Finder`.
+      a `TYPE_3BYTE_BGR` copy of the capture with `Finder`. Text reading on the `VNCScreen` (`text()`, `Region.text()`,
+      `OCR.readText` on the raw capture) and `findAll` fail the same way (measured from UBUNTU24, 2026-11-14).
+- [ ] On Linux, OCR does not load out of the box: Legerix unpacks `libtesseract.so.5` and `libleptonica.so.6` into
+      one folder, but `libtesseract` cannot find `libleptonica` there, and OculiX falls back to a `tesseract` program
+      that is not installed (measured on UBUNTU24, 2026-11-14). Workaround: `LD_LIBRARY_PATH` set to that folder.
 
 ## Hackathon project page: to do
 
