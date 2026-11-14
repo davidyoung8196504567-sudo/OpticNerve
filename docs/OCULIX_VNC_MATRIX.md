@@ -67,6 +67,16 @@ Hosts and servers:
 - **TightVNC**: TightVNC 2.8.90 on this Windows laptop's real desktop.
 - **Mac**: macOS 27.2.1 Screen Sharing.
 
+Test hosts' hardware. All four machines were read on 2026-11-14 and are on the same LAN. Timings in the tables
+compare machines of very different age, so a speed difference between hosts is not an OculiX result.
+
+| Host | Machine | CPU, GPU | Memory, disk | OS | Network used for VNC |
+|---|---|---|---|---|---|
+| ON-ASUSROG-win-11 (10.30.1.114) | ASUS ROG Strix G713QR (2021) | AMD Ryzen 7 5800H, 8 cores / 16 threads; Radeon integrated and GeForce RTX 3070 Laptop | 63.4 GiB; Samsung 980 PRO 1 TB NVMe and a 1 TB NVMe | Windows 11 Pro 10.0.26300 | Wi-Fi, Intel AX200, link 780 Mb/s |
+| UBUNTU24 (10.30.1.132) | HP Pavilion g6 Notebook PC (BIOS F.29, 2014), the oldest host | AMD A8-4500M APU, 4 cores; Radeon HD 7640G integrated | 15 GiB; Samsung 860 EVO 500 GB SATA SSD | Ubuntu 24.04, X11 | wired `eno1`, 100 Mb/s |
+| MacBook M4 Pro (10.30.1.128) | MacBook Pro (Mac16,8) | Apple M4 Pro, 12 CPU cores (8 performance, 4 efficiency), 16-core GPU | 24 GB; 500 GB internal SSD | macOS 27.2.1 (26B131) | Wi-Fi 802.11ac, 5 GHz, link 866 Mb/s |
+| Pi (10.30.1.116), target | Raspberry Pi 5 in a Freenove FNK0100K case | Cortex-A76, 4 cores, 1.5 GHz as reported by QNX | 16 GB; 512 GB microSD | QNX 8.0 quick-start image 20260902 | wired |
+
 ### Seeing the screen (read-only probes and the visible suite)
 
 | OculiX on → server | Config | Connect / login | Capture correct? | `find`, `findAll` on the screen | OCR (`text()`) | `getColor` | Other |
