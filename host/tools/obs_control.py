@@ -103,6 +103,28 @@ def password():
     return json.loads(cfg.read_text())["server_password"]
 
 
+def start_record(obs):
+    """Start recording, unless a file with OBS's fixed recording name is still there (it would be overwritten)."""
+    folder = Path(obs.request("GetRecordDirectory")["recordDirectory"])
+    name = obs.request("GetProfileParameter", {"parameterCategory": "Output",
+                                               "parameterName": "FilenameFormatting"})["parameterValue"]
+    if "%" not in name:
+        left = sorted(folder.glob(name + ".*"))
+        if left:
+            sys.exit(f"not started: {left[0]} is still there; rename or move it first")
+    obs.request("StartRecord")
+
+
+def stop_record(obs, label):
+    """Stop recording and rename the file to OpticNerve_<UTC date-time>_<LABEL>.<ext>; returns the new path."""
+    out = Path(obs.request("StopRecord")["outputPath"])
+    time.sleep(2)  # let OBS finish writing the file
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%MZ")
+    target = out.with_name(f"OpticNerve_{stamp}_{re.sub(r'[^A-Za-z0-9._-]+', '-', label)}{out.suffix}")
+    out.rename(target)
+    return target
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit(__doc__)
@@ -120,24 +142,12 @@ def main():
         obs.request("SetCurrentProgramScene", {"sceneName": sys.argv[2]})
         print(f"scene: {sys.argv[2]}")
     elif cmd == "start":
-        folder = Path(obs.request("GetRecordDirectory")["recordDirectory"])
-        name = obs.request("GetProfileParameter", {"parameterCategory": "Output",
-                                                   "parameterName": "FilenameFormatting"})["parameterValue"]
-        if "%" not in name:
-            left = sorted(folder.glob(name + ".*"))
-            if left:
-                sys.exit(f"not started: {left[0]} is still there; rename or move it first")
-        obs.request("StartRecord")
+        start_record(obs)
         print("recording started")
     elif cmd == "stop":
         if len(sys.argv) < 3:
             sys.exit("stop needs a LABEL for the file name")
-        out = Path(obs.request("StopRecord")["outputPath"])
-        time.sleep(2)  # let OBS finish writing the file
-        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%MZ")
-        label = re.sub(r"[^A-Za-z0-9._-]+", "-", "_".join(sys.argv[2:]))
-        target = out.with_name(f"OpticNerve_{stamp}_{label}{out.suffix}")
-        out.rename(target)
+        target = stop_record(obs, "_".join(sys.argv[2:]))
         print(f"recording stopped: {target} ({target.stat().st_size / 1e6:.1f} MB)")
     elif cmd == "shot":
         r = obs.request("GetSourceScreenshot", {"sourceName": sys.argv[2], "imageFormat": "png"})

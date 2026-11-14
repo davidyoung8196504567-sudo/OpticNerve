@@ -113,21 +113,39 @@ def frame(name):
 
 # --- camera: the witness ----------------------------------------------------------------------------------------
 
+_obs = None
+
+
 def obs():
-    return obs_control.Obs()
+    """One WebSocket connection to OBS for the whole run."""
+    global _obs
+    if _obs is None:
+        _obs = obs_control.Obs()
+    return _obs
+
+
+def obs_request(kind, data=None):
+    """A request on the shared connection; if OBS dropped it, connect again once."""
+    global _obs
+    try:
+        return obs().request(kind, data)
+    except (OSError, EOFError):
+        _obs = None
+        return obs().request(kind, data)
 
 
 def cam(name):
     """One frame of the monitor as the webcam sees it, through OBS."""
     out = RUNS / f"{name}_cam.png"
-    r = obs().request("GetSourceScreenshot", {"sourceName": CAMERA, "imageFormat": "png"})
+    r = obs_request("GetSourceScreenshot", {"sourceName": CAMERA, "imageFormat": "png"})
     out.write_bytes(base64.b64decode(r["imageData"].split(",", 1)[1]))
     return Image.open(out).convert("RGB")
 
 
 def caption(text):
     """Text burnt into the recording, top centre of the camera scene."""
-    o = obs()
+    class o:  # every caption request goes over the shared connection
+        request = staticmethod(obs_request)
     names = [i["inputName"] for i in o.request("GetInputList")["inputs"]]
     settings = {"text": text, "font": {"face": "Segoe UI", "size": 56, "style": "Bold"},
                 "bk_color": 0, "bk_opacity": 75, "outline": False}
@@ -547,9 +565,9 @@ def run_all():
     """Record the whole run: camera scene, a caption per test, the file renamed at the end."""
     state = fresh()
     print(f"core dumps already on the target: {state['baseline']}", flush=True)
-    obs().request("SetCurrentProgramScene", {"sceneName": CAMERA_SCENE})
+    obs_request("SetCurrentProgramScene", {"sceneName": CAMERA_SCENE})
     caption("OpticNerve visible test suite: Raspberry Pi 5, QNX 8.0 quick-start image")
-    subprocess.run([sys.executable, str(ROOT / "host/tools/obs_control.py"), "start"], check=True)
+    obs_control.start_record(obs())
     time.sleep(3)
     tally, summary = {}, "interrupted"
     try:
@@ -564,7 +582,8 @@ def run_all():
         time.sleep(5)
     finally:
         caption("")
-        subprocess.run([sys.executable, str(ROOT / "host/tools/obs_control.py"), "stop", "visible-suite"])
+        target = obs_control.stop_record(obs(), "visible-suite")
+        print(f"recording stopped: {target} ({target.stat().st_size / 1e6:.1f} MB)")
     print(f"{len(TESTS)} tests: {summary}")
 
 
