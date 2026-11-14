@@ -109,12 +109,23 @@ Not yet measured with OculiX:
 - OculiX running on the local host, on any host.
 - Input from the Mac.
 - Input to the Mac.
-- Input from UBUNTU24 to x11vnc.
+- Input from UBUNTU24 to x11vnc. This is UBUNTU24 driving its own desktop over VNC, closer to a loopback test than
+  a cross-host one.
 - SSH tunnel.
 - Several sessions at once.
 - Touch.
 - `observe` and `onChange`.
 - Keyboard layouts.
+- Double and middle click on the Pi.
+- Full input from Windows to the Pi. The only OculiX input from Windows so far is the click in O01 (OculiX finds the
+  Gears tile and clicks it); the full input run on the Pi came from UBUNTU24.
+- `vncserv -format=rgba8888` on the Pi. This is a target change.
+- Repeat runs. Most results above come from one run each; only the TightVNC runs and the Mac → TightVNC 2.0.2 runs
+  were repeated.
+- A working OCR setup on the Mac. OCR does not load there because of Legerix#20.
+
+ON-VNC-1 fixes what OculiX sees, not its input. On TigerVNC, configurations A and C sent identical input, so the
+input defects in the table remain under every configuration, and the ON agent works around them.
 
 ## The table
 
