@@ -284,6 +284,9 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      0.27 s, 4,747,183 of 4,748,224 pixels black; `findAll` 549 matches in 9.76 s; the raw-encoding frame correct in
      2.3 s. Both hosts give the same result.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
+   - **First pass, decided 2026-11-14:** a free server per host with the same settings (VNC password, port 5900,
+     the real desktop): macOS Screen Sharing (in place), a free Windows server (to choose), and on UBUNTU24 GNOME's
+     own sharing or x11vnc in an X11 session (to check). RealVNC Premium later for a retest on one product.
    - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
      is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
      nothing installed:

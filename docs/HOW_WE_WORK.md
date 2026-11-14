@@ -54,9 +54,12 @@ Details and history are in the linked documents.
 
 ## OculiX
 
-- **One VNC server on all test hosts** (2026-11-14). Windows, macOS and Linux test hosts run the same VNC server
-  product and version, so results compare like for like. QNX's `vncserv` is fixed by its build; the ON agent makes
-  up the difference.
+- **The same VNC settings on all test hosts** (2026-11-14). The goal is one VNC server product and version on
+  Windows, macOS and Linux, so results compare like for like; QNX's `vncserv` is fixed by its build and the ON agent
+  makes up the difference. The only common product, RealVNC Server, needs a Premium subscription for the direct
+  connections OculiX uses, so **first** each host uses a free server with the same settings (VNC password login,
+  at most 8 characters, port 5900, the real desktop), and the product is recorded with every result. RealVNC
+  Premium is in the budget and can be added later for a retest on one product.
 
 - **Test configuration ON-VNC-1** (2026-11-14) for all OculiX and VNC testing: tigervnc-java-oculix 2.0.4 first on
   the classpath, then the OculiX 4.0.0 jar, both checked by SHA-256; security types limited to `VncAuth,None` before
