@@ -296,7 +296,22 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      exception, capture type 1 in 0.17 to 0.25 s, **0 wrong pixels** of 1,049,088 against a raw frame. Windows:
      **TightVNC 2.8.90 GPL** installed on 10.30.1.114 as a service on port 5900 with a LAN-only firewall rule;
      password set by David. TightVNC 2.8 at 32 bpp is also the server OculiX issue #443 was reported against, so it
-     gets the A/B/C arms (4.0.0 alone, 2.0.2 first, 2.0.4 first) and a record of the security types it offers. RealVNC Premium later for a retest on one product.
+     gets the A/B/C arms (4.0.0 alone, 2.0.2 first, 2.0.4 first) and a record of the security types it offers.
+     **TightVNC 2.8.90, read-only from UBUNTU24** (ON-UBUNTU24, 2026-11-14; Temurin 25.0.4+7, jar hashes as pinned):
+     banner `RFB 003.008`, security types VncAuth (2) and Tight (16), 32 bpp depth 24, framebuffer 2560 x 2520 (two
+     screens stacked; the very first connection reported 3419 x 3060).
+     - A, 4.0.0 alone: connects with VncAuth; the reader thread dies (`ZlibInStream: inflate failed`,
+       `ZRLEDecoder.java:68`); every capture is black (5,751,466 wrong pixels).
+     - B, 2.0.2 first: connects, **0 wrong pixels** (the 121 that differ from a later raw frame changed on the live
+       desktop); find works, OCR of the full frame about 11 s.
+     - **C, 2.0.4 first (ON-VNC-1): cannot connect.** It loops on "Processing security types message" without end,
+       with and without the `VncAuth,None` limit (38 million log lines in 240 s with debug on, so debug can fill a
+       disk); no capture. The obvious difference from the other servers is the Tight (16) security type offered
+       next to VncAuth. Cause not investigated.
+     - Reference frames: `vnc_snapshot.py`'s first frame from TightVNC is all black; a second full request 2 s later
+       returns the screen, so the reference against TightVNC takes two frames.
+     So ON-VNC-1 as defined does not work against TightVNC; 2.0.2 first does. Which client configuration to use
+     per server is open (David and the Oculix session). RealVNC Premium later for a retest on one product.
    - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
      is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
      nothing installed:
