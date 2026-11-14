@@ -60,8 +60,8 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 |---|---|---|---|---|
 | Capture the whole screen | yes | `capture()`, by design; TigerVNC: returns in 0.17 s, image type 1 (`TYPE_INT_RGB`; type 0 on the Pi), but **the content is wrong** (ZRLE defect above) | **measured: works**, 0.21 s for 1920 x 1080, O01 (OculiX finds the Gears tile and clicks it), U02 (unboxing: OculiX capture and OCR) | none |
 | Capture a region | yes | `capture(x, y, w, h)`, by design | **measured: works** from UBUNTU24: 0.21 s for 400 x 300, identical to the same area of a full capture | none |
-| Exact pixels | yes | depends on the server's pixel format | **measured:** `vncserv` reads back rgb565, so values are off by up to about 8 levels against Screen's own capture | ON agent: exact region capture (`screen_read_display()`); or `vncserv -format=rgba8888` |
-| Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | **measured: works** from UBUNTU24 (`Location.getColor`, 0.15 s, 5 of 5 points equal to the capture); subject to the rgb565 rounding above | as above |
+| Exact pixels | yes | depends on the server's pixel format; TigerVNC at depth 16: **measured: OculiX decodes rgb565 colours wrongly** (background (32,64,98) becomes (33,66,49)) | **measured:** `vncserv` reads back rgb565, so values are off by up to about 8 levels against Screen's own capture; and **OculiX then decodes rgb565 wrongly**: 75,919 of 2,073,600 pixels differ from a raw-encoding frame of the same, unchanged screen, from Windows and from UBUNTU24 alike, for example (49,4,0) becomes (49,0,132) and (230,231,230) becomes (230,230,247); red is right, green and blue are wrong ([upstream/oculix-rgb565-colours.md](upstream/oculix-rgb565-colours.md)) | ON agent: exact region capture (`screen_read_display()`); or `vncserv -format=rgba8888` |
+| Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | **measured: wrong colours**: `Location.getColor` (0.15 s) equals OculiX's own capture at 5 of 5 points, but the capture's colours are wrong (row above); only black, white and some other colours come through right | OculiX fix; meanwhile colours from the ON agent or our raw-encoding VNC tool |
 | Pointer in the picture | yes | depends on the server | **measured:** the real pointer is not in the frames in the native session; `vncserv` draws an extra white pointer at (0,0) | avoid matching in the top-left 8 x 15 pixels |
 | Is the picture live or frozen? | n/a | VNC cannot tell | **measured:** `vncserv` sends a full frame on every request, changed or not | **ON agent: frame freshness** (`screen_notify`) |
 | Is the monitor on, blank or locked? | n/a | VNC cannot tell | **measured:** the monitor went black while VNC frames and Screen's power state stayed normal | **ON agent: status**; a camera sees it (C01 (camera sees the monitor)) |
@@ -72,7 +72,7 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
 | Find an image: `find`, `exists`, `has`, `wait`, `waitVanish`, `click(image)` | yes | by design; TigerVNC: `exists`, `find` **do not throw**, score 1.00 at the right place, but only because the pattern was cut from the same corrupt frame | **measured: fails** with `ClassCastException` in `Commons.getMatList` ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)) | **OculiX fix** (David's fork, later); workaround below |
-| The same through `Finder` on a copy of the capture | yes | by design | **measured: works**, score 0.99 to 1.00 in 0.1 to 0.8 s, O01 (OculiX finds the Gears tile and clicks it) | workaround in use |
+| The same through `Finder` on a copy of the capture | yes | by design | **measured: works**, score 0.99 to 1.00 in 0.1 to 0.8 s, O01 (OculiX finds the Gears tile and clicks it); patterns must be cut from OculiX's own captures, since its colours are wrong (see Exact pixels); `Finder` needs a local display even for an image (headless Java fails) | workaround in use |
 | `findAll`, `findBest`, `findAny` | yes | by design; TigerVNC: `findAll` does not throw (same caveat) | `findAll` **measured: fails** from UBUNTU24, same `ClassCastException`; `findBest`, `findAny` not measured | OculiX fix; `Finder` workaround |
 | Similarity tolerance | yes | yes | **measured** only with a pattern cut from the same VNC source; patterns from elsewhere not measured | measure; allow for the rgb565 rounding |
 | Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design; TigerVNC: `VNCScreen.text()`, `Region.text()`, `OCR.readText(raw capture)` do not throw (0.5 to 1.0 s), the text is useless because the frame is corrupt | on a BGR copy of the capture **measured: works**: 24 of 24 expected lines, U03 (unboxing: welcome text is right for this release); `VNCScreen.text()`, `Region.text()` on the VNC screen and `OCR.readText` on the raw capture **measured: fail** from UBUNTU24 with the same `ClassCastException`; on Linux OCR only loads with a workaround (see Host differences) | OculiX fix; workaround: OCR a BGR copy |
@@ -125,7 +125,7 @@ key events. Windows: ON-ASUSROG-win-11, `oculixapi-4.0.0-windows.jar`. Ubuntu: U
 | `VNCScreen.start` | works, 3.26 s | works, 3.45 to 3.48 s |
 | `capture()`, 1920 x 1080 | works, 0.20 to 0.23 s; image type 0 (`DirectColorModel`, `DataBufferInt`) | works, 0.46 to 0.59 s; the same image type |
 | `capture(100, 100, 400, 300)` | works, 0.17 s, 0 pixels differ from the full capture | works, 0.21 to 0.23 s, 0 pixels differ |
-| `Location.getColor`, 5 points | works, 0.15 s each, all equal to the capture | works, 0.15 to 0.16 s, all equal |
+| `Location.getColor`, 5 points | equal to the capture, 0.15 s each; capture colours wrong (Exact pixels) | the same, 0.15 to 0.16 s |
 | `exists`, `find`, `findAll` on the `VNCScreen` | **fail**, `ClassCastException` | **fail**, the same exception |
 | `Finder` on a BGR copy | works, score 1.0000 at 0.99 and 0.80, 0.09 to 0.21 s | works, score 1.0000, 0.59 to 0.90 s |
 | `OCR.readText` on a BGR copy | works out of the box, 2.6 s (first call, engine start included), 1528 characters, 33 lines | works **only with `LD_LIBRARY_PATH`** set to Legerix's folder (`~/.cache/legerix/5.5.0-8/linux-x86-64/`), 13.8 s, 32 lines. Without it `libtesseract.so.5` cannot find `libleptonica.so.6`, OculiX falls back to a `tesseract` program that is not installed, and every OCR call fails |
@@ -177,7 +177,11 @@ not a fair speed comparison).
    measured ones. Mouse functions need an app that reacts to the mouse.
 2. **The middle column, continued:** done read-only against TigerVNC 1.13.1 and x11vnc 0.9.16 (both corrupt through
    ZRLE at 32 bits per pixel). Still to do: a server set to 16 bits per pixel, or with ZRLE off, to confirm the
-   cause and get correct captures, then input functions against it.
+   cause and get correct captures, then input functions against it. **Done for TigerVNC at depth 16**
+   (ON-UBUNTU24, 2026-11-14): ZRLE decodes without error, which supports the 3-byte pixel cause (x11vnc at depth 16
+   not run); the capture is `TYPE_CUSTOM` and the `ClassCastException` reproduces, so that bug follows the 16-bit
+   format, not QNX; and colours are decoded wrongly, as on the Pi. So **no server tried gives OculiX 4.0.0 a fully
+   correct screen**, and TigerVNC at depth 16 reproduces the Pi's behaviour without a Pi.
 3. **Which encoding OculiX uses against `vncserv`:** done, ZRLE at 16 bits per pixel (`EncodingProbe.java`).
 4. **`vncserv -format=rgba8888`** on the Pi: does it remove the rounding and the bug? It is a recorded target
    change. Expect ZRLE corruption at 32 bits per pixel (point 3 above); try only after the cause is confirmed.

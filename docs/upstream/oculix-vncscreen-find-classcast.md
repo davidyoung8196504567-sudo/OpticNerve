@@ -22,8 +22,9 @@ assumes a byte buffer.
 
 **Steps to reproduce**
 
-1. Run any RFB 3.8 VNC server with VNC password authentication (seen with QNX 8.0's `vncserv` on a Raspberry Pi 5,
-   1920 x 1080; the default pixel format there is rgb565).
+1. Run a VNC server with a 16 bpp rgb565 pixel format and VNC password authentication: `Xtigervnc -depth 16`
+   (1.13.1, reproduced 2026-11-14 by ON-UBUNTU24), or QNX 8.0's `vncserv` on a Raspberry Pi 5 (rgb565 by default).
+   At 32 bpp (TigerVNC, x11vnc) the capture is `TYPE_INT_RGB` and the exception does not occur.
 2. Connect: `VNCScreen screen = VNCScreen.start(host, 5900, password, 10, 1000);` (connects and captures fine).
 3. Call `screen.exists(new Pattern("any.png").similar(0.8), 0);`
 4. Observe the exception below.
