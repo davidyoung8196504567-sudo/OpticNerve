@@ -54,6 +54,10 @@ Details and history are in the linked documents.
 
 ## OculiX
 
+- **One VNC server on all test hosts** (2026-11-14). Windows, macOS and Linux test hosts run the same VNC server
+  product and version, so results compare like for like. QNX's `vncserv` is fixed by its build; the ON agent makes
+  up the difference.
+
 - **Test configuration ON-VNC-1** (2026-11-14) for all OculiX and VNC testing: tigervnc-java-oculix 2.0.4 first on
   the classpath, then the OculiX 4.0.0 jar, both checked by SHA-256; security types limited to `VncAuth,None` before
   the first `VNCScreen.start`; Enter as `type("\r")`; the JDK stated in every result
