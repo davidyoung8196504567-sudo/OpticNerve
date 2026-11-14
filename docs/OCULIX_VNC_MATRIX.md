@@ -49,7 +49,7 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 |---|---|---|---|---|
 | Open a screen | `Screen` (all monitors) | `VNCScreen.start(host, port, password, ...)`, by design | **measured: works**, 3.3 s, O01 (OculiX finds the Gears tile and clicks it) | none |
 | Authentication | not needed | VNC password only (release notes: "VncAuth only"), by design | **measured: works** with `vncserv -auth` | none; no encryption on the wire, see SSH tunnel |
-| Encodings | not needed | Raw, ZRLE, Tight (release notes), by design; TigerVNC: **measured: fails**, OculiX's ZRLE decoder dies during start (`ZRLEDecoder: assertion (len <= end - ptr) failed`), `start` still returns a running screen and the frame is wrong in 72,666 pixels, all inside the windows ([upstream/oculix-zrle-decoder-tigervnc.md](upstream/oculix-zrle-decoder-tigervnc.md)) | `vncserv` serves raw and ZRLE (**measured** with our VNC tool); which one OculiX picked: not measured | measure |
+| Encodings | not needed | Raw, ZRLE, Tight (release notes), by design; TigerVNC: **measured: fails**, OculiX's ZRLE decoder dies during start (`ZRLEDecoder: assertion (len <= end - ptr) failed`), `start` still returns a running screen and the frame is wrong in 72,666 pixels, all inside the windows ([upstream/oculix-zrle-decoder-tigervnc.md](upstream/oculix-zrle-decoder-tigervnc.md)) | `vncserv` serves raw and ZRLE (**measured** with our VNC tool); OculiX asks for ZRLE first and **receives only ZRLE**, at rgb565 16 bits per pixel, and decodes it correctly (**measured**, `host/spikes/probe/EncodingProbe.java`, 2026-11-14) | none; keep 16 bits per pixel (see the ZRLE note) |
 | SSH tunnel | not needed | `SSHTunnel` class, by design | not measured (the image runs `sshd`) | measure |
 | Several sessions at once | several `Screen`s | "thread-safe parallel sessions" (README), by design | not measured | measure |
 | More than one display | yes | one framebuffer per server | `vncserv -display=1`: one display; a second HDMI display not tried | open |
@@ -145,11 +145,14 @@ not a fair speed comparison).
    pixel format:** against TigerVNC (32 bits per pixel) OculiX's capture is `TYPE_INT_RGB` and the same calls do not
    throw; against `vncserv` it is `TYPE_CUSTOM` and they do. `vncserv -format=rgba8888` might therefore avoid it;
    not tried (it is a target change).
-3. **A second OculiX defect shows against TigerVNC, not against `vncserv`:** the ZRLE decoder fails and the frame is
-   silently wrong. Against `vncserv` the captures matched our raw-encoding frames (region and colour checks, OCR of
-   the welcome text), so either `vncserv` sends ZRLE that OculiX decodes, or it sends raw; which one is not measured.
-   So far QNX's server is the one where OculiX's pixels can be trusted, and another server is the one where they
-   cannot.
+3. **A second OculiX defect: ZRLE at 32 bits per pixel.** Against TigerVNC 1.13.1 and x11vnc 0.9.16 (both 32 bits
+   per pixel, depth 24) OculiX's ZRLE decoder dies during start (TigerVNC: length assertion, `ZRLEDecoder.java:135`;
+   x11vnc: `ZlibInStream: inflate failed` at `ZRLEDecoder.java:85`) and the frame is silently wrong (x11vnc: 2,041,346
+   of 2,073,600 pixels). Against `vncserv` OculiX also receives ZRLE, but at 16 bits per pixel, and decodes it
+   correctly. ZRLE sends 3-byte "compact pixels" only at 32 bits per pixel, so that is the likely fault (OculiX issue
+   #443, "ZRLE CPIXEL", is in the same place); not proved. OculiX has no setting to ask for another encoding
+   (`VNCClient.currentEncoding` is private and sent once). **So `vncserv -format=rgba8888` would probably trade the
+   `ClassCastException` for corrupt frames.**
 4. **Most of the QNX column is still "not measured" for OculiX itself.** Keys, moves and clicks are proved with our
    own VNC tools, which shows `vncserv` and Screen do their part, but not that OculiX's calls work.
 5. **VNC cannot do four things, on any system, and those are the ON agent's job:** say whether the picture is
@@ -172,12 +175,12 @@ not a fair speed comparison).
    hover, double and right click, wheel, drag, region capture, colour, `waitForStable`, observe, OCR methods) and
    checks each result over SSH and in the frames. It turns the "not measured" cells of the QNX column into
    measured ones. Mouse functions need an app that reacts to the mouse.
-2. **The middle column, continued:** done read-only against TigerVNC 1.13.1 (the bug depends on the pixel format;
-   a new ZRLE defect). Still to do: a server or setting where OculiX's captures are correct (x11vnc, wayvnc, or
-   TigerVNC with ZRLE off on the server side), then input functions against it.
-3. **Which encoding OculiX uses against `vncserv`:** from `vncserv`'s log or a packet capture.
+2. **The middle column, continued:** done read-only against TigerVNC 1.13.1 and x11vnc 0.9.16 (both corrupt through
+   ZRLE at 32 bits per pixel). Still to do: a server set to 16 bits per pixel, or with ZRLE off, to confirm the
+   cause and get correct captures, then input functions against it.
+3. **Which encoding OculiX uses against `vncserv`:** done, ZRLE at 16 bits per pixel (`EncodingProbe.java`).
 4. **`vncserv -format=rgba8888`** on the Pi: does it remove the rounding and the bug? It is a recorded target
-   change.
+   change. Expect ZRLE corruption at 32 bits per pixel (point 3 above); try only after the cause is confirmed.
 5. **Cross-host runs against real desktops** (planned with David, 2026-11-14). Each pair first with the read-only
    probe (no input, no coordination needed), then input tests in a slot David schedules, since input moves the
    mouse and types on that machine:

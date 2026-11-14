@@ -43,7 +43,17 @@ Full Colour kinds, plus Solid ones.
 The ZRLE rectangles decode correctly; or, if decoding fails, `start` or the next `capture` reports the error
 instead of returning a stale or corrupt frame.
 
+**Also seen with x11vnc** 0.9.16 (libvncserver 0.9.14), same display, 32 bits per pixel: the reader thread dies
+with `com.tigervnc.rdr.Exception: ZlibInStream: inflate failed` (`ZlibInStream.java:128`, from
+`ZRLEDecoder.readRect`, `ZRLEDecoder.java:85`); 2,041,346 of 2,073,600 pixels wrong. x11vnc's log: "Using ZRLE
+encoding for client", 35 ZRLE rectangles. Its raw-encoding frame equals TigerVNC's except the pointer, so the fault
+is on the client side.
+
+**Works at 16 bits per pixel:** against QNX 8.0's `vncserv` (rgb565) OculiX receives only ZRLE and decodes it
+correctly. Likely cause: ZRLE's 3-byte compact pixels (CPIXEL), used only at 32 bits per pixel (compare #443). Not
+proved. There is no API to choose another encoding (`VNCClient.currentEncoding` is private).
+
 **Not checked yet**
 
 - Whether later captures stay stale (the reader thread is dead, so they likely do).
-- Whether other servers (x11vnc, wayvnc) show it, and whether limiting the encodings to raw avoids it.
+- Whether a 32-bit server set to 16 bits per pixel decodes correctly (would confirm the CPIXEL cause); wayvnc.
