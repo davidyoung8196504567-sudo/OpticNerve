@@ -284,6 +284,20 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      0.27 s, 4,747,183 of 4,748,224 pixels black; `findAll` 549 matches in 9.76 s; the raw-encoding frame correct in
      2.3 s. Both hosts give the same result.
    - **Local column:** the same probe on each host against its own `Screen`, without VNC.
+   - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
+     is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
+     nothing installed:
+     1. OculiX's login: RealVNC calls VncAuth "VNC Password"; non-RealVNC viewers need encryption set to PreferOn or
+        PreferOff and the "Legacy" box ticked when the password is set (Linux: `vncpasswd -legacy -service`); then
+        only 8 characters count and the session is not encrypted.
+     2. Licence: the free Lite plan is non-commercial, 1 user, 3 devices, one connection at a time, one
+        authentication scheme (which one not found). Direct LAN connections, which OculiX needs (it has no RealVNC
+        cloud connection), are reported as starting at the Premium plan (about USD 30 a month); not confirmed on
+        RealVNC's own comparison page.
+     3. macOS: RealVNC's download page says it is working on a bug affecting RealVNC Server on macOS Tahoe (26);
+        macOS 27 not mentioned.
+     4. Ubuntu: RealVNC Server does not support Wayland; GDM has to be set to X11 (`WaylandEnable=false` in
+        `/etc/gdm3/custom.conf`, then reboot), a recorded change on UBUNTU24.
    - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host) and input
      tests against the Mac. The release has one macOS jar, `oculixapi-4.0.0-macos.jar` (61,441,991 bytes, SHA-256
      `e26cc3da...4bd3`), whose native libraries (OpenCV 4.10, Tesseract 5, Leptonica 6, JNA, JNativeHook) are all
