@@ -286,6 +286,22 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      against the before-frame (the clock), 2,486 against the after-frame (one text line), and the two raw frames
      differ in exactly those two regions combined (2,634); **no unexplained pixel**. `exists` 1.3 s, `find` 0.40 s
      score 1.00 at the right place (650,92), `findAll` 1 match, `waitForScreenStable` true.
+   - **Input, Windows host → UBUNTU24's real desktop (slot 1)**, 2026-11-14 16:52 to 16:54 UTC, David's go in both
+     sessions; ON-VNC-1 (2.0.4 first, `VncAuth,None`), Temurin 25.0.4+7, ON-UBUNTU24's `StepProbe` v2 (SHA-256
+     `0350a1c2...f209`) through its `rfb_tap.py` on this host (what OculiX sent) and `xinput test-xi2 --root` on
+     UBUNTU24 (what arrived, all from the XTEST devices, none from the physical keyboard or touchpad); target an empty
+     gnome-text-editor draft, every coordinate inside a safe rectangle, a first phase (one click) checked for focus
+     before the rest; 34 steps in 47 s, one run. **Everything sent arrived as sent.** In the editor: `click`, `hover`,
+     `doubleClick`, `rightClick` (menu opens; `type("")` closes it), `type` of lowercase, capitals, digits and
+     all ASCII punctuation exact (Shift sent around capitals and shifted symbols), Return `""`, Tab, Backspace,
+     arrows, Home, End, Page Up and Down, wheel (buttons 5 and 4 arrive; nothing to scroll), `mouseDown(Mouse.LEFT)`
+     + move + `mouseUp(Mouse.LEFT)` and `dragDrop` select text, Ctrl+A then typing replaces it: **work**.
+     **Do not work:** `Key.ENTER` (Linefeed arrives, the editor ignores it); **`Key.DELETE` from a Windows client
+     sends "." (0x2e)**, which types a full stop (from a Linux client it sends keypad Delete, 0xff9f), so Delete
+     depends on the client OS; **`type("a", KeyModifier.SHIFT)` gives "a"**: x11vnc releases Shift because the keysym
+     sent is lowercase (TigerVNC adds Caps_Lock instead), so the ON agent types capitals as capitals; `paste(text)` and
+     `type("é")` send only Ctrl+V and paste whatever is on the target's clipboard (the marker appeared twice), while
+     `paste` puts its text on the client's clipboard.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
