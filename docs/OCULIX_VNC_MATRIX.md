@@ -161,6 +161,13 @@ bits (for example 65527 x 65527 at 10,10): `refreshFramebuffer` passes width and
 (`VNCClient.java:167`, still in 2.0.4). The server clips them, so results are right; whether a partial capture can
 come back stale is not tested.
 
+**Acceptance checks of the proposed test configuration "ON-VNC-1"** (from the Oculix-MacBookM4Pro-macOS-27 session:
+2.0.4 first on the classpath, hash-verified jars, security types limited to `VncAuth,None`, Enter as `type("")`),
+Windows host to the Pi, 2026-11-14, Eclipse Adoptium 25.0.4+7-LTS, read-only: both jars' SHA-256 match;
+`-verbose:class` loads `com.sikulix.vnc.VNCClient` and `com.tigervnc.rfb.ZRLEDecoder` from the 2.0.4 jar; the log
+says "Choosing security type VncAuth(2)"; no `Thread-N` exception; capture type 1; 0 wrong pixels against two
+identical raw frames. All five pass. Adopting ON-VNC-1 for the suite is David's decision (not made yet).
+
 Not tested with 2.0.4: any input, more than one run, the Mac login failure's cause. It is a classpath override of a
 pinned release, recorded in CONFIG_MANAGEMENT.md as a trial host component; the suite does not use it yet.
 

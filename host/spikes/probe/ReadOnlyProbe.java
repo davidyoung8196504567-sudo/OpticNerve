@@ -49,7 +49,19 @@ public class ReadOnlyProbe {
         int port = a.length > 3 ? Integer.parseInt(a[3]) : 5900;
         File out = new File(a[2]);
         out.mkdirs();
-        System.out.println("os " + System.getProperty("os.name") + ", java " + System.getProperty("java.version"));
+        System.out.println("os " + System.getProperty("os.name") + ", java " + System.getProperty("java.vendor") + " "
+                + System.getProperty("java.runtime.version"));
+
+        // -Don.debug=true turns on the VNC client's log; -Don.secTypes=VncAuth,None limits the security types (needed
+        // with tigervnc-java-oculix 2.0.4 against servers that offer Apple's DH first). Reflection, so either jar works.
+        if (Boolean.getBoolean("on.debug"))
+            Class.forName("com.sikulix.vnc.VNCClient").getMethod("onDebugging").invoke(null);
+        String sec = System.getProperty("on.secTypes");
+        if (sec != null) {
+            Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
+            p.getClass().getMethod("setParam", String.class).invoke(p, sec);
+            System.out.println("security types limited to " + sec);
+        }
 
         long t0 = System.nanoTime();
         VNCScreen screen = VNCScreen.start(host, port, password, 10, 1000);
