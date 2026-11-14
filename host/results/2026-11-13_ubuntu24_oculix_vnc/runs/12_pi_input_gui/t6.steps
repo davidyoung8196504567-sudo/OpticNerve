@@ -1,0 +1,2 @@
+type sudo shutdown\r
+wait 3000

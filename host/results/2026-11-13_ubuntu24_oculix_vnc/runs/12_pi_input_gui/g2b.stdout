@@ -1,0 +1,35 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, script g2b.steps
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-78334-6265043805634538565/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Legerix.loadNatives() failed: UnsatisfiedLinkError: /home/tester/.cache/legerix/5.5.0-8/linux-x86-64/libtesseract.so.5: libleptonica.so.6: cannot open shared object file: No such file or directory
+[DEBUG STARTUP] [OculiX] Legerix natives unavailable — using Tess4J bundled binaries with Legerix-bundled tessdata (/home/tester/.cache/legerix/5.5.0-8/tessdata)
+[log] CLICK on L[150,415]@S(VNC 127.0.0.1:5915) (1936 msec)
+click 150 415: returned 1
+    OculiX sent: mask 0@0,0 x5 to 150,415 mask 1@150,415 mask 0@150,415
+    capture: g2b_01.png
+[log] ( Ctrl+Shift )  TYPE "a"
+mod CTRL+SHIFT a: returned 1
+    OculiX sent: +0xffe3 +0xffe1 +0x0061 -0x0061 -0xffe3 -0xffe1
+    capture: g2b_02.png
+[log] ( Alt )  TYPE "x"
+mod ALT x: returned 1
+    OculiX sent: +0xffe9 +0x0078 -0x0078 -0xffe9
+    capture: g2b_03.png
+[log] ( Windows )  TYPE "d"
+mod META d: returned 1
+    OculiX sent: +0xffe7 +0x0064 -0x0064 -0xffe7
+    capture: g2b_04.png
+[log] ( Ctrl+Alt )  TYPE "t"
+mod CTRL+ALT t: returned 1
+    OculiX sent: +0xffe3 +0xffe9 +0x0074 -0x0074 -0xffe3 -0xffe9
+    capture: g2b_05.png
+[log] ( Ctrl+Shift )  TYPE "i"
+mod CTRL+SHIFT i: returned 1
+    OculiX sent: +0xffe3 +0xffe1 +0x0069 -0x0069 -0xffe3 -0xffe1
+    capture: g2b_06.png
+wait 2500: returned ok
+    OculiX sent: NOTHING
+    capture: g2b_07.png
+stopped

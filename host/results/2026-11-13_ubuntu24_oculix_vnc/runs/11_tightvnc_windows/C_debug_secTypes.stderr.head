@@ -1,0 +1,41 @@
+/home/tester/OpticNerve/host/spikes/probe/ReadOnlyProbe.java:141: warning: [deprecation] waitForScreenStable(long,long) in VNCScreen has been deprecated
+        step("waitForScreenStable(3000,500)", () -> screen.waitForScreenStable(3000, 500));
+                                                          ^
+1 warning
+DecodeManager: Detected 4 CPU core(s)
+DecodeManager: Creating 4 decoder thread(s)
+CConnection: Reading protocol version
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+[cut here: the line above repeated 38,434,239 times in 240 s (a 1.8 GB log, deleted), run killed by timeout]

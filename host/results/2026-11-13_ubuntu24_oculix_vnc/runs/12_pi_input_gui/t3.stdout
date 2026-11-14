@@ -1,0 +1,14 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, script t3.steps
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-78665-1579654342192259112/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+[log]  TYPE "#BACK.#BACK.r"
+type \b\br: returned 1
+    OculiX sent: +0xff08 -0xff08 +0xff08 -0xff08 +0x0072 -0x0072
+    capture: t3_01.png
+look: returned ok
+    OculiX sent: NOTHING
+    capture: t3_02.png
+stopped

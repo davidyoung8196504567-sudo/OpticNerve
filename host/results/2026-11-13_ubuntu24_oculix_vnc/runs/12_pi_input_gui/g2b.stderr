@@ -1,0 +1,32 @@
+DecodeManager: Detected 4 CPU core(s)
+DecodeManager: Creating 4 decoder thread(s)
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+Nov 14, 2026 2:10:22 AM io.github.julienmerconsulting.legerix.Legerix loadViaJna
+SEVERE: Failed to load native library /home/tester/.cache/legerix/5.5.0-8/linux-x86-64/libtesseract.so.5
+java.lang.UnsatisfiedLinkError: /home/tester/.cache/legerix/5.5.0-8/linux-x86-64/libtesseract.so.5: libleptonica.so.6: cannot open shared object file: No such file or directory
+	at java.base/jdk.internal.loader.NativeLibraries.load(Native Method)
+	at java.base/jdk.internal.loader.NativeLibraries$NativeLibraryImpl.open(NativeLibraries.java:321)
+	at java.base/jdk.internal.loader.NativeLibraries.loadLibrary(NativeLibraries.java:187)
+	at java.base/jdk.internal.loader.NativeLibraries.loadLibrary(NativeLibraries.java:129)
+	at java.base/java.lang.ClassLoader.loadLibrary(ClassLoader.java:2245)
+	at java.base/java.lang.Runtime.load0(Runtime.java:767)
+	at java.base/java.lang.System.load(System.java:1647)
+	at io.github.julienmerconsulting.legerix.Legerix.loadViaJna(Legerix.java:506)
+	at io.github.julienmerconsulting.legerix.Legerix.loadNatives(Legerix.java:243)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at org.sikuli.support.Commons.loadTesseract(Commons.java:1502)
+	at org.sikuli.support.Commons.<clinit>(Commons.java:179)
+	at org.sikuli.script.Mouse.init(Mouse.java:65)
+	at org.sikuli.script.Mouse.get(Mouse.java:73)
+	at org.sikuli.script.Mouse.click(Mouse.java:272)
+	at org.sikuli.script.Region.click(Region.java:4157)
+	at org.sikuli.script.Region.click(Region.java:4131)
+	at StepProbe.main(StepProbe.java:115)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at jdk.compiler/com.sun.tools.javac.launcher.SourceLauncher.execute(SourceLauncher.java:258)
+	at jdk.compiler/com.sun.tools.javac.launcher.SourceLauncher.run(SourceLauncher.java:138)
+	at jdk.compiler/com.sun.tools.javac.launcher.SourceLauncher.main(SourceLauncher.java:76)
+

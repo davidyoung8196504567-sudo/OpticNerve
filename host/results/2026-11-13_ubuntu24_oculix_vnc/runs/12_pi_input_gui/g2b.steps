@@ -1,0 +1,7 @@
+click 150 415
+mod CTRL+SHIFT a
+mod ALT x
+mod META d
+mod CTRL+ALT t
+mod CTRL+SHIFT i
+wait 2500

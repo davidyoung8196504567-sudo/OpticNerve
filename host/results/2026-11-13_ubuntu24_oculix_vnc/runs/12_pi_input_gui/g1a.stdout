@@ -1,0 +1,22 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, script g1a.steps
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+look: returned ok
+    OculiX sent: NOTHING
+    capture: g1a_01.png
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-78121-2245189824895422325/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+move 300 174: returned 1
+    OculiX sent: mask 0@0,0 x5 to 300,174
+    capture: g1a_02.png
+mdown ButtonL: returned ok
+    OculiX sent: mask 0@300,174
+    capture: g1a_03.png
+move 900 174: returned 1
+    OculiX sent: mask 0@300,174 x5 to 900,174
+    capture: g1a_04.png
+mup bare: returned ok
+    OculiX sent: mask 0@900,174
+    capture: g1a_05.png
+stopped

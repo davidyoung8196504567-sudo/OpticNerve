@@ -1,0 +1,41 @@
+/home/tester/OpticNerve/host/spikes/probe/ReadOnlyProbe.java:141: warning: [deprecation] waitForScreenStable(long,long) in VNCScreen has been deprecated
+        step("waitForScreenStable(3000,500)", () -> screen.waitForScreenStable(3000, 500));
+                                                          ^
+1 warning
+DecodeManager: Detected 4 CPU core(s)
+DecodeManager: Creating 4 decoder thread(s)
+CConnection: Reading protocol version
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+CConnection: Processing security types message
+[cut here: the line above repeats; 6,371 times in the first 300 kB kept of this log, run killed at 120 s]

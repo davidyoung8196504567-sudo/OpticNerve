@@ -1,0 +1,45 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, script g1b.steps
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+look: returned ok
+    OculiX sent: NOTHING
+    capture: g1b_01.png
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-78178-7659083547861414961/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+move 300 203: returned 1
+    OculiX sent: mask 0@0,0 x5 to 300,203
+    capture: g1b_02.png
+mdown MouseL: returned ok
+    OculiX sent: mask 1@300,203
+    capture: g1b_03.png
+move 900 203: returned 1
+    OculiX sent: mask 1@300,203 x5 to 900,203
+    capture: g1b_04.png
+mup bare: returned ok
+    OculiX sent: mask 1@900,203
+    capture: g1b_05.png
+move 900 232: returned 1
+    OculiX sent: mask 1@900,203 x5 to 900,232
+    capture: g1b_06.png
+[log] CLICK on L[1500,700]@S(VNC 127.0.0.1:5915) (506 msec)
+click 1500 700: returned 1
+    OculiX sent: mask 1@900,232 x6 to 1500,700 mask 0@1500,700
+    capture: g1b_07.png
+move 1200 174: returned 1
+    OculiX sent: mask 0@1500,700 x5 to 1200,174
+    capture: g1b_08.png
+mdown MouseL: returned ok
+    OculiX sent: mask 1@1200,174
+    capture: g1b_09.png
+mup ALL: returned ok
+    OculiX sent: mask 0@1200,174
+    capture: g1b_10.png
+move 600 174: returned 1
+    OculiX sent: mask 0@1200,174 x5 to 600,174
+    capture: g1b_11.png
+[log] CLICK on L[1500,700]@S(VNC 127.0.0.1:5915) (504 msec)
+click 1500 700: returned 1
+    OculiX sent: mask 0@600,174 x5 to 1500,700 mask 1@1500,700 mask 0@1500,700
+    capture: g1b_12.png
+stopped

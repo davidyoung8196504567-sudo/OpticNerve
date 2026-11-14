@@ -1,0 +1,26 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, script g2a.steps
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+look: returned ok
+    OculiX sent: NOTHING
+    capture: g2a_01.png
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-78269-14492433892664064700/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+[log] ( Ctrl )  TYPE "f"
+mod CTRL f: returned 1
+    OculiX sent: +0xffe3 +0x0066 -0x0066 -0xffe3
+    capture: g2a_02.png
+[log]  TYPE "hello"
+type hello: returned 1
+    OculiX sent: +0x0068 -0x0068 +0x0065 -0x0065 +0x006c -0x006c +0x006c -0x006c +0x006f -0x006f
+    capture: g2a_03.png
+[log] ( Ctrl )  TYPE "a"
+mod CTRL a: returned 1
+    OculiX sent: +0xffe3 +0x0061 -0x0061 -0xffe3
+    capture: g2a_04.png
+[log] ( Ctrl+Shift )  TYPE "a"
+mod CTRL+SHIFT a: returned 1
+    OculiX sent: +0xffe3 +0xffe1 +0x0061 -0x0061 -0xffe3 -0xffe1
+    capture: g2a_05.png
+stopped

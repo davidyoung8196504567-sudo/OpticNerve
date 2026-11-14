@@ -1,0 +1,7 @@
+look
+type stty -a\r
+wait 1000
+type echo abcdxx\b\bEF\r
+wait 800
+type stty\r
+wait 800

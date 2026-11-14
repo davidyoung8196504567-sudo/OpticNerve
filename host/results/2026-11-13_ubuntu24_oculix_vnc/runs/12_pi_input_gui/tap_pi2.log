@@ -1,0 +1,1024 @@
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+PointerEvent mask=0 160,155
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 320,310
+PointerEvent mask=0 479,463
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 639,619
+PointerEvent mask=0 794,768
+PointerEvent mask=1 794,768
+PointerEvent mask=0 794,768
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+PointerEvent mask=0 60,35
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 120,69
+PointerEvent mask=0 181,105
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 241,140
+PointerEvent mask=0 300,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 300,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 300,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 420,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 541,174
+PointerEvent mask=0 662,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 782,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 900,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 900,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 60,40
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 120,81
+PointerEvent mask=0 180,122
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 241,163
+PointerEvent mask=0 300,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 300,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 300,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 420,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 541,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 661,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 782,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,203
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,203
+PointerEvent mask=1 900,208
+PointerEvent mask=1 900,214
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,220
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,226
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,232
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 900,232
+PointerEvent mask=1 1021,326
+PointerEvent mask=1 1141,420
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 1262,514
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 1383,609
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 1500,700
+PointerEvent mask=1 1500,700
+PointerEvent mask=0 1500,700
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+PointerEvent mask=0 1500,700
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1439,593
+PointerEvent mask=0 1379,488
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1318,382
+PointerEvent mask=0 1258,277
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1200,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 1200,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1200,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+PointerEvent mask=0 1200,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1080,174
+PointerEvent mask=0 958,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 837,174
+PointerEvent mask=0 717,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 600,174
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 600,174
+PointerEvent mask=0 781,280
+PointerEvent mask=0 961,385
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1143,491
+PointerEvent mask=0 1323,596
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 1500,700
+PointerEvent mask=1 1500,700
+PointerEvent mask=0 1500,700
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0x0066
+KeyEvent up 0x0066
+KeyEvent up 0xffe3
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0068
+KeyEvent up 0x0068
+KeyEvent down 0x0065
+KeyEvent up 0x0065
+KeyEvent down 0x006c
+KeyEvent up 0x006c
+KeyEvent down 0x006c
+KeyEvent up 0x006c
+KeyEvent down 0x006f
+KeyEvent up 0x006f
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent up 0xffe3
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0xffe1
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent up 0xffe3
+KeyEvent up 0xffe1
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+PointerEvent mask=0 30,83
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 60,166
+PointerEvent mask=0 90,250
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 120,334
+PointerEvent mask=0 150,415
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=1 150,415
+PointerEvent mask=0 150,415
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0xffe1
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent up 0xffe3
+KeyEvent up 0xffe1
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe9
+KeyEvent down 0x0078
+KeyEvent up 0x0078
+KeyEvent up 0xffe9
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+KeyEvent down 0xffe7
+KeyEvent down 0x0064
+KeyEvent up 0x0064
+KeyEvent up 0xffe7
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0xffe9
+KeyEvent down 0x0074
+KeyEvent up 0x0074
+KeyEvent up 0xffe3
+KeyEvent up 0xffe9
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0xffe1
+KeyEvent down 0x0069
+KeyEvent up 0x0069
+KeyEvent up 0xffe3
+KeyEvent up 0xffe1
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+PointerEvent mask=0 25,29
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 52,62
+PointerEvent mask=0 77,91
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 102,121
+PointerEvent mask=0 124,146
+PointerEvent mask=1 124,146
+PointerEvent mask=0 124,146
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 124,146
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 129,133
+PointerEvent mask=0 134,119
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 139,106
+PointerEvent mask=0 144,93
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 150,81
+PointerEvent mask=1 150,81
+PointerEvent mask=0 150,81
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0xffe1
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent up 0xffe3
+KeyEvent up 0xffe1
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent up 0xffe3
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xffe3
+KeyEvent down 0xffe1
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent up 0xffe3
+KeyEvent up 0xffe1
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 0,0
+PointerEvent mask=0 241,100
+PointerEvent mask=0 462,192
+PointerEvent mask=0 686,285
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+PointerEvent mask=0 907,377
+PointerEvent mask=0 1107,460
+PointerEvent mask=1 1107,460
+PointerEvent mask=0 1107,460
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0071
+KeyEvent up 0x0071
+KeyEvent down 0x006e
+KeyEvent up 0x006e
+KeyEvent down 0x0078
+KeyEvent up 0x0078
+KeyEvent down 0x0075
+KeyEvent up 0x0075
+KeyEvent down 0x0073
+KeyEvent up 0x0073
+KeyEvent down 0x0065
+KeyEvent up 0x0065
+KeyEvent down 0x0078
+KeyEvent up 0x0078
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0078
+KeyEvent up 0x0078
+KeyEvent down 0xff08
+KeyEvent up 0xff08
+KeyEvent down 0xff08
+KeyEvent up 0xff08
+KeyEvent down 0x0065
+KeyEvent up 0x0065
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0072
+KeyEvent up 0x0072
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xff08
+KeyEvent up 0xff08
+KeyEvent down 0xff08
+KeyEvent up 0xff08
+KeyEvent down 0x0072
+KeyEvent up 0x0072
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xff0d
+KeyEvent up 0xff0d
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+KeyEvent down (removed: login password)
+KeyEvent up (removed: login password)
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0073
+KeyEvent up 0x0073
+KeyEvent down 0x0074
+KeyEvent up 0x0074
+KeyEvent down 0x0074
+KeyEvent up 0x0074
+KeyEvent down 0x0079
+KeyEvent up 0x0079
+KeyEvent down 0x0020
+KeyEvent up 0x0020
+KeyEvent down 0x002d
+KeyEvent up 0x002d
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+KeyEvent down 0xff0d
+KeyEvent up 0xff0d
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0065
+KeyEvent up 0x0065
+KeyEvent down 0x0063
+KeyEvent up 0x0063
+KeyEvent down 0x0068
+KeyEvent up 0x0068
+KeyEvent down 0x006f
+KeyEvent up 0x006f
+KeyEvent down 0x0020
+KeyEvent up 0x0020
+KeyEvent down 0x0061
+KeyEvent up 0x0061
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0062
+KeyEvent up 0x0062
+KeyEvent down 0x0063
+KeyEvent up 0x0063
+KeyEvent down 0x0064
+KeyEvent up 0x0064
+KeyEvent down 0x0078
+KeyEvent up 0x0078
+KeyEvent down 0x0078
+KeyEvent up 0x0078
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0xff08
+KeyEvent up 0xff08
+KeyEvent down 0xff08
+KeyEvent up 0xff08
+KeyEvent down 0xffe1
+KeyEvent down 0x0045
+KeyEvent up 0x0045
+KeyEvent up 0xffe1
+KeyEvent down 0xffe1
+KeyEvent down 0x0046
+KeyEvent up 0x0046
+KeyEvent up 0xffe1
+KeyEvent down 0xff0d
+KeyEvent up 0xff0d
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0073
+KeyEvent up 0x0073
+KeyEvent down 0x0074
+KeyEvent up 0x0074
+KeyEvent down 0x0074
+KeyEvent up 0x0074
+KeyEvent down 0x0079
+KeyEvent up 0x0079
+KeyEvent down 0xff0d
+KeyEvent up 0xff0d
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed
+--- connection
+client closed
+--- connection
+version b'RFB 003.008\n'
+security type chosen 2
+ClientInit shared=1
+SetPixelFormat bpp=32 depth=24 max=255,255,255 shift=16,8,0
+SetEncodings [-307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254]
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+ClientCutText extended, 8 bytes: 1f00000100000000
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=0 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0073
+KeyEvent up 0x0073
+KeyEvent down 0x0075
+KeyEvent up 0x0075
+KeyEvent down 0x0064
+KeyEvent up 0x0064
+KeyEvent down 0x006f
+KeyEvent up 0x006f
+KeyEvent down 0x0020
+KeyEvent up 0x0020
+KeyEvent down 0x0073
+KeyEvent up 0x0073
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0068
+KeyEvent up 0x0068
+KeyEvent down 0x0075
+KeyEvent up 0x0075
+KeyEvent down 0x0074
+KeyEvent up 0x0074
+KeyEvent down 0x0064
+KeyEvent up 0x0064
+KeyEvent down 0x006f
+KeyEvent up 0x006f
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+KeyEvent down 0x0077
+KeyEvent up 0x0077
+KeyEvent down 0x006e
+KeyEvent up 0x006e
+KeyEvent down 0xff0d
+KeyEvent up 0xff0d
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+FramebufferUpdateRequest inc=1 1920x1080 at 0,0
+client closed

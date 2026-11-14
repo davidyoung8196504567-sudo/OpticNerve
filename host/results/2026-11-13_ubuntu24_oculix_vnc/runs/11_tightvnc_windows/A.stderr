@@ -1,0 +1,54 @@
+/home/tester/OpticNerve/host/spikes/probe/ReadOnlyProbe.java:141: warning: [deprecation] waitForScreenStable(long,long) in VNCScreen has been deprecated
+        step("waitForScreenStable(3000,500)", () -> screen.waitForScreenStable(3000, 500));
+                                                          ^
+1 warning
+CConnection: reading protocol version
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+CConnection: processing security types message
+CConnection: Server offers security type VncAuth(2)
+CConnection: Server offers security type Tight(16)
+CConnection: Choosing security type VncAuth(2)
+CConnection: processing security message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: processing security result message
+CConnection: Authentication success!
+CConnection: reading server initialisation
+CConnection: initialisation done
+VNCClient: running
+Exception in thread "Thread-0" com.tigervnc.rdr.Exception: ZlibInStream: inflate failed
+	at com.tigervnc.rdr.ZlibInStream.decompress(ZlibInStream.java:128)
+	at com.tigervnc.rdr.ZlibInStream.overrun(ZlibInStream.java:97)
+	at com.tigervnc.rdr.InStream.check(InStream.java:37)
+	at com.tigervnc.rdr.InStream.check(InStream.java:44)
+	at com.tigervnc.rdr.InStream.readBytes(InStream.java:104)
+	at com.tigervnc.rdr.InStream.readPixels(InStream.java:147)
+	at com.tigervnc.rfb.ZRLEDecoder.readRect(ZRLEDecoder.java:68)
+	at com.tigervnc.rfb.CMsgReader.readRect(CMsgReader.java:110)
+	at com.tigervnc.rfb.CMsgReaderV3.readMsg(CMsgReaderV3.java:91)
+	at com.tigervnc.rfb.CConnection.processMsg(CConnection.java:67)
+	at com.sikulix.vnc.VNCClient.processMessages(VNCClient.java:246)
+	at org.sikuli.vnc.VNCScreen$1.run(VNCScreen.java:96)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+VNCClient: shutting down

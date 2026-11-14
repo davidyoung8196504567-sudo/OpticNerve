@@ -1,0 +1,24 @@
+DecodeManager: Detected 4 CPU core(s)
+DecodeManager: Creating 4 decoder thread(s)
+CConnection: Server supports RFB protocol version 3.8
+CConnection: Using RFB protocol version 3.8
+Exception in thread "Thread-0" com.tigervnc.rdr.EndOfStream: EndOfStream
+	at com.tigervnc.rdr.FdInStream.readWithTimeoutOrCallback(FdInStream.java:199)
+	at com.tigervnc.rdr.FdInStream.overrun(FdInStream.java:147)
+	at com.tigervnc.rdr.InStream.check(InStream.java:53)
+	at com.tigervnc.rdr.InStream.checkNoWait(InStream.java:71)
+	at com.tigervnc.rfb.CMsgReader.readMsg(CMsgReader.java:78)
+	at com.tigervnc.rfb.CConnection.processMsg(CConnection.java:334)
+	at com.sikulix.vnc.VNCClient.processMessages(VNCClient.java:266)
+	at org.sikuli.vnc.VNCScreen$1.run(VNCScreen.java:96)
+	at java.base/java.lang.Thread.run(Thread.java:1474)
+Exception in thread "main" com.tigervnc.rdr.Exception: Broken pipe
+	at com.tigervnc.rdr.FdOutStream.writeWithTimeout(FdOutStream.java:164)
+	at com.tigervnc.rdr.FdOutStream.flush(FdOutStream.java:78)
+	at com.tigervnc.rfb.CMsgWriter.endMsg(CMsgWriter.java:323)
+	at com.tigervnc.rfb.CMsgWriter.writeFramebufferUpdateRequest(CMsgWriter.java:104)
+	at com.sikulix.vnc.VNCClient.refreshFramebuffer(VNCClient.java:167)
+	at org.sikuli.vnc.VNCScreen.capture(VNCScreen.java:219)
+	at org.sikuli.vnc.VNCScreen.capture(VNCScreen.java:208)
+	at org.sikuli.vnc.VNCScreen.capture(VNCScreen.java:198)
+	at StepProbe.main(StepProbe.java:135)

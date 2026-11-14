@@ -1,0 +1,12 @@
+look
+move 300 203
+mdown MouseL
+move 900 203
+mup bare
+move 900 232
+click 1500 700
+move 1200 174
+mdown MouseL
+mup ALL
+move 600 174
+click 1500 700

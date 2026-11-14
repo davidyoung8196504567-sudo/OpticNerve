@@ -1,0 +1,14 @@
+os Linux, java Eclipse Adoptium 25.0.4+7-LTS, script t4b.steps
+started, bounds java.awt.Rectangle[x=0,y=0,width=1920,height=1080], image type 1
+[DEBUG STARTUP] [OculiX] glibc 2.39 >= 2.38, using modern tier
+[DEBUG STARTUP] [OculiX] native loaded from jar resource: /tmp/oculix-opencv-78811-12275647734278431512/libopencv_java4100.so
+[DEBUG STARTUP] [OculiX] OpenCV loaded from linux-x86-64/
+[DEBUG STARTUP] [OculiX] Tesseract loaded via Legerix (Tesseract 5.5.0, tessdata=/home/tester/.cache/legerix/5.5.0-8/tessdata)
+[log]  TYPE (removed: login password)
+env (text not shown): returned 1
+    OculiX sent: (not shown)
+    capture: t4b_01.png
+wait 2500: returned ok
+    OculiX sent: NOTHING
+    capture: t4b_02.png
+stopped

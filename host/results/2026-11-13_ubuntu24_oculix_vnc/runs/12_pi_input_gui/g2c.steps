@@ -1,0 +1,7 @@
+look
+click 124 146
+wait 1500
+click 150 81
+mod CTRL+SHIFT a
+mod CTRL a
+mod CTRL+SHIFT a
