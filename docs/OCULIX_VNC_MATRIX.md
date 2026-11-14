@@ -294,8 +294,8 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      real desktop on UBUNTU24, so input runs need a slot. **Set up 2026-11-14 05:57 UTC** (recorded in
      CONFIG_MANAGEMENT.md); ON-VNC-1 read-only probe from UBUNTU24 over the LAN address: VncAuth(2) chosen, no thread
      exception, capture type 1 in 0.17 to 0.25 s, **0 wrong pixels** of 1,049,088 against a raw frame. Windows:
-     **TightVNC 2.8.90 GPL** installed on 10.30.1.114 as a service on port 5900 with a LAN-only firewall rule,
-     password not set yet. TightVNC 2.8 at 32 bpp is also the server OculiX issue #443 was reported against, so it
+     **TightVNC 2.8.90 GPL** installed on 10.30.1.114 as a service on port 5900 with a LAN-only firewall rule;
+     password set by David. TightVNC 2.8 at 32 bpp is also the server OculiX issue #443 was reported against, so it
      gets the A/B/C arms (4.0.0 alone, 2.0.2 first, 2.0.4 first) and a record of the security types it offers. RealVNC Premium later for a retest on one product.
    - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
      is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
