@@ -58,8 +58,13 @@ public class ReadOnlyProbe {
             Class.forName("com.sikulix.vnc.VNCClient").getMethod("onDebugging").invoke(null);
         String sec = System.getProperty("on.secTypes");
         if (sec != null) {
-            Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
-            p.getClass().getMethod("setParam", String.class).invoke(p, sec);
+            // 2.0.4 has the field public; 2.0.2 has it package-private (its default is already "VncAuth,None").
+            java.lang.reflect.Field f = Class.forName("com.tigervnc.rfb.SecurityClient").getDeclaredField("secTypes");
+            f.setAccessible(true);
+            Object p = f.get(null);
+            java.lang.reflect.Method m = p.getClass().getMethod("setParam", String.class);
+            m.setAccessible(true);
+            m.invoke(p, sec);
             System.out.println("security types limited to " + sec);
         }
 

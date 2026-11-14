@@ -67,7 +67,10 @@ Details and history are in the linked documents.
   ([CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md)). Each probe run checks stderr for `Thread-N` exceptions and keeps
   one capture. Revised by the Oculix session on 2026-11-14 to depend on the server: 2.0.4 first for QNX `vncserv`,
   Xtigervnc and x11vnc; 2.0.2 first for TightVNC 2.8.90 (2.0.4 hangs in its handshake there); 2.0.4 under a
-  timeout for unknown servers. **Every OculiX VNC run has a wall-clock limit, and the VNC client's debug log is
+  timeout for unknown servers. In 2.0.2 `SecurityClient.secTypes` is package-private (public in 2.0.4) and already
+  defaults to `VncAuth,None`, so `SecurityClient.secTypes.setParam(...)` in source does not compile against 2.0.2;
+  set it through reflection with `getDeclaredField` and `setAccessible` (as `ReadOnlyProbe` does), or leave it out
+  with 2.0.2 (found by ON-MacBookM4Pro, 2026-11-14). **Every OculiX VNC run has a wall-clock limit, and the VNC client's debug log is
   never on without a time or size limit** (a hung run wrote 1.8 GB).
 
 - Problems found in OculiX are recorded under [upstream/](upstream/) and worked around. After the ON agent work,

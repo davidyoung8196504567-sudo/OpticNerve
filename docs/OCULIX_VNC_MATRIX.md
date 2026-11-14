@@ -258,7 +258,7 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
    |---|---|---|---|
    | QNX 8 (Pi 5) | measured | measured | later |
    | Ubuntu 24.04 desktop | **read-only: works** (ON-VNC-1, 0 wrong pixels) | local column | later |
-   | Windows 11 desktop | local column | planned | later |
+   | Windows 11 desktop | local column | **read-only: works** from UBUNTU24 with 2.0.2 first (0 wrong pixels) | **read-only: works** (2.0.2 and 2.0.4 first; OCR does not load on the Mac) |
    | macOS desktop | planned | planned | local column |
 
    - **Windows host → UBUNTU24's desktop:** UBUNTU24's desktop is Wayland, so the server is GNOME's own desktop
@@ -329,6 +329,29 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      session, reproduced on the M4 Pro): when a server sends the security-type count and the list in separate TCP
      writes, 2.0.4 loses the count byte and loops; 2.0.1 inside 4.0.0 is not affected. ON-VNC-1 is revised to depend
      on the server (docs/HOW_WE_WORK.md): 2.0.2 first for TightVNC 2.8.90. RealVNC Premium later for a retest on one product.
+     **TightVNC 2.8.90, read-only from the MacBook M4 Pro** (ON-MacBookM4Pro, 2026-11-14 10:22 to 10:25 EST, David's
+     go in that session; macOS 27.2.1 arm64, Temurin **25.0.4.1+1** (not 25.0.4+7), `oculixapi-4.0.0-macos.jar` and
+     both tigervnc jars checked by SHA-256; `ReadOnlyProbe` from aa5b6d9 under a 120 s limit, `-verbose:class`, no
+     debug log; a raw frame right before and right after each probe; no input sent). Raw client: `RFB 003.008`,
+     VncAuth works, 2560 x 2520, 32 bpp depth 24, server name "asusrog".
+     - B, 2.0.2 first, 2 runs, the same numbers: all VNC classes from 2.0.2; no `Thread-N` exception; start 3.3 s;
+       captures 0.16 s, type 1; a sub-capture equals the full one; `getColor` equals the capture at 5 of 5 points.
+       **Wrong pixels: 28** in both runs, one column 1 px wide at x = 581, y 2210 to 2237, most likely a blinking
+       text cursor caught in another phase (the second run also differs from its after-frame where the clock
+       changed). `exists` 0.9 to 1.05 s, `find` 0.41 s, score 1.00 (the probe's pattern is nearly uniform on this
+       screen, so it matches at 539,17), `findAll` 448 matches in 1.3 s, `waitForScreenStable` true.
+     - C, 2.0.4 first with `VncAuth,None`, **1 run: connected, no loop**, 0 wrong pixels against both raw frames,
+       probe done in 12 s; find as in B. One run does not overturn "3 of 4 fail" from UBUNTU24; the cause (how the
+       security-type list is split across TCP segments) makes it depend on timing.
+     - **OCR does not load on the Mac** (all four OCR steps fail, with either jar): `libtesseract.dylib` from
+       Legerix's cache asks for `libleptonica.6.dylib` at the CI runner's path
+       (`/Users/runner/work/_temp/legerix-prefix/lib/`), baked into its load commands. A standalone `OCR.readText`
+       with the same jar works when `-Djna.library.path` points at the cache, so it depends on load order: the
+       macOS counterpart of the Linux RUNPATH problem (Legerix#26). Not VNC; passed to the Oculix session.
+     - Probe defect found there: with 2.0.2 first, `-Don.secTypes` died with `NoSuchFieldException: secTypes`
+       (the field is package-private in 2.0.2); fixed in `ReadOnlyProbe` (`getDeclaredField` plus `setAccessible`)
+       and checked on Windows against UBUNTU24's x11vnc with 2.0.2 first: classes from 2.0.2, limit applied, no
+       exception.
    - **One VNC server on all test hosts** (David, 2026-11-14, docs/HOW_WE_WORK.md). The only common product found
      is RealVNC Server (Windows, macOS, Linux). Checked from RealVNC's documentation and web sources, 2026-11-14,
      nothing installed:
