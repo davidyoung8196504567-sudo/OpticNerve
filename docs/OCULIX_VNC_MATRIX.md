@@ -257,13 +257,24 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
    | OculiX runs on → / VNC to ↓ | Windows 11 | Ubuntu 24.04 | macOS (MacBook M4 Pro) |
    |---|---|---|---|
    | QNX 8 (Pi 5) | measured | measured | later |
-   | Ubuntu 24.04 desktop | planned | local column | later |
+   | Ubuntu 24.04 desktop | **read-only: works** (ON-VNC-1, 0 wrong pixels) | local column | later |
    | Windows 11 desktop | local column | planned | later |
    | macOS desktop | planned | planned | local column |
 
    - **Windows host → UBUNTU24's desktop:** UBUNTU24's desktop is Wayland, so the server is GNOME's own desktop
      sharing (if it offers VNC on this release) or x11vnc in an X11 session; the port opened to the LAN. ON-UBUNTU24
-     checks what the release offers.
+     checks what the release offers. (Outcome: X11 session, x11vnc on :1, see "First pass" below.)
+     **Read-only probe from Windows, 2026-11-14 about 15:10 UTC** (ON-VNC-1: 2.0.4 first, then the Windows OculiX
+     jar, `-Don.secTypes=VncAuth,None`; Temurin 25.0.4+7; 120 s limit; no input sent): `-verbose:class` shows
+     `CConnection`, `VNCClient` and `ZRLEDecoder` loaded from 2.0.4; connected with the VNC password; no `Thread-N`
+     exception. Framebuffer 1366 x 768; captures 0.15 to 0.19 s, image type 1; a 400 x 300 sub-capture equals the
+     full one; `getColor` equals the capture pixel at 4 points (the probe's fifth point, y = 1052, is off this
+     768-high screen: out of bounds, a probe limit, not OculiX). `exists`/`find` on a pattern cut from the capture:
+     score 1.00 in 0.2 s, `findAll` 1 match; OCR of the full frame 918 characters in 1.5 to 1.7 s, of an 800 x 400 region in
+     1.3 s; `waitForScreenStable` true. **0 wrong pixels** of 1,049,088 against a raw-encoding frame taken just
+     after the probe (raw frames from before it differ from both in one 162 x 477 box where the live desktop
+     changed). The capture and OCR text stay on the Windows host (David's real desktop). The VNC handshake log was
+     not on, so the chosen security type is inferred: x11vnc with `-rfbauth` offers only VncAuth.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
