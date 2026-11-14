@@ -178,3 +178,25 @@ not a fair speed comparison).
 3. **Which encoding OculiX uses against `vncserv`:** from `vncserv`'s log or a packet capture.
 4. **`vncserv -format=rgba8888`** on the Pi: does it remove the rounding and the bug? It is a recorded target
    change.
+5. **Cross-host runs against real desktops** (planned with David, 2026-11-14). Each pair first with the read-only
+   probe (no input, no coordination needed), then input tests in a slot David schedules, since input moves the
+   mouse and types on that machine:
+
+   | OculiX runs on → / VNC to ↓ | Windows 11 | Ubuntu 24.04 | macOS (MacBook M4 Pro) |
+   |---|---|---|---|
+   | QNX 8 (Pi 5) | measured | measured | later |
+   | Ubuntu 24.04 desktop | planned | local column | later |
+   | Windows 11 desktop | local column | planned | later |
+   | macOS desktop | planned | planned | local column |
+
+   - **Windows host → UBUNTU24's desktop:** UBUNTU24's desktop is Wayland, so the server is GNOME's own desktop
+     sharing (if it offers VNC on this release) or x11vnc in an X11 session; the port opened to the LAN. ON-UBUNTU24
+     checks what the release offers.
+   - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
+     or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
+   - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
+     with password" on, since OculiX only does VncAuth; that setting is recorded. A third real server next to
+     TigerVNC and `vncserv`, and a Retina-size frame. Needs the Mac's address and macOS version.
+   - **Local column:** the same probe on each host against its own `Screen`, without VNC.
+   - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host; Apple
+     Silicon builds of OculiX's native libraries and OCR not checked yet) and input tests against the Mac.
