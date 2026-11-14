@@ -12,6 +12,10 @@ cells are not measured yet, and each cell says what it rests on.
   separate repository (`tigervnc-java-oculix`).
 - **ON-UBUNTU24's read-only run** from UBUNTU24 against the Pi (2026-11-14): `oculixapi-4.0.0-linux.jar` (SHA-256
   `bfebf784...`, the published digest), Temurin 25.0.4+7; no input sent.
+- **ON-UBUNTU24's run against a non-QNX server** (2026-11-14): TigerVNC `Xtigervnc` 1.13.1+dfsg-2build2 (Ubuntu
+  noble packages, unpacked without root), private display :5, 1920 x 1080, depth 24 (32 bits per pixel), port 5905,
+  localhost only, VncAuth; a blue background, an `xmessage` window with 3 lines of text, `xeyes`. Same probe (port
+  as a 4th argument), run 3 times with identical results; reference frame from `vnc_snapshot.py` (raw encoding).
 - **Our measurements on the Pi 5** (QNX 8.0 quick-start image 20260902, `vncserv` 4.2.0, native session):
   [notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md), [notes/2026-11-13_spike_rerun.md](notes/2026-11-13_spike_rerun.md)
   and the visible suite `tests/visible/suite.py` (run of 2026-11-14 00:28 UTC: 17 pass, 1 fail, 2 N/A).
@@ -30,8 +34,9 @@ Two limits of this version:
 
 - **The "local host" column is not measured.** It is what OculiX's source and README say. We have only used OculiX
   against the Pi.
-- **The "VNC, another computer" column is not measured either.** We have no second VNC server to compare with. It
-  is what `VNCScreen` and `VNCRobot` do by their code, for any server.
+- **The "VNC, another computer" column is mostly not measured.** It is what `VNCScreen` and `VNCRobot` do by their
+  code, for any server. Where a cell says "TigerVNC", it was measured read-only against TigerVNC 1.13.1 on UBUNTU24
+  (see Sources); input against that server is not measured.
 
 Where the QNX column says "with our VNC tool", the function was proved with `host/tools/vnc_input.py` or
 `vnc_snapshot.py`, which send the same RFB messages as OculiX, but **not with OculiX itself**.
@@ -44,7 +49,7 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 |---|---|---|---|---|
 | Open a screen | `Screen` (all monitors) | `VNCScreen.start(host, port, password, ...)`, by design | **measured: works**, 3.3 s, O01 (OculiX finds the Gears tile and clicks it) | none |
 | Authentication | not needed | VNC password only (release notes: "VncAuth only"), by design | **measured: works** with `vncserv -auth` | none; no encryption on the wire, see SSH tunnel |
-| Encodings | not needed | Raw, ZRLE, Tight (release notes), by design | `vncserv` serves raw and ZRLE (**measured** with our VNC tool); which one OculiX picked: not measured | measure |
+| Encodings | not needed | Raw, ZRLE, Tight (release notes), by design; TigerVNC: **measured: fails**, OculiX's ZRLE decoder dies during start (`ZRLEDecoder: assertion (len <= end - ptr) failed`), `start` still returns a running screen and the frame is wrong in 72,666 pixels, all inside the windows ([upstream/oculix-zrle-decoder-tigervnc.md](upstream/oculix-zrle-decoder-tigervnc.md)) | `vncserv` serves raw and ZRLE (**measured** with our VNC tool); which one OculiX picked: not measured | measure |
 | SSH tunnel | not needed | `SSHTunnel` class, by design | not measured (the image runs `sshd`) | measure |
 | Several sessions at once | several `Screen`s | "thread-safe parallel sessions" (README), by design | not measured | measure |
 | More than one display | yes | one framebuffer per server | `vncserv -display=1`: one display; a second HDMI display not tried | open |
@@ -53,7 +58,7 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Capture the whole screen | yes | `capture()`, by design | **measured: works**, 0.21 s for 1920 x 1080, O01 (OculiX finds the Gears tile and clicks it), U02 (unboxing: OculiX capture and OCR) | none |
+| Capture the whole screen | yes | `capture()`, by design; TigerVNC: returns in 0.17 s, image type 1 (`TYPE_INT_RGB`; type 0 on the Pi), but **the content is wrong** (ZRLE defect above) | **measured: works**, 0.21 s for 1920 x 1080, O01 (OculiX finds the Gears tile and clicks it), U02 (unboxing: OculiX capture and OCR) | none |
 | Capture a region | yes | `capture(x, y, w, h)`, by design | **measured: works** from UBUNTU24: 0.21 s for 400 x 300, identical to the same area of a full capture | none |
 | Exact pixels | yes | depends on the server's pixel format | **measured:** `vncserv` reads back rgb565, so values are off by up to about 8 levels against Screen's own capture | ON agent: exact region capture (`screen_read_display()`); or `vncserv -format=rgba8888` |
 | Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | **measured: works** from UBUNTU24 (`Location.getColor`, 0.15 s, 5 of 5 points equal to the capture); subject to the rgb565 rounding above | as above |
@@ -66,11 +71,11 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Find an image: `find`, `exists`, `has`, `wait`, `waitVanish`, `click(image)` | yes | by design; **see the bug** | **measured: fails** with `ClassCastException` in `Commons.getMatList` ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)) | **OculiX fix** (David's fork, later); workaround below |
+| Find an image: `find`, `exists`, `has`, `wait`, `waitVanish`, `click(image)` | yes | by design; TigerVNC: `exists`, `find` **do not throw**, score 1.00 at the right place, but only because the pattern was cut from the same corrupt frame | **measured: fails** with `ClassCastException` in `Commons.getMatList` ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)) | **OculiX fix** (David's fork, later); workaround below |
 | The same through `Finder` on a copy of the capture | yes | by design | **measured: works**, score 0.99 to 1.00 in 0.1 to 0.8 s, O01 (OculiX finds the Gears tile and clicks it) | workaround in use |
-| `findAll`, `findBest`, `findAny` | yes | by design; same code path as the bug | `findAll` **measured: fails** from UBUNTU24, same `ClassCastException`; `findBest`, `findAny` not measured | OculiX fix; `Finder` workaround |
+| `findAll`, `findBest`, `findAny` | yes | by design; TigerVNC: `findAll` does not throw (same caveat) | `findAll` **measured: fails** from UBUNTU24, same `ClassCastException`; `findBest`, `findAny` not measured | OculiX fix; `Finder` workaround |
 | Similarity tolerance | yes | yes | **measured** only with a pattern cut from the same VNC source; patterns from elsewhere not measured | measure; allow for the rgb565 rounding |
-| Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design | on a BGR copy of the capture **measured: works**: 24 of 24 expected lines, U03 (unboxing: welcome text is right for this release); `VNCScreen.text()`, `Region.text()` on the VNC screen and `OCR.readText` on the raw capture **measured: fail** from UBUNTU24 with the same `ClassCastException`; on Linux OCR only loads with a workaround (see Host differences) | OculiX fix; workaround: OCR a BGR copy |
+| Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design; TigerVNC: `VNCScreen.text()`, `Region.text()`, `OCR.readText(raw capture)` do not throw (0.5 to 1.0 s), the text is useless because the frame is corrupt | on a BGR copy of the capture **measured: works**: 24 of 24 expected lines, U03 (unboxing: welcome text is right for this release); `VNCScreen.text()`, `Region.text()` on the VNC screen and `OCR.readText` on the raw capture **measured: fail** from UBUNTU24 with the same `ClassCastException`; on Linux OCR only loads with a workaround (see Host differences) | OculiX fix; workaround: OCR a BGR copy |
 | Watch for change: `onAppear`, `onVanish`, `onChange`, `observe` | yes | by design (compares captures) | not measured; the image-based ones share the bug's code path | measure |
 | Wait until the screen is stable: `waitForStable` | yes | `VNCScreen.waitForStable`, by design | `waitForScreenStable(3000, 500)` **measured: works** from UBUNTU24 (true after 1.16 s; deprecated in 4.0.0); `waitForStable(long, long, double)` not measured | the ON agent's freshness signal is the cheaper way |
 | Highlight a region on screen | yes | **no**: skipped for remote screens (`Region.highlight`) | no | none needed |
@@ -135,13 +140,19 @@ not a fair speed comparison).
 
 1. **The path works end to end:** OculiX connects to QNX's `vncserv`, sees the screen, finds an image, clicks it and
    reads text. That is measured.
-2. **One OculiX bug is in the way of the normal API:** image search and text reading called on the `VNCScreen` fail, on Windows and on Linux. The workaround
-   (search a converted copy) is measured. Whether the bug shows with other VNC servers is not known: the capture's
-   image type follows the pixel format, so it may depend on the server. `vncserv -format=rgba8888` might avoid it;
+2. **One OculiX bug is in the way of the normal API:** image search and text reading called on the `VNCScreen` fail,
+   on Windows and on Linux. The workaround (search a converted copy) is measured. **The bug depends on the server's
+   pixel format:** against TigerVNC (32 bits per pixel) OculiX's capture is `TYPE_INT_RGB` and the same calls do not
+   throw; against `vncserv` it is `TYPE_CUSTOM` and they do. `vncserv -format=rgba8888` might therefore avoid it;
    not tried (it is a target change).
-3. **Most of the QNX column is still "not measured" for OculiX itself.** Keys, moves and clicks are proved with our
+3. **A second OculiX defect shows against TigerVNC, not against `vncserv`:** the ZRLE decoder fails and the frame is
+   silently wrong. Against `vncserv` the captures matched our raw-encoding frames (region and colour checks, OCR of
+   the welcome text), so either `vncserv` sends ZRLE that OculiX decodes, or it sends raw; which one is not measured.
+   So far QNX's server is the one where OculiX's pixels can be trusted, and another server is the one where they
+   cannot.
+4. **Most of the QNX column is still "not measured" for OculiX itself.** Keys, moves and clicks are proved with our
    own VNC tools, which shows `vncserv` and Screen do their part, but not that OculiX's calls work.
-4. **VNC cannot do four things, on any system, and those are the ON agent's job:** say whether the picture is
+5. **VNC cannot do four things, on any system, and those are the ON agent's job:** say whether the picture is
    fresh; say whether the display is on, blank or locked; start, stop and inspect applications; give exact pixels.
 
 ## What the ON agent must do (from the table)
@@ -161,7 +172,9 @@ not a fair speed comparison).
    hover, double and right click, wheel, drag, region capture, colour, `waitForStable`, observe, OCR methods) and
    checks each result over SSH and in the frames. It turns the "not measured" cells of the QNX column into
    measured ones. Mouse functions need an app that reacts to the mouse.
-2. **A reference VNC server on another computer** (for example on UBUNTU24), running the same probe, to fill the
-   middle column and to show whether the image-search bug depends on the server.
-3. **`vncserv -format=rgba8888`** on the Pi: does it remove the rounding and the bug? It is a recorded target
+2. **The middle column, continued:** done read-only against TigerVNC 1.13.1 (the bug depends on the pixel format;
+   a new ZRLE defect). Still to do: a server or setting where OculiX's captures are correct (x11vnc, wayvnc, or
+   TigerVNC with ZRLE off on the server side), then input functions against it.
+3. **Which encoding OculiX uses against `vncserv`:** from `vncserv`'s log or a packet capture.
+4. **`vncserv -format=rgba8888`** on the Pi: does it remove the rounding and the bug? It is a recorded target
    change.
