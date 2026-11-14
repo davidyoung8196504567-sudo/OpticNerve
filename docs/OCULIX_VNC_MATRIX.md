@@ -320,6 +320,16 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      points at the TightVNC server, not OculiX; no cause is claimed. `Key.ENTER` adds no line; `type("a", SHIFT)`
      gives "a" (as on x11vnc); `paste(text)` and `type("é")` send only Ctrl+V (this host's clipboard marker appeared
      twice). Afterwards: Caps Lock off, no modifier or button held, no connection left on 5900, file still 0 bytes.
+   - **Special keys from a Windows client (slot 3)**, 2026-11-14 19:22 to 19:23 UTC, David's go in both sessions;
+     ON-VNC-1 (2.0.4 first), Temurin 25.0.4+7 on Windows 11, `StepProbe` v3 (SHA-256 `63ca0e64...afe8`; `key NAME`
+     takes any `Key` constant) through `rfb_tap.py` on this host to x11vnc on UBUNTU24, typing into a
+     gnome-text-editor draft after a look-only check. To test the Oculix session's prediction from source (Windows
+     virtual-key codes read as Java key codes), each key was typed on its own labelled line. **All predictions
+     hold:** `Key.INSERT` sends "-" (0x2d), `Key.DELETE` "." (0x2e), `Key.PRINTSCREEN` "," (0x2c), `Key.META` "["
+     (0x5b), each typed into the editor as that character; `Key.F13`, `F14`, `F15` and `Key.ALTGR` throw
+     `IllegalArgumentException: Cannot type keycode 124` (125, 126, 165) and send nothing. From a Windows client
+     these keys cannot be used; the ON agent sends their keysyms itself. Received side (ON-UBUNTU24, `xinput test-xi2`,
+     XTEST devices only): everything sent arrived as sent, and nothing arrived for the four keys that threw.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen
