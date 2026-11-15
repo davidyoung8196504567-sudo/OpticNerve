@@ -26,21 +26,21 @@ ON-VNC-1 configuration works around it (docs/HOW_WE_WORK.md).
 
 | ID | Issue | Workaround in use | Draft |
 |---|---|---|---|
-| ON-OX-001 | The ZRLE decoder of the bundled VNC client (2.0.1) corrupts or blanks frames at 32 bpp (TigerVNC, x11vnc, TightVNC, macOS) ([draft](upstream/oculix-zrle-decoder-tigervnc.md)) | ON-VNC-1 (2.0.2 or 2.0.4 first) | |
-| ON-OX-002 | rgb565 frames are decoded with wrong green and blue ([draft](upstream/oculix-rgb565-colours.md)) | ON-VNC-1 (2.0.4 asks for 32 bpp) | |
-| ON-OX-003 | `find`, `findAll`, `text()` on a `VNCScreen` throw `ClassCastException` for a 16 bpp server ([draft](upstream/oculix-vncscreen-find-classcast.md)) | ON-VNC-1; or `Finder` on a BGR copy | |
-| ON-OX-004 | tigervnc-java 2.0.4 loops when a server sends the security-type count and list in separate writes (TightVNC 2.8.90) | ON-VNC-1 uses 2.0.2 for TightVNC | |
-| ON-OX-005 | tigervnc-java 2.0.4 picks Apple DH (type 30) on macOS Screen Sharing, so a VNC-password login fails | ON-VNC-1 limits the security types to `VncAuth,None` | |
-| ON-OX-006 | `Key.ENTER` sends Linefeed (0xff0a), not Return; apps and QNX ignore it | `type("\r")` | |
+| ON-OX-001 | The ZRLE decoder of the bundled VNC client (2.0.1) corrupts or blanks frames at 32 bpp (TigerVNC, x11vnc, TightVNC, macOS) ([draft](upstream/oculix-zrle-decoder-tigervnc.md)) | ON-VNC-1 (2.0.2 or 2.0.4 first) | 9 and 10 (comments on #481 and #443) |
+| ON-OX-002 | rgb565 frames are decoded with wrong green and blue ([draft](upstream/oculix-rgb565-colours.md)) | ON-VNC-1 (2.0.4 asks for 32 bpp) | 2 |
+| ON-OX-003 | `find`, `findAll`, `text()` on a `VNCScreen` throw `ClassCastException` for a 16 bpp server ([draft](upstream/oculix-vncscreen-find-classcast.md)) | ON-VNC-1; or `Finder` on a BGR copy | 1 |
+| ON-OX-004 | tigervnc-java 2.0.4 loops when a server sends the security-type count and list in separate writes (TightVNC 2.8.90) | ON-VNC-1 uses 2.0.2 for TightVNC | 7 |
+| ON-OX-005 | tigervnc-java 2.0.4 picks Apple DH (type 30) on macOS Screen Sharing, so a VNC-password login fails | ON-VNC-1 limits the security types to `VncAuth,None` | 8 |
+| ON-OX-006 | `Key.ENTER` sends Linefeed (0xff0a), not Return; apps and QNX ignore it | `type("\r")` | fixed in the fork, unreleased; see draft 4 |
 | ON-OX-007 | `Key.DELETE` sends keypad Delete (0xff9f) from a Linux client; QNX shows "." | ON agent sends Delete itself | 4 |
 | ON-OX-008 | From a Windows client, Windows key codes are read as Java key codes: `Key.DELETE` ".", `Key.INSERT` "-", `Key.PRINTSCREEN` ",", `Key.META` "["; `Key.F13` to `F15` and `Key.ALTGR` throw; `write("#ENTER.")` throws | `type("\r")`; ON agent sends these keys itself | 11 |
-| ON-OX-009 | `Button.*` constants do nothing in `mouseDown`/`mouseUp`; a bare `mouseUp()` re-sends the press and leaves the button held | `Mouse.*` constants only | |
-| ON-OX-010 | `paste()` and `type()` with non-ASCII text send only Ctrl+V and no clipboard message; nothing arrives, and the call returns success | type the text; ON agent | |
-| ON-OX-011 | `type("a", SHIFT)` and Ctrl+Shift+letter send the lowercase keysym with Shift held (x11vnc gives "a"; TigerVNC leaves Caps Lock on) | type capitals as capitals; avoid Ctrl+Shift | |
-| ON-OX-012 | `KeyModifier.META` sends Meta_L, not Super | none needed so far | |
-| ON-OX-013 | Partial captures and `getColor` send update requests with width and height where the code expects corners (`VNCClient.java:167`); servers clip them, so results are right | none needed | |
-| ON-OX-014 | OCR does not load on macOS: OculiX 4.0.0 pins Legerix 5.5.0-8 (Legerix#20, fixed in 5.5.0-9); on Linux it needs `LD_LIBRARY_PATH` | OCR from Windows or Linux | Legerix#20 (filed) |
-| ON-OX-015 | Calls return success when nothing was delivered, and a decoder exception kills the reader thread while the script carries on | check stderr for `Thread-N` exceptions; keep a capture | |
+| ON-OX-009 | `Button.*` constants do nothing in `mouseDown`/`mouseUp`; a bare `mouseUp()` re-sends the press and leaves the button held | `Mouse.*` constants only | 3 |
+| ON-OX-010 | `paste()` and `type()` with non-ASCII text send only Ctrl+V and no clipboard message; nothing arrives, and the call returns success | type the text; ON agent | 5 |
+| ON-OX-011 | `type("a", SHIFT)` and Ctrl+Shift+letter send the lowercase keysym with Shift held (x11vnc gives "a"; TigerVNC leaves Caps Lock on) | type capitals as capitals; avoid Ctrl+Shift | 6 (a comment on #334) |
+| ON-OX-012 | `KeyModifier.META` sends Meta_L, not Super | none needed so far | none yet |
+| ON-OX-013 | Partial captures and `getColor` send update requests with width and height where the code expects corners (`VNCClient.java:167`); servers clip them, so results are right | none needed | none yet (measured on the wire by ON-UBUNTU24; results right) |
+| ON-OX-014 | OCR does not load on macOS: OculiX 4.0.0 pins Legerix 5.5.0-8 (Legerix#20, fixed in 5.5.0-9); on Linux it needs `LD_LIBRARY_PATH` | OCR from Windows or Linux | none (upstream: Legerix#20 for macOS; Linux most likely Legerix#26, to confirm) |
+| ON-OX-015 | Calls return success when nothing was delivered, and a decoder exception kills the reader thread while the script carries on | check stderr for `Thread-N` exceptions; keep a capture | tracker only; covered by drafts 3, 4, 5 and 9 |
 
 ## Third-party VNC servers
 
