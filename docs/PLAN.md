@@ -90,12 +90,26 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   blacked out the screen until gtk4-demo was closed over SSH. Each demo is closed before the next, and the target is
   checked after each (processes, core dumps). A candidate for the demo video.
 
-## Fallback: our own VNC server on QNX
+## Our own VNC server on QNX, built for OculiX
 
-(David, 2026-11-15.) If QNX's `vncserv` gets in the way of the agent work, build our own VNC server for QNX from open
-source (LibVNCServer, GPL-2.0-or-later, which this repository's licence must then allow for), with Screen capture
-through `screen_read_display()` and input through `screen_inject_event()`, and run it in place of `vncserv`. Not
-started; the agent is built on `vncserv` until then (DESIGN.md, decision of 2026-11-12).
+(David, 2026-11-15: "it's actually easier to build a custom VNC server to work with OculiX".) A VNC server for QNX
+8.0 of our own, from open source (LibVNCServer, GPL-2.0-or-later, which this repository's licence must then allow
+for), in place of `vncserv`, designed around what OculiX and the tests need:
+
+- **Pixel format and encodings OculiX decodes correctly**: 32 bpp rgb888 and an encoding it handles, so ON-OX-001 to
+  003 never arise, with exact pixels from `screen_read_display()` (no rgb565 rounding).
+- **Only VncAuth offered**, so ON-OX-004 and 005 cannot arise.
+- **Server-side key fixes**: Linefeed treated as Return, keypad Delete as Delete, and the Windows-client keysyms of
+  ON-OX-008 where they are unambiguous, so scripts behave the same from every client OS.
+- **Input through `screen_inject_event()`**, pointer and keys, with the button state tracked so a held button is
+  visible to the agent.
+- **The ON agent's features in the same process**: frame freshness (only send a frame when Screen composed one), idle
+  and power state, keep-awake, region capture, status through the `/dev/opticnerve` resource manager, and the
+  component versions on screen (DESIGN.md).
+- **Its own version in the RFB desktop name**, so every client shows what is running.
+
+This replaces the plan to build the agent beside `vncserv` (DESIGN.md, decision of 2026-11-12) once David confirms
+the change; until then `vncserv` 4.2.1 stays on the Pi.
 
 ## OculiX issues found: fix after the ON agent work
 
