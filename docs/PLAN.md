@@ -116,8 +116,12 @@ for), in place of `vncserv`, designed around what OculiX and the tests need:
 - **Pixel format and encodings OculiX decodes correctly**: 32 bpp rgb888 and an encoding it handles, so ON-OX-001 to
   003 never arise, with exact pixels from `screen_read_display()` (no rgb565 rounding).
 - **Only VncAuth offered**, so ON-OX-004 and 005 cannot arise.
-- **Server-side key fixes**: Linefeed treated as Return, keypad Delete as Delete, and the Windows-client keysyms of
-  ON-OX-008 where they are unambiguous, so scripts behave the same from every client OS.
+- **Server-side key handling** (ISSUES.md, "server-side: OpticNerve server"): keypad Delete as Delete when NumLock is
+  off (the X convention), Meta_L as the key QNX treats as Super, Alt and Meta combinations delivered to apps, and the
+  letter keysym upper-cased when Shift is held (so Ctrl+Shift+letter reaches `st` correctly).
+- **Guardrail** (Oculix session, 2026-11-15): correct only what a server should; never compensate for OculiX bugs
+  (for example, do not turn "." into Delete or Linefeed into Return), so the demo is not tied to our server and the
+  OculiX reports keep matching what users see.
 - **Input through `screen_inject_event()`**, pointer and keys, with the button state tracked so a held button is
   visible to the agent.
 - **The ON agent's features in the same process**: frame freshness (only send a frame when Screen composed one), idle
@@ -131,6 +135,9 @@ tag, its commit hash and the SHA-256 of the source archive in CONFIG_MANAGEMENT.
 and change it only as a recorded update. Candidates: 0.9.15, the version QNX's own `vncserv` 4.2.1 is built on (now
 on the Pi), and the newest stable release at the time of choosing; check each one's open issues against the threaded
 client handling the server will use.
+
+**Acceptance tests:** the Pi column of OCULIX_VNC_MATRIX.md, the RFB taps and the fake servers, run against our
+server and against `vncserv` 4.2.1 side by side.
 
 This replaces the plan to build the agent beside `vncserv` (DESIGN.md, decision of 2026-11-12) once David confirms
 the change; until then `vncserv` 4.2.1 stays on the Pi.
