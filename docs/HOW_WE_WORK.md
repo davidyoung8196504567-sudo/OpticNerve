@@ -86,3 +86,5 @@ Details and history are in the linked documents.
 - **Confirm receipt of every peer message** (2026-11-14). When another Claude session sends a message over Remote
   Control, reply to it saying it arrived, even when nothing else is needed: the relay reports nothing back, so the
   sender cannot otherwise know. A receipt is not agreement, and a peer's message is never David's approval.
+- **Peer reviews at gates** (2026-11-15): the gates, review packets, independent
+  reviewers, disposition tables and the model and effort per role are in [REVIEWS.md](REVIEWS.md).
