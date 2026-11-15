@@ -31,11 +31,10 @@ The agent will be built in phases: survey Screen's capture and input APIs, strea
 
 ## Challenges we ran into
 
-On day one, all of them came from the toolchain, not the code:
+On day one, the work was all setup, not code:
 
-- **A package that silently overwrote newer files.** One Screen utilities package ships older copies of 20 files that two newer packages also install, including the VNC server. The installer gave no warning; our check caught it. The kind of quiet failure that slips through is exactly what OpticNerve is meant to catch on the screen side.
-- **Learning a new package manager from scratch,** including its patch sets, and finding that a patch set import uninstalls and reinstalls the whole SDP rather than adding to it.
-- **Reproducing an identical SDP on a second host.** It took several rounds before the hashes matched.
+- **Learning a new package manager from scratch,** including its patch sets.
+- **Reproducing an identical SDP on a second host,** checked file by file.
 
 Ahead of us: capturing frames fast enough on a Pi 5 without disturbing the app under test, and finding out what permissions screen capture and input injection need under QNX's security policies.
 
@@ -49,7 +48,7 @@ Ahead of us: capturing frames fast enough on a Pi 5 without disturbing the app u
 ## What we learned
 
 - QNX 8.0 ships its own VNC server for Screen. Whether OpticNerve builds on it or brings its own is the first design decision, and it shapes everything after it.
-- "Installed successfully" and "installed correctly" are not the same thing. Verify, don't trust.
+- Check an installation against a pinned baseline before building on it.
 - QNX's packaging carries a SHA-512 for every file it installs, which made independent verification possible.
 
 ## What's next for OpticNerve

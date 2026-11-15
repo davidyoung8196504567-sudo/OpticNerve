@@ -6,11 +6,11 @@
 
 SDP_DIR defaults to $QNX_SDP_DIR, then ~/qnx805.
 
-The check does not trust the QNX Software Center. It reads the package
+The check works independently of the QNX Software Center. It reads the package
 descriptors that QNX ships inside the SDP (.packages/metadata/<id>/<version>/
 AssetDescriptor.json), which give the size and SHA-512 of every installed file,
 and compares them with the files on disk and with packages.lock. The Software
-Center's own package list is compared too, as a cross-check, when it is found.
+Center's own package list is compared too, when it is found.
 Nothing is installed, updated or deleted.
 """
 import argparse, base64, configparser, hashlib, json, os, platform, subprocess, sys, tempfile
@@ -24,7 +24,7 @@ TARGETS = {"gcc_ntoaarch64le": 0xB7, "gcc_ntox86_64": 0x3E}  # qcc variant -> EL
 
 
 def host_os():
-    # QNX SDP 8.0 build hosts are Windows and Linux only.
+    # The baseline records two build hosts: Windows and Linux.
     return {"Windows": "win32", "Linux": "linux"}.get(platform.system(), platform.system())
 
 

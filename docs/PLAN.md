@@ -52,27 +52,20 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 ## Open questions
 
 - Does QNX 8.0 already include a VNC server or a Screen remote-display component? Answered 2026-11-12: yes,
-  `vncserv` (package `target.screen.vncserv`). On the Pi 5 quick-start image it runs by default on port 5900; it
-  serves the whole display (GLES2, Vulkan, video layers, the Weston/XFCE Developer Desktop) and forwards keys,
-  pointer moves and clicks. Details: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md).
+  `vncserv` (package `target.screen.vncserv`). On the Pi 5 quick-start image it runs by default on port 5900
+  (`vncserv -display=1 -auth`). Details: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md).
   Decided 2026-11-12: build the ON agent on `vncserv`, not a VNC server of our own ([DESIGN.md](DESIGN.md)).
 - Which Screen API calls cover display capture and input injection, and do they need root or special permissions?
   Answered from the Screen docs in [DESIGN.md](DESIGN.md) (`screen_read_display()` needs root and a display
   manager context); to be confirmed on the Pi by spikes S2 and S3.
-- How does the Pi 5 quick-start image handle Screen and input? Answered: Screen on HDMI0 at 1920 x 1080, input via
-  `vncserv` works. Open: `-use_touch`, a second HDMI display, and one black frame seen after the desktop started.
-- TODO: screen blanking and the lock screen on the Developer Desktop. On the Pi 5, power management is on by
-  default: the screen blanks when idle, and moving the mouse wakes it into a locked state that needs a click on a
-  green dot to unlock (David, 2026-11-12; seen before on another board running Wayland). A test run that meets a
-  blank or locked screen fails for the wrong reason. Leads: `~/.config/weston.ini` on the Pi has `locking=true`
-  (twice) plus `lockscreen=` and `lockscreen-icon=` in `[shell]`; Weston's idle timeout (`idle-time` in `[core]`) is
-  the likely trigger (to verify). The one black frame captured after the desktop started may have been a blanked
-  screen. Decide: turn blanking/locking off on test targets (and record the change like any target change), or have
-  the test tooling detect a blank or locked screen, wake and unlock it, and report it. Check whether the native
-  Screen session (without Weston) blanks too.
-- QEMU target: QNX supports Ubuntu 22.04/24.04 hosts only. Under WSL it ran but too slowly to be useful
-  (2026-11-12); it moves to a dedicated Ubuntu 24.04 host. See
-  [notes/2026-11-12_qemu_guide.md](notes/2026-11-12_qemu_guide.md).
+- How does the Pi 5 quick-start image handle Screen and input? Answered: Screen on HDMI0 at 1920 x 1080; input
+  goes through `vncserv`. Open: `-use_touch`, a second HDMI display.
+- TODO: screen blanking and the lock screen on the Developer Desktop. Settings on the Pi: `~/.config/weston.ini`
+  has `locking=true` (twice) plus `lockscreen=` and `lockscreen-icon=` in `[shell]`; `idle-time` in `[core]` sets
+  Weston's idle timeout. Decide: turn blanking and locking off on test targets (and record the change like any target
+  change), or have the test tooling detect a blank or locked screen, wake and unlock it, and report it.
+- QEMU target: QNX's QEMU guide names Ubuntu 22.04 and 24.04 hosts. It runs on a dedicated Ubuntu 24.04 host, not
+  under WSL (David, 2026-11-12). See [notes/2026-11-12_qemu_guide.md](notes/2026-11-12_qemu_guide.md).
   WSL is no longer used in the project at all (David, 2026-11-12); UBUNTU24 is the Linux build host as well.
   The host exists: UBUNTU24 at 10.30.1.132, surveyed 2026-11-12; its SDP (8.0.6) does not yet match the baseline
   and QEMU is not installed. State and next steps: [notes/2026-11-12_ubuntu24_host.md](notes/2026-11-12_ubuntu24_host.md).
@@ -84,8 +77,8 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 - Phase 1: done. Design [DESIGN.md](DESIGN.md) accepted by David: build on `vncserv`, the ON agent adds frame
   freshness, idle/keep-awake, region capture and status via `/dev/opticnerve`; the demo HMI is a native Screen
   application; phases 2 to 4 above were rewritten to match.
-- Phase 2: spikes S2 to S6 done on the Pi ([notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md)), with proposed
-  design changes (drop keep-awake and the window list; freshness via `screen_notify` only). S1 waits for Oculix.
+- Phase 2: spikes S2 to S6 done on the Pi (the spike list is in [DESIGN.md](DESIGN.md)), with proposed design
+  changes (drop keep-awake and the window list; freshness via `screen_notify` only). S1 waits for Oculix.
 
 ## Test library ideas
 
@@ -106,8 +99,8 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   take pointer or keyboard input, recording the response of each. Ctrl+Shift+I (GTK Inspector) is not used on
   the Pi. Each demo is closed before the next, and the target is checked after each. A candidate for the demo video.
 - **A sample HMI built with Crank Storyboard** (David, 2026-11-15; time permitting): a custom sample app on the QNX
-  target as the thing the tests drive. It would give the tests an app that takes the mouse and has real controls
-  (buttons, sliders, lists, screen transitions), which the quick-start image's launcher and terminal do not.
+  target as the thing the tests drive. It would give the tests an app with controls of our own choosing (buttons,
+  sliders, lists, screen transitions).
   Storyboard also supports the Raspberry Pi 5 and the Sitara AM5728 (David). To check first: Storyboard is a
   commercial product, so its licence must allow this use; which Storyboard runtime exists for QNX 8.0 on the Pi 5;
   the hackathon asks for original work without proprietary third-party code or assets, so the sample app would be an
@@ -119,11 +112,10 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 - **Intel server (HC8000)**: 2U, Xeon with 20 cores and 40 threads, 128 GB, 4 x 6 TB hard drives, RHEL 9.7
   installed. A candidate host for QNX 8.0 x86_64 targets under QEMU/KVM and for build virtual machines (RHEL 9 is
   a supported QNX SDP host). It waits for the CPU and virtualization check in David's to-do list.
-- **TI Sitara AM5728 board** (David, 2026-11-15): a 32-bit ARM board (Cortex-A15) that QNX supports with a QNX 7
-  BSP. QNX 8.0 runs only on AArch64 and x86_64, so it cannot be a QNX 8.0 target; it could show the tools working
-  against an older QNX release, as an extra beyond the submission. To check first: whether SDP 7.x is available
-  under David's non-commercial licence (the hackathon excludes projects that use a commercial QNX licence), and
-  how QNX 7's own VNC server for Screen behaves.
+- **TI Sitara AM5728 board** (David, 2026-11-15): a 32-bit ARM board (Cortex-A15) with a QNX 7 BSP. QNX 8.0
+  targets are AArch64 and x86_64, so it is not a QNX 8.0 target; it could show the tools working against an older
+  QNX release, as an extra beyond the submission. To check first: whether SDP 7.x is available under David's
+  non-commercial licence (the hackathon excludes projects that use a commercial QNX licence).
 
 ## Our own VNC server on QNX, built for OculiX
 
@@ -132,11 +124,11 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 for), in place of `vncserv`, designed around what OculiX and the tests need:
 
 - **Pixel format and encodings OculiX decodes correctly**: 32 bpp rgb888 and an encoding it handles, so ON-OX-001 to
-  003 never arise, with exact pixels from `screen_read_display()` (no rgb565 rounding).
+  003 never arise, with pixels taken from `screen_read_display()` at 32 bpp.
 - **Only VncAuth offered**, so ON-OX-004 and 005 cannot arise.
 - **Server-side key handling** (ISSUES.md, "server-side: OpticNerve server"): keypad Delete as Delete when NumLock is
-  off (the X convention), Meta_L as the key QNX treats as Super, Alt and Meta combinations delivered to apps, and the
-  letter keysym upper-cased when Shift is held (so Ctrl+Shift+letter reaches `st` correctly).
+  off (the X convention), Meta_L as Super, Alt and Meta combinations delivered to apps, and the letter keysym
+  upper-cased when Shift is held.
 - **Guardrail** (Oculix session, 2026-11-15): correct only what a server should; never compensate for OculiX bugs
   (for example, do not turn "." into Delete or Linefeed into Return), so the demo is not tied to our server and the
   OculiX reports keep matching what users see.
@@ -155,7 +147,7 @@ on the Pi), and the newest stable release at the time of choosing; check each on
 client handling the server will use.
 
 **Acceptance tests:** the Pi column of OCULIX_VNC_MATRIX.md, the RFB taps and the fake servers, run against our
-server and against `vncserv` 4.2.1 side by side.
+server.
 
 This replaces the plan to build the agent beside `vncserv` (DESIGN.md, decision of 2026-11-12) once David confirms
 the change; until then `vncserv` 4.2.1 stays on the Pi.

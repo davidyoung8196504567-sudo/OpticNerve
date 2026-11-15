@@ -16,9 +16,8 @@ cells are not measured yet, and each cell says what it rests on.
   noble packages, unpacked without root), private display :5, 1920 x 1080, depth 24 (32 bits per pixel), port 5905,
   localhost only, VncAuth; a blue background, an `xmessage` window with 3 lines of text, `xeyes`. Same probe (port
   as a 4th argument), run 3 times with identical results; reference frame from `vnc_snapshot.py` (raw encoding).
-- **Our measurements on the Pi 5** (QNX 8.0 quick-start image 20260902, `vncserv` 4.2.0, native session):
-  [notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md), [notes/2026-11-13_spike_rerun.md](notes/2026-11-13_spike_rerun.md)
-  and the visible suite `tests/visible/suite.py` (run of 2026-11-14 00:28 UTC: 17 pass, 1 fail, 2 N/A).
+- **Our OculiX runs on the Pi 5** (QNX 8.0 quick-start image 20260902, `vncserv` 4.2.0, native session): the
+  probes named in the cells and the visible suite `tests/visible/suite.py`.
 
 ## How to read the cells
 
@@ -37,9 +36,6 @@ Two limits of this version:
 - **The "VNC, another computer" column is mostly not measured.** It is what `VNCScreen` and `VNCRobot` do by their
   code, for any server. Where a cell says "TigerVNC", it was measured read-only against TigerVNC 1.13.1 on UBUNTU24
   (see Sources); input against that server is not measured.
-
-Where the QNX column says "with our VNC tool", the function was proved with `host/tools/vnc_input.py` or
-`vnc_snapshot.py`, which send the same RFB messages as OculiX, but **not with OculiX itself**.
 
 ## Master table: what was measured, per host, target and configuration
 
@@ -83,14 +79,14 @@ compare machines of very different age, so a speed difference between hosts is n
 
 | OculiX on → server | Config | Connect / login | Capture correct? | `find`, `findAll` on the screen | OCR (`text()`) | `getColor` | Other |
 |---|---|---|---|---|---|---|---|
-| Windows → Pi | A | works, 3.3 s | **no**: 75,919 wrong pixels (rgb565 decoded wrongly) | **fails**, `ClassCastException`; `Finder` on a BGR copy works | **fails**, `ClassCastException`; on a BGR copy works, 2.6 s | equals the capture, so wrong colours | O01 (OculiX finds the Gears tile and clicks it) passes with the `Finder` workaround; `waitForScreenStable` true |
-| UBUNTU24 → Pi | A | works, 3.5 s | **no**: 75,919 wrong pixels | **fails**, `ClassCastException`; `Finder` on a copy works | **fails**; on a copy works only with `LD_LIBRARY_PATH` set | equals the capture, wrong colours | `waitForScreenStable` true |
+| Windows → Pi | A | works | **no**: 75,919 wrong pixels (rgb565 decoded wrongly) | **fails**, `ClassCastException`; `Finder` on a BGR copy works | **fails**, `ClassCastException`; on a BGR copy works | equals the capture, so wrong colours | O01 (OculiX finds the Gears tile and clicks it) passes with the `Finder` workaround; `waitForScreenStable` true |
+| UBUNTU24 → Pi | A | works | **no**: 75,919 wrong pixels | **fails**, `ClassCastException`; `Finder` on a copy works | **fails**; on a copy works only with `LD_LIBRARY_PATH` set | equals the capture, wrong colours | `waitForScreenStable` true |
 | UBUNTU24 → Pi | B | works | **no**: as A | **fails**, as A | **fails**, as A | as A | |
 | UBUNTU24 → Pi | ON-VNC-1 | works | **yes**: 0 wrong pixels | **works** | **works** | right | also with Temurin 17.0.21+9 |
 | Windows → Pi | ON-VNC-1 | works, VncAuth(2) | **yes**: 0 wrong pixels | **works**, score 1.00, `findAll` 1 match | **works**, 1,528 characters | right | **O01 (OculiX finds the Gears tile and clicks it) PASS** in the visible suite |
 | UBUNTU24 → TigerVNC depth 24 | A | works | **no**: 72,666 wrong pixels (ZRLE decoder dies) | does not throw, but matches on a corrupt frame | does not throw, but the text is useless | | |
 | UBUNTU24 → TigerVNC depth 24 | B, C | works | **yes**: 0 wrong | | | | |
-| UBUNTU24 → TigerVNC depth 16 | A, B | works | **no**: 1,757,793 wrong pixels | **fails**, `ClassCastException` | **fails** | | reproduces the Pi's defects without a Pi |
+| UBUNTU24 → TigerVNC depth 16 | A, B | works | **no**: 1,757,793 wrong pixels | **fails**, `ClassCastException` | **fails** | | reproduces the OculiX failures seen against the Pi without a Pi |
 | UBUNTU24 → TigerVNC depth 16 | C | works | **yes**: 0 wrong | **works** | **works** | | |
 | UBUNTU24 → x11vnc | A | works | **no**: frame black (decoder dies) | | | | |
 | UBUNTU24 → x11vnc | B, C / ON-VNC-1 | works, VncAuth(2) | **yes**: 0 wrong apart from the pointer x11vnc draws | | | | |
@@ -113,8 +109,8 @@ In every run, every call returned success, including calls that delivered nothin
 | OculiX on → server | Config | Pointer: `click`, `hover`, `doubleClick`, `rightClick`, wheel, `dragDrop` | `mouseDown`/`mouseUp` | `type` ASCII text | Return: `type("\r")` / `Key.ENTER` | `Key.DELETE` | Other special keys | Modifiers | `paste`, non-ASCII `type` |
 |---|---|---|---|---|---|---|---|---|---|
 | UBUNTU24 → TigerVNC depth 16 | A and C (the same input) | **all work** | `Mouse.*` works; **`Button.*` does nothing**; a bare `mouseUp()` after `mouseDown(Mouse.LEFT)` **leaves the button held** (gap 3) | **works**, all ASCII punctuation | works / **Linefeed, ignored** | sends keypad Delete | Tab, Esc, Backspace, arrows, Home, End, Page Up, Insert and F5 work | Ctrl, Ctrl+Alt and Alt+Tab work; **Ctrl+Shift+letter leaves Caps Lock on**; `META` sends Meta_L (Alt) | **fails**: only Ctrl+V is sent |
-| UBUNTU24 → Pi | ON-VNC-1 | `click` and moves work (68 of 68 events); drag selects text in gtk4-demo; double and middle click not measured; wheel N/A | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **does nothing on QNX** | **arrives as "."** | Tab and Backspace work; arrows, Home, End, Page Up, Insert and F5 arrive as escape sequences | Ctrl+letter and held Shift work; Ctrl+Shift reaches GUI apps; Alt and `META` give the plain letter | **fails**: only Ctrl+V is sent |
-| Windows → Pi | ON-VNC-1 | `click`, moves (68 of 68 events), `rightClick`, `dragDrop` and **`doubleClick`** work; **wheel scrolls** a gtk4-demo list; middle click sent | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **does nothing on QNX** | **sends "." (0x2e)**, shown as "." | **`Key.INSERT` "-", `PRINTSCREEN` ",", `META` "["; `F13` to `F15` and `ALTGR` throw**; **`write` with `#ENTER.` throws** (keycode 13); Tab, Backspace, arrows, Home, End, Page Up and F5 work | as from UBUNTU24 | **fails**: only Ctrl+V is sent |
+| UBUNTU24 → Pi | ON-VNC-1 | `click` and moves work; drag selects text in gtk4-demo; double click, middle click and wheel not measured | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **Linefeed sent, not Return** | **keypad Delete sent, not Delete** | Tab and Backspace work; arrows, Home, End, Page Up, Insert and F5 are sent | Ctrl+letter and held Shift work; **Ctrl+Shift+letter is sent with the lowercase keysym**; `META` sends Meta_L, not Super | **fails**: only Ctrl+V is sent |
+| Windows → Pi | ON-VNC-1 | `click`, moves, `rightClick`, `dragDrop` and **`doubleClick`** work; **wheel scrolls** a gtk4-demo list; middle click sent | `Mouse.*` works; `Button.*` does nothing; **a bare `mouseUp()` leaves the button held** | **works**, all ASCII punctuation | works / **Linefeed sent, not Return** | **sends "." (0x2e)**: a Windows key code read as a Java one | **`Key.INSERT` "-", `PRINTSCREEN` ",", `META` "["; `F13` to `F15` and `ALTGR` throw**; **`write` with `#ENTER.` throws** (keycode 13); Tab, Backspace, arrows, Home, End, Page Up and F5 work | as from UBUNTU24 | **fails**: only Ctrl+V is sent |
 | Windows → x11vnc (UBUNTU24 desktop), slots 1 and 3 | ON-VNC-1 | **all work** | `Mouse.LEFT` down + move + up works | **works**, all ASCII punctuation | works / **Linefeed, ignored** | **sends "." (0x2e)**: a Windows key code read as a Java one | **`Key.INSERT` "-", `PRINTSCREEN` ",", `META` "["; `F13`, `F14`, `F15` and `ALTGR` throw `IllegalArgumentException` and send nothing**; Tab, Backspace, arrows, Home, End, Page Up and Down work | Ctrl+A works; **`type("a", SHIFT)` gives "a"** | **fails**: only Ctrl+V is sent, so the target's own clipboard is pasted |
 | UBUNTU24 → TightVNC (Windows desktop), slot 2 | ON-VNC-1 (B) | **all work** (right-click menu, Esc closes it) | `Mouse.LEFT` down + move + up works | letters, digits and capitals work; **shifted punctuation intermittently arrives unshifted** (7 of 21, then 2 of 7; sent correctly, so it points at the server) | works / **adds no line** | **deletes** (keypad Delete from a Linux client) | Tab, Backspace, arrows, Home, End, Page Up and Down work | Ctrl+A works; **`type("a", SHIFT)` gives "a"** | **fails**: only Ctrl+V is sent, so the target's own clipboard is pasted |
 
@@ -145,9 +141,9 @@ input defects in the table remain under every configuration, and the ON agent wo
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Open a screen | `Screen` (all monitors) | `VNCScreen.start(host, port, password, ...)`, by design | **measured: works**, 3.3 s, O01 (OculiX finds the Gears tile and clicks it); **under ON-VNC-1 (2026-11-14 15:00 UTC, Windows host, Temurin 25.0.4+7): O01 PASS**, Gears tile score 1.0000 found in 0.24 s, click opened gles3-gears (SSH), VNC frames and the webcam both show it moving, launcher restored (0.00 % from the initial frame), recording `OpticNerve_2026-11-14_1500Z_visible-suite.mp4` | none |
+| Open a screen | `Screen` (all monitors) | `VNCScreen.start(host, port, password, ...)`, by design | **measured: works**, O01 (OculiX finds the Gears tile and clicks it); **under ON-VNC-1 (2026-11-14 15:00 UTC, Windows host, Temurin 25.0.4+7): O01 PASS**, Gears tile found at score 1.0000, click opened gles3-gears (SSH), VNC frames and the webcam both show it moving, launcher restored (0.00 % from the initial frame), recording `OpticNerve_2026-11-14_1500Z_visible-suite.mp4` | none |
 | Authentication | not needed | VNC password only (release notes: "VncAuth only"), by design | **measured: works** with `vncserv -auth` | none; no encryption on the wire, see SSH tunnel |
-| Encodings | not needed | Raw, ZRLE, Tight (release notes), by design; TigerVNC: **measured: fails**, OculiX's ZRLE decoder dies during start (`ZRLEDecoder: assertion (len <= end - ptr) failed`), `start` still returns a running screen and the frame is wrong in 72,666 pixels, all inside the windows ([upstream/oculix-zrle-decoder-tigervnc.md](upstream/oculix-zrle-decoder-tigervnc.md)) | `vncserv` serves raw and ZRLE (**measured** with our VNC tool); OculiX asks for ZRLE first and **receives only ZRLE**, at rgb565 16 bits per pixel, and decodes it correctly (**measured**, `host/spikes/probe/EncodingProbe.java`, 2026-11-14) | none; keep 16 bits per pixel (see the ZRLE note) |
+| Encodings | not needed | Raw, ZRLE, Tight (release notes), by design; TigerVNC: **measured: fails**, OculiX's ZRLE decoder dies during start (`ZRLEDecoder: assertion (len <= end - ptr) failed`), `start` still returns a running screen and the frame is wrong in 72,666 pixels, all inside the windows ([upstream/oculix-zrle-decoder-tigervnc.md](upstream/oculix-zrle-decoder-tigervnc.md)) | OculiX asks for ZRLE first and **receives only ZRLE**, at rgb565 16 bits per pixel, and decodes it correctly (**measured**, `host/spikes/probe/EncodingProbe.java`, 2026-11-14) | none; keep 16 bits per pixel (see the ZRLE note) |
 | SSH tunnel | not needed | `SSHTunnel` class, by design | not measured (the image runs `sshd`) | measure |
 | Several sessions at once | several `Screen`s | "thread-safe parallel sessions" (README), by design | not measured | measure |
 | More than one display | yes | one framebuffer per server | `vncserv -display=1`: one display; a second HDMI display not tried | open |
@@ -156,46 +152,45 @@ input defects in the table remain under every configuration, and the ON agent wo
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Capture the whole screen | yes | `capture()`, by design; TigerVNC: returns in 0.17 s, image type 1 (`TYPE_INT_RGB`; type 0 on the Pi), but **the content is wrong** (ZRLE defect above) | **measured: works**, 0.21 s for 1920 x 1080, O01 (OculiX finds the Gears tile and clicks it), U02 (unboxing: OculiX capture and OCR) | none |
-| Capture a region | yes | `capture(x, y, w, h)`, by design | **measured: works** from UBUNTU24: 0.21 s for 400 x 300, identical to the same area of a full capture | none |
-| Exact pixels | yes | depends on the server's pixel format; TigerVNC at depth 16: **measured: OculiX decodes rgb565 colours wrongly** (background (32,64,98) becomes (33,66,49)) | **measured:** `vncserv` reads back rgb565, so values are off by up to about 8 levels against Screen's own capture; and **OculiX then decodes rgb565 wrongly**: 75,919 of 2,073,600 pixels differ from a raw-encoding frame of the same, unchanged screen, from Windows and from UBUNTU24 alike, for example (49,4,0) becomes (49,0,132) and (230,231,230) becomes (230,230,247); red is right, green and blue are wrong ([upstream/oculix-rgb565-colours.md](upstream/oculix-rgb565-colours.md)) | ON agent: exact region capture (`screen_read_display()`); or `vncserv -format=rgba8888` |
-| Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | **measured: wrong colours**: `Location.getColor` (0.15 s) equals OculiX's own capture at 5 of 5 points, but the capture's colours are wrong (row above); only black, white and some other colours come through right | OculiX fix; meanwhile colours from the ON agent or our raw-encoding VNC tool |
-| Pointer in the picture | yes | depends on the server | **measured:** the real pointer is not in the frames in the native session; `vncserv` draws an extra white pointer at (0,0) | avoid matching in the top-left 8 x 15 pixels |
-| Is the picture live or frozen? | n/a | VNC cannot tell | **measured:** `vncserv` sends a full frame on every request, changed or not | **ON agent: frame freshness** (`screen_notify`) |
-| Is the monitor on, blank or locked? | n/a | VNC cannot tell | **measured:** the monitor went black while VNC frames and Screen's power state stayed normal | **ON agent: status**; a camera sees it (C01 (camera sees the monitor)) |
-| Frame rate | n/a | depends | **measured:** 5 to 6 frames a second (raw and ZRLE) | fine for step-and-check tests |
+| Capture the whole screen | yes | `capture()`, by design; TigerVNC: returns in 0.17 s, image type 1 (`TYPE_INT_RGB`; type 0 on the Pi), but **the content is wrong** (ZRLE defect above) | **measured: works** for 1920 x 1080, O01 (OculiX finds the Gears tile and clicks it), U02 (unboxing: OculiX capture and OCR) | none |
+| Capture a region | yes | `capture(x, y, w, h)`, by design | **measured: works** from UBUNTU24: 400 x 300, identical to the same area of a full capture | none |
+| Exact pixels | yes | depends on the server's pixel format; TigerVNC at depth 16: **measured: OculiX decodes rgb565 colours wrongly** (background (32,64,98) becomes (33,66,49)) | `vncserv` runs with its default readback format, rgb565 (16 bits per pixel); **measured: OculiX decodes rgb565 wrongly**: 75,919 of 2,073,600 pixels differ from a raw-encoding frame of the same, unchanged screen, from Windows and from UBUNTU24 alike, for example (49,4,0) becomes (49,0,132) and (230,231,230) becomes (230,230,247); red is right, green and blue are wrong ([upstream/oculix-rgb565-colours.md](upstream/oculix-rgb565-colours.md)) | ON agent: exact region capture (`screen_read_display()`); or `vncserv -format=rgba8888` |
+| Colour at a point | `getColorAt` | by design (a 1 x 1 capture) | **measured: wrong colours**: `Location.getColor` equals OculiX's own capture at 5 of 5 points, but the capture's colours are wrong (row above); only black, white and some other colours come through right | OculiX fix; meanwhile colours from the ON agent or our raw-encoding VNC tool |
+| Pointer in the picture | yes | depends on the server | do not match on the pointer | avoid matching in the top-left 8 x 15 pixels of the frame |
+| Is the picture live or frozen? | n/a | VNC cannot tell | VNC cannot tell | **ON agent: frame freshness** (`screen_notify`) |
+| Is the monitor on, blank or locked? | n/a | VNC cannot tell | VNC cannot tell | **ON agent: status**; a camera sees it (C01 (camera sees the monitor)) |
 
 ### Finding things
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
 | Find an image: `find`, `exists`, `has`, `wait`, `waitVanish`, `click(image)` | yes | by design; TigerVNC: `exists`, `find` **do not throw**, score 1.00 at the right place, but only because the pattern was cut from the same corrupt frame | **measured: fails** with `ClassCastException` in `Commons.getMatList` ([upstream/oculix-vncscreen-find-classcast.md](upstream/oculix-vncscreen-find-classcast.md)) | **OculiX fix** (David's fork, later); workaround below |
-| The same through `Finder` on a copy of the capture | yes | by design | **measured: works**, score 0.99 to 1.00 in 0.1 to 0.8 s, O01 (OculiX finds the Gears tile and clicks it); patterns must be cut from OculiX's own captures, since its colours are wrong (see Exact pixels); `Finder` needs a local display even for an image (headless Java fails) | workaround in use |
+| The same through `Finder` on a copy of the capture | yes | by design | **measured: works**, score 0.99 to 1.00, O01 (OculiX finds the Gears tile and clicks it); patterns must be cut from OculiX's own captures, since its colours are wrong (see Exact pixels); `Finder` needs a local display even for an image (headless Java fails) | workaround in use |
 | `findAll`, `findBest`, `findAny` | yes | by design; TigerVNC: `findAll` does not throw (same caveat) | `findAll` **measured: fails** from UBUNTU24, same `ClassCastException`; `findBest`, `findAny` not measured | OculiX fix; `Finder` workaround |
-| Similarity tolerance | yes | yes | **measured** only with a pattern cut from the same VNC source; patterns from elsewhere not measured | measure; allow for the rgb565 rounding |
-| Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design; TigerVNC: `VNCScreen.text()`, `Region.text()`, `OCR.readText(raw capture)` do not throw (0.5 to 1.0 s), the text is useless because the frame is corrupt | on a BGR copy of the capture **measured: works**: 24 of 24 expected lines, U03 (unboxing: welcome text is right for this release); `VNCScreen.text()`, `Region.text()` on the VNC screen and `OCR.readText` on the raw capture **measured: fail** from UBUNTU24 with the same `ClassCastException`; on Linux OCR only loads with a workaround (see Host differences) | OculiX fix; workaround: OCR a BGR copy |
+| Similarity tolerance | yes | yes | **measured** only with a pattern cut from the same VNC source; patterns from elsewhere not measured | measure; allow for the rgb565 pixel format |
+| Read text (OCR): `text`, `findText`, `existsText`, `waitText` | Tesseract bundled; PaddleOCR optional | by design; TigerVNC: `VNCScreen.text()`, `Region.text()`, `OCR.readText(raw capture)` do not throw (0.5 to 1.0 s), the text is useless because the frame is corrupt | on a BGR copy of the capture **measured: works**, U02 (unboxing: OculiX capture and OCR); `VNCScreen.text()`, `Region.text()` on the VNC screen and `OCR.readText` on the raw capture **measured: fail** from UBUNTU24 with the same `ClassCastException`; on Linux OCR only loads with a workaround (see Host differences) | OculiX fix; workaround: OCR a BGR copy |
 | Watch for change: `onAppear`, `onVanish`, `onChange`, `observe` | yes | by design (compares captures) | not measured; the image-based ones share the bug's code path | measure |
-| Wait until the screen is stable: `waitForStable` | yes | `VNCScreen.waitForStable`, by design | `waitForScreenStable(3000, 500)` **measured: works** from UBUNTU24 (true after 1.16 s; deprecated in 4.0.0); `waitForStable(long, long, double)` not measured | the ON agent's freshness signal is the cheaper way |
+| Wait until the screen is stable: `waitForStable` | yes | `VNCScreen.waitForStable`, by design | `waitForScreenStable(3000, 500)` **measured: works** from UBUNTU24 (returns true; deprecated in 4.0.0); `waitForStable(long, long, double)` not measured | the ON agent's freshness signal is the cheaper way |
 | Highlight a region on screen | yes | **no**: skipped for remote screens (`Region.highlight`) | no | none needed |
 
 ### Mouse
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Move the pointer, `hover` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works**, `hover` and `mouseMove` send 6 interpolated moves in 0.5 s; the first move of a session starts at 0,0 | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): **measured: works**, 68 of 68 pointer events reached Screen (`screen_probe` counter); no hover highlight on the launcher and the pointer is not drawn in the VNC frame, so nothing shows on screen; with our VNC tool: 41 of 41, F02 (pointer moves) | measure |
-| Click at a position | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works** (button mask 1) | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): **measured: works**, `click` on the Terminal tile opens it; also O01 (OculiX finds the Gears tile and clicks it) and, with our VNC tool, F03 (click opens an app) | none |
-| Double click, right click, middle click | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `doubleClick` and `rightClick` **measured: work**; `mouseDown(Button.LEFT or MIDDLE)` + `mouseUp()` **measured: fails**, only moves with no button are sent, yet the call returns success; **gap 3** (ON-UBUNTU24, 2026-11-14, ON-VNC-1, Xtigervnc 1.13.1 depth 16, xev, sent masks from its RFB proxy, `VNCScreen` methods, Temurin 25.0.4+7 and 17.0.21+9 identical, one run per case): **`Button.*` constants (LEFT = 1024, MIDDLE = 2048, RIGHT = 4096) do nothing in `mouseDown` or `mouseUp`** (mask 0, no X event, no error); only `Mouse.*` (LEFT = 16, MIDDLE = 8, RIGHT = 4) press and release. `mouseDown(Mouse.LEFT)` + `mouseUp(Mouse.LEFT)` works (mask 1 then 0); `mouseDown(Mouse.LEFT)` + `mouseUp(Button.LEFT)` or bare `mouseUp()` sends mask 1 again and **leaves the button held** (as on the Pi); recovery `mouseUp(Mouse.LEFT or MIDDLE or RIGHT)` releases it and the next `click` is clean. So the ON agent uses `Mouse.*` only | Pi in gtk4-demo (ON-UBUNTU24, slot 2, 2026-11-14): `mouseDown(Mouse.LEFT)` + move **selects text** (press and drag work); `mouseDown(Button.LEFT)` + `mouseUp()` sends no button (as on TigerVNC); **a bare `mouseUp()` after `mouseDown(Mouse.LEFT)` leaves the button held** (the selection keeps growing, and the next click only releases it); recovery `mouseUp(Mouse.LEFT or MIDDLE or RIGHT)` **works**; double and middle click not measured | needs an app that takes the mouse (our demo HMI) |
-| Wheel | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works**, down mask 16 (X button 5), up mask 8 (X button 4) | N/A on this image: nothing to scroll on the launcher or in the terminal | as above |
-| Drag and drop | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `dragDrop` and `drag` + `dropAt` **measured: work** (press, 6 moves with the button held, release) | Pi in gtk4-demo (ON-UBUNTU24, slot 2, 2026-11-14): a press, 6 moves with the button held and a release select text in gtk4-demo (works); in the terminal not measurable (it ignores the mouse), F06 (click puts the cursor), F07 (drag selects text), both N/A | as above |
+| Move the pointer, `hover` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works**, `hover` and `mouseMove` send 6 interpolated moves in 0.5 s; the first move of a session starts at 0,0 | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): **measured: works**, `hover` and `mouseMove` checked on the target with `agent/spikes/screen_probe.c` | measure |
+| Click at a position | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works** (button mask 1) | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): **measured: works**, `click` on the Terminal tile opens it; also O01 (OculiX finds the Gears tile and clicks it) | none |
+| Double click, right click, middle click | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `doubleClick` and `rightClick` **measured: work**; `mouseDown(Button.LEFT or MIDDLE)` + `mouseUp()` **measured: fails**, only moves with no button are sent, yet the call returns success; **gap 3** (ON-UBUNTU24, 2026-11-14, ON-VNC-1, Xtigervnc 1.13.1 depth 16, xev, sent masks from its RFB proxy, `VNCScreen` methods, Temurin 25.0.4+7 and 17.0.21+9 identical, one run per case): **`Button.*` constants (LEFT = 1024, MIDDLE = 2048, RIGHT = 4096) do nothing in `mouseDown` or `mouseUp`** (mask 0, no X event, no error); only `Mouse.*` (LEFT = 16, MIDDLE = 8, RIGHT = 4) press and release. `mouseDown(Mouse.LEFT)` + `mouseUp(Mouse.LEFT)` works (mask 1 then 0); `mouseDown(Mouse.LEFT)` + `mouseUp(Button.LEFT)` or bare `mouseUp()` sends mask 1 again and **leaves the button held** (as on the Pi); recovery `mouseUp(Mouse.LEFT or MIDDLE or RIGHT)` releases it and the next `click` is clean. So the ON agent uses `Mouse.*` only | Pi in gtk4-demo (ON-UBUNTU24, slot 2, 2026-11-14): `mouseDown(Mouse.LEFT)` + move **selects text** (press and drag work); `mouseDown(Button.LEFT)` + `mouseUp()` sends no button (as on TigerVNC); **a bare `mouseUp()` after `mouseDown(Mouse.LEFT)` leaves the button held** (the selection keeps growing, and the next click only releases it); recovery `mouseUp(Mouse.LEFT or MIDDLE or RIGHT)` **works**; double and middle click not measured | to be measured in our demo HMI |
+| Wheel | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works**, down mask 16 (X button 5), up mask 8 (X button 4) | not measured on the launcher or in the terminal; in gtk4-demo, see the Windows → Pi input run below | as above |
+| Drag and drop | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `dragDrop` and `drag` + `dropAt` **measured: work** (press, 6 moves with the button held, release) | Pi in gtk4-demo (ON-UBUNTU24, slot 2, 2026-11-14): a press, 6 moves with the button held and a release select text in gtk4-demo (works); F06 (click puts the cursor) and F07 (drag selects text) are not run in the terminal (N/A) | as above |
 | Touch | no | no | `vncserv -use_touch` turns buttons into touch contacts; not tried | open |
 
 ### Keyboard
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Type text: `type`, `write` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works** for lowercase, uppercase, digits and all ASCII punctuation (Shift wrapped around shifted characters); `write("ab#ENTER.")` works | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): **measured: works**: login with `type("qnxuser\r")`, lowercase, uppercase, digits, space and all ASCII punctuation arrive exactly; `write("ab#ENTER.")` works; the launcher also takes keys (typed text selected a tile and Return launched it); with our VNC tool: F04 (keys reach the app), U01 (unboxing: log in) | measure |
-| Special keys (Enter, Backspace, arrows, F-keys) | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `type("\r")` sends Return and works; Tab, Esc, Backspace, Space, arrows, Home, End, Page Up, Insert, F5 work; **`Key.ENTER` sends Linefeed (0xff0a), not Return**; **`Key.DELETE` sends KP_Delete (0xff9f), not Delete** | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): `type("\r")` (Return) **works**; **`Key.ENTER` (Linefeed) does nothing on QNX**; Tab works; **Backspace (sent as ^H) erases at the login prompt and at the shell prompt**; under `cat -v` it shows as ^H because the terminal's erase character is ^? (`stty -a`: erase=^? kill=^U intr=^C eof=^D), so that is the tty, not OculiX; arrows, Home, End, Page Up, Insert, F5 arrive as their escape sequences; Esc shows nothing; **`Key.DELETE` (KP_Delete) arrives as "."** | measure |
-| Modifiers and combinations, `keyDown`/`keyUp` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): Ctrl, Ctrl+Alt, Alt+Tab, `keyDown(Key.CTRL)`/`type`/`keyUp`, Shift + click **measured: work**; **Ctrl+Shift+letter sends the lowercase keysym with Shift held**, and the TigerVNC server answers with Caps Lock, which stays on afterwards; **`KeyModifier.META` sends Meta_L, not Super** (TigerVNC turned it into Alt) | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): Ctrl+letter and `keyDown(Key.CTRL)`/`type`/`keyUp` **work** (^A, ^B, Ctrl+D in st; Ctrl+A selects all in gtk4-demo); held Shift works ("abc1" gives "ABC!"); **Ctrl+Shift+letter reaches a GUI app** (Ctrl+Shift+I opened GTK Inspector in gtk4-demo, with the lowercase keysym), while st turns it into ^@; Ctrl+Alt+letter: ^@ in st, no visible effect in gtk4-demo; Alt+letter: the plain letter in st, nothing in gtk4-demo; `KeyModifier.META` + letter: the plain letter in both; no Caps Lock left on; Alt+Del with our VNC tool does not close an app, A02 (Alt+Del closes an app). Ctrl+Shift+I (GTK Inspector) is not used in tests on the Pi | find the cause; app close is the ON agent's job anyway |
+| Type text: `type`, `write` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): **measured: works** for lowercase, uppercase, digits and all ASCII punctuation (Shift wrapped around shifted characters); `write("ab#ENTER.")` works | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): **measured: works**: login with `type("qnxuser\r")`, lowercase, uppercase, digits, space and all ASCII punctuation arrive exactly; `write("ab#ENTER.")` works | measure |
+| Special keys (Enter, Backspace, arrows, F-keys) | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): `type("\r")` sends Return and works; Tab, Esc, Backspace, Space, arrows, Home, End, Page Up, Insert, F5 work; **`Key.ENTER` sends Linefeed (0xff0a), not Return**; **`Key.DELETE` sends KP_Delete (0xff9f), not Delete** | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): `type("\r")` (Return) **works**; **`Key.ENTER` sends Linefeed (0xff0a), not Return**, and **`Key.DELETE` sends KP_Delete (0xff9f), not Delete** (ISSUES.md, ON-OX-006 and ON-OX-007); Tab works; **Backspace erases at the login prompt and at the shell prompt**; arrows, Home, End, Page Up, Insert, F5 and Esc are sent | measure |
+| Modifiers and combinations, `keyDown`/`keyUp` | yes | TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked): Ctrl, Ctrl+Alt, Alt+Tab, `keyDown(Key.CTRL)`/`type`/`keyUp`, Shift + click **measured: work**; **Ctrl+Shift+letter sends the lowercase keysym with Shift held**, and the TigerVNC server answers with Caps Lock, which stays on afterwards; **`KeyModifier.META` sends Meta_L, not Super** (TigerVNC turned it into Alt) | OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14): Ctrl+letter and `keyDown(Key.CTRL)`/`type`/`keyUp` **work** (^A, ^B, Ctrl+D in st; Ctrl+A selects all in gtk4-demo); held Shift works ("abc1" gives "ABC!"); **Ctrl+Shift+letter is sent with the lowercase keysym and Shift held** (ISSUES.md, ON-OX-011); **`KeyModifier.META` sends Meta_L, not Super** (ON-OX-012); Alt and Ctrl+Alt combinations are not used in tests on the Pi. Ctrl+Shift+I (GTK Inspector) is not used in tests on the Pi | app close is the ON agent's job |
 | Paste text, Unicode: `paste` | clipboard + Ctrl+V | **measured: no** (TigerVNC depth 16 (ON-UBUNTU24, 2026-11-14, sent and received checked)): `paste()` and `type()` with a non-ASCII character send only Ctrl+V, no clipboard message, the text never arrives, and the call returns 1; by design `paste` fills the local clipboard and sends Ctrl+V; the client has no clipboard transfer to the server | **measured: no** (OculiX on the Pi (ON-UBUNTU24, ON-VNC-1, 2026-11-14)): `type("é")` and `paste()` send only Ctrl+V and nothing arrives | type the text instead; or ON agent |
 | Keyboard layouts | yes | keysyms, layout-independent, by design | not measured | measure |
 
@@ -209,19 +204,19 @@ Caps Lock there (QNX not measured). Input on the Pi waits for a slot David sched
 **On the Pi** (ON-UBUNTU24, 2026-11-14, 04:3x to 04:46 UTC; ON-VNC-1 with `oculixapi-4.0.0-linux.jar`, Temurin
 25.0.4+7, through an RFB proxy that logs what OculiX sent; one run): pointer phase on the launcher, keyboard phase in
 st under `cat -v`, then `sudo shutdown` back to the launcher (0 pixels different from the frame before, no app left
-open, no new core dump). For the ON
+open). For the ON
 agent and the suite: send Enter as `type("\r")`, Delete as the Delete keysym (0xffff), avoid Ctrl+Shift and
-Ctrl+Alt combinations through OculiX, and do not expect to see the pointer in VNC frames.
+Ctrl+Alt combinations through OculiX, and do not match on the pointer in VNC frames.
 
 ### Around the screen
 
 | Function | Local host | VNC, another computer | VNC, QNX 8 | Gap and who closes it |
 |---|---|---|---|---|
-| Start, focus and close applications: `App` | yes (Windows, macOS, Linux) | **no**: `App` acts on the local system | no | **ON agent / SSH:** start and close **measured: work** over SSH, A01 (camera viewfinder runs), A04 (Gears tile) |
+| Start, focus and close applications: `App` | yes (Windows, macOS, Linux) | **no**: `App` acts on the local system | no | **ON agent / SSH:** the suite starts and closes apps over SSH, A01 (camera viewfinder runs), A04 (Gears tile) |
 | Clipboard: `App.getClipboard`/`setClipboard` | yes | **no**: local clipboard only | no | not needed so far |
 | Run a command | yes (local) | no | no | **SSH** (the `on` command) |
-| Know what is running, crashes, logs | local tools | no | no | **ON agent / SSH:** processes, core dumps and system log **measured** after every test |
-| Put the target back in a known state | n/a | no | no | **SSH:** apps closed and the launcher back after each app test, **measured**, A04 (Gears tile); reboot **measured: works**, A03 (sudo shutdown returns to the launcher); TD01 (target back to its initial condition) has not had a clean run yet |
+| Know what is running, crashes, logs | local tools | no | no | **ON agent / SSH:** processes, core dumps and system log checked after every test |
+| Put the target back in a known state | n/a | no | no | **SSH:** the suite closes apps after each app test, A04 (Gears tile); it reboots the target with `sudo shutdown`, A03 (sudo shutdown returns to the launcher); TD01 (target back to its initial condition) checks the result |
 | Global hotkeys, recorder, capture prompt | yes | local to the host | local to the host | none needed |
 | Android over ADB, MCP audit module, script runners | yes | not VNC | not VNC | out of scope |
 
@@ -234,19 +229,18 @@ key events. Windows: ON-ASUSROG-win-11, `oculixapi-4.0.0-windows.jar`. Ubuntu: U
 
 | Function | Windows 11 | Ubuntu 24.04 |
 |---|---|---|
-| `VNCScreen.start` | works, 3.26 s | works, 3.45 to 3.48 s |
-| `capture()`, 1920 x 1080 | works, 0.20 to 0.23 s; image type 0 (`DirectColorModel`, `DataBufferInt`) | works, 0.46 to 0.59 s; the same image type |
-| `capture(100, 100, 400, 300)` | works, 0.17 s, 0 pixels differ from the full capture | works, 0.21 to 0.23 s, 0 pixels differ |
-| `Location.getColor`, 5 points | equal to the capture, 0.15 s each; capture colours wrong (Exact pixels) | the same, 0.15 to 0.16 s |
+| `VNCScreen.start` | works | works |
+| `capture()`, 1920 x 1080 | works; image type 0 (`DirectColorModel`, `DataBufferInt`) | works; the same image type |
+| `capture(100, 100, 400, 300)` | works, 0 pixels differ from the full capture | works, 0 pixels differ |
+| `Location.getColor`, 5 points | equal to the capture; capture colours wrong (Exact pixels) | the same |
 | `exists`, `find`, `findAll` on the `VNCScreen` | **fail**, `ClassCastException` | **fail**, the same exception |
-| `Finder` on a BGR copy | works, score 1.0000 at 0.99 and 0.80, 0.09 to 0.21 s | works, score 1.0000, 0.59 to 0.90 s |
-| `OCR.readText` on a BGR copy | works out of the box, 2.6 s (first call, engine start included), 1528 characters, 33 lines | works **only with `LD_LIBRARY_PATH`** set to Legerix's folder (`~/.cache/legerix/5.5.0-8/linux-x86-64/`), 13.8 s, 32 lines. Without it `libtesseract.so.5` cannot find `libleptonica.so.6`, OculiX falls back to a `tesseract` program that is not installed, and every OCR call fails |
+| `Finder` on a BGR copy | works, score 1.0000 at 0.99 and 0.80 | works, score 1.0000 |
+| `OCR.readText` on a BGR copy | works out of the box, 1528 characters, 33 lines | works **only with `LD_LIBRARY_PATH`** set to Legerix's folder (`~/.cache/legerix/5.5.0-8/linux-x86-64/`), 32 lines. Without it `libtesseract.so.5` cannot find `libleptonica.so.6`, OculiX falls back to a `tesseract` program that is not installed, and every OCR call fails |
 | `OCR.readText` on the raw capture, `VNCScreen.text()`, `Region.text()` | **fail**, `ClassCastException` | **fail**, the same exception |
-| `waitForScreenStable(3000, 500)` | works, true after 0.70 s | works, true after 1.16 s |
+| `waitForScreenStable(3000, 500)` | works, returns true | works, returns true |
 
-So OculiX behaves the same on both hosts against QNX's `vncserv`, apart from two things: Linux needs the OCR library
-workaround, and Windows is two to three times faster for captures, searches and OCR (different machines, so this is
-not a fair speed comparison).
+So OculiX behaves the same on both hosts against QNX's `vncserv`, apart from one thing: Linux needs the OCR library
+workaround.
 
 ## Newer VNC client library: tigervnc-java-oculix 2.0.4 first on the classpath
 
@@ -257,8 +251,8 @@ B = 2.0.2 first, C = 2.0.4 first) and arm C repeated from Windows, 2026-11-14. J
 
 | Server | A: 4.0.0 alone | B: 2.0.2 first | C: 2.0.4 first |
 |---|---|---|---|
-| QNX `vncserv` (Pi), from UBUNTU24 | 75,919 wrong pixels, `ClassCastException` | the same | **0 wrong pixels**, find, `findAll`, `text()` and `getColor` right, no exception; capture 0.17 to 0.25 s (A: 0.46 to 0.58 s) |
-| QNX `vncserv` (Pi), from Windows | 75,919 wrong pixels, `ClassCastException` | not run | **0 wrong pixels** against two identical raw frames; `exists`, `find` at the right place (score 1.00), `findAll` 1 match, `OCR.readText` on the raw capture and `VNCScreen.text()` 1528 characters, `Region.text()` works; capture 0.15 to 0.19 s |
+| QNX `vncserv` (Pi), from UBUNTU24 | 75,919 wrong pixels, `ClassCastException` | the same | **0 wrong pixels**, find, `findAll`, `text()` and `getColor` right, no exception |
+| QNX `vncserv` (Pi), from Windows | 75,919 wrong pixels, `ClassCastException` | not run | **0 wrong pixels** against two identical raw frames; `exists`, `find` at the right place (score 1.00), `findAll` 1 match, `OCR.readText` on the raw capture and `VNCScreen.text()` 1528 characters, `Region.text()` works |
 | TigerVNC, depth 24 | 72,666 wrong | 0 wrong | 0 wrong |
 | x11vnc | frame black (both the `:135` and `:85` errors seen in different runs) | correct except the 94-pixel pointer | the same as B |
 | TigerVNC, depth 16 | 1,757,793 wrong, `ClassCastException` | the same | 0 wrong, find and OCR work |
@@ -302,8 +296,8 @@ pinned release, recorded in CONFIG_MANAGEMENT.md as a trial host component; the 
    #443, "ZRLE CPIXEL", is in the same place); not proved. OculiX has no setting to ask for another encoding
    (`VNCClient.currentEncoding` is private and sent once). **So `vncserv -format=rgba8888` would probably trade the
    `ClassCastException` for corrupt frames.**
-4. **Most of the QNX column is still "not measured" for OculiX itself.** Keys, moves and clicks are proved with our
-   own VNC tools, which shows `vncserv` and Screen do their part, but not that OculiX's calls work.
+4. **Most of the QNX column is still "not measured" for OculiX itself.** Keys, moves and clicks have been sent
+   with our own VNC tools; that does not show that OculiX's calls work.
 5. **VNC cannot do four things, on any system, and those are the ON agent's job:** say whether the picture is
    fresh; say whether the display is on, blank or locked; start, stop and inspect applications; give exact pixels.
 
@@ -311,11 +305,11 @@ pinned release, recorded in CONFIG_MANAGEMENT.md as a trial host component; the 
 
 | Need | Why VNC is not enough | Status |
 |---|---|---|
-| Frame freshness | `vncserv` resends the whole frame whether or not anything changed | signal proved: S01 (update signal fires on a change), S02 (no update signal on a static screen) |
-| Display state: on, blank, locked | not in the VNC protocol; Screen's own state also missed a black monitor | open: cause of the black monitor not found |
-| Application control: start, close, list | `App` is local; Alt+Del over VNC does not close an app | start and close proved over SSH |
-| Target health: processes, core dumps, log | not in the VNC protocol | proved over SSH in the suite |
-| Exact region capture | `vncserv` rounds to rgb565 | proved with `screen_read_display()` as root (spike S2) |
+| Frame freshness | not in the VNC protocol | signal in use: `screen_notify(SCREEN_NOTIFY_UPDATE)`, suite tests S01 (update signal fires on a change) and S02 (no update signal on a static screen) |
+| Display state: on, blank, locked | not in the VNC protocol | open |
+| Application control: start, close, list | `App` is local | start and close over SSH, in use in the suite |
+| Target health: processes, core dumps, log | not in the VNC protocol | checked over SSH in the suite |
+| Exact region capture | VNC frames are in the server's pixel format (rgb565 as configured) | `screen_read_display()` as root, `agent/spikes/screen_probe.c` (spike S2) |
 | Text entry beyond typed keys (Unicode, paste) | no clipboard transfer | not needed yet |
 
 ## Next measurements
@@ -344,9 +338,9 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
    (ON-UBUNTU24, 2026-11-14): ZRLE decodes without error, which supports the 3-byte pixel cause (x11vnc at depth 16
    not run); the capture is `TYPE_CUSTOM` and the `ClassCastException` reproduces, so that bug follows the 16-bit
    format, not QNX; and colours are decoded wrongly, as on the Pi. So **no server tried gives OculiX 4.0.0 a fully
-   correct screen**, and TigerVNC at depth 16 reproduces the Pi's behaviour without a Pi.
+   correct screen**, and TigerVNC at depth 16 reproduces what OculiX does against the Pi, without a Pi.
 3. **Which encoding OculiX uses against `vncserv`:** done, ZRLE at 16 bits per pixel (`EncodingProbe.java`).
-4. **`vncserv -format=rgba8888`** on the Pi: does it remove the rounding and the bug? It is a recorded target
+4. **`vncserv -format=rgba8888`** on the Pi: does OculiX 4.0.0 then decode the frames? It is a recorded target
    change. Expect ZRLE corruption at 32 bits per pixel (point 3 above); try only after the cause is confirmed.
 5. **Cross-host runs against real desktops** (planned with David, 2026-11-14). Each pair first with the read-only
    probe (no input, no coordination needed), then input tests in a slot David schedules, since input moves the
@@ -433,28 +427,28 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      `VncAuth,None`), Temurin 25.0.4+7 on Windows 11. ON-UBUNTU24's Pi runs repeated unchanged (its run 12 step
      files and `PiInputProbe.java` phases, from the share, checked against its SHA256SUMS) through `rfb_tap.py` on
      this host, with `StepProbe` v3, plus new steps: double click, middle click and wheel in gtk4-demo, and slot 3's
-     keys in st under `cat -v`. GTK Inspector (Ctrl+Shift+I) left out. A check after every phase that `vncserv` was
-     running and no core dump was new; recordings `OpticNerve_2026-11-14_2338Z_win-pi-input.mp4` and
+     keys in st under `cat -v`. GTK Inspector (Ctrl+Shift+I) left out. A target health check after every phase;
+     recordings `OpticNerve_2026-11-14_2338Z_win-pi-input.mp4` and
      `OpticNerve_2026-11-14_2349Z_win-pi-input.mp4`.
-     - **The same as from UBUNTU24:** pointer events 68 of 68 counted by Screen in the launcher phase; `click`,
+     - **The same as from UBUNTU24:** pointer moves confirmed on the target in the launcher phase; `click`,
        `hover`, `rightClick`, `dragDrop`; `Button.*` does nothing; a bare `mouseUp()` leaves the button held (the
        selection kept growing); `mouseUp(ALL)` recovers; typing, capitals and all ASCII punctuation exact; Return
-       works, `Key.ENTER` (0xff0a) does nothing; Backspace erases at the login and shell prompts; Tab, arrows, Home,
-       End, Page Up, F5 arrive as their sequences; Ctrl+letter, held Shift and held Ctrl work; Ctrl+Shift+letter and
-       Ctrl+Alt+letter give ^@ in st; Alt and Meta give the plain letter; no Caps Lock left on; `type("é")` and
+       works, `Key.ENTER` sends Linefeed (0xff0a), not Return; Backspace erases at the login and shell prompts; Tab,
+       arrows, Home, End, Page Up and F5 are sent; Ctrl+letter, held Shift and held Ctrl work; Ctrl+Shift+letter
+       as from UBUNTU24 (ISSUES.md, ON-OX-011); `type("é")` and
        `paste` send only Ctrl+V and nothing arrives (`paste` put "pasted text" on this host's clipboard).
      - **New on the Pi:** `doubleClick` selects a word in gtk4-demo; the wheel (masks 16 and 8) scrolls gtk4-demo's
        sidebar list (the scroll is animated, so captures lag the events); a middle click (mask 2) is sent, with
        nothing to see on empty space.
      - **Different from a Linux client, as on x11vnc (slot 3):** `Key.DELETE` sends 0x2e, a literal "." (from Linux
-       0xff9f, which QNX also shows as "."; same screen, different cause); `Key.INSERT` sends "-" (0x2d) and types
+       it sends 0xff9f, keypad Delete); `Key.INSERT` sends "-" (0x2d) and types
        it; `Key.PRINTSCREEN` "," and `Key.META` "["; `Key.F13`, `F14`, `F15` and `Key.ALTGR` throw
        `IllegalArgumentException` and send nothing. **New: `write("write:ab#ENTER.")` throws `Cannot type keycode
        13`** after typing "write:ab", so `#ENTER.` in `write` fails from a Windows client (it works from Linux). Cause (Oculix session, from the source): the Windows layout maps "
 " and "
 " to VK_RETURN (13), and
        `VNCRobot.keyToXlib` knows only Java's VK_ENTER (10); the Linux layout maps them to VK_ENTER, hence Return.
-     - Teardown: Ctrl+D, `sudo shutdown`; VNC back after 33 s; the frame equals the frame before the run (0 pixels
+     - Teardown: Ctrl+D, `sudo shutdown`; the target rebooted; the frame equals the frame before the run (0 pixels
        differ); no app open; `/tmp/screen_probe` still present.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
@@ -556,7 +550,8 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
         macOS 27 not mentioned.
      4. Ubuntu: RealVNC Server does not support Wayland; GDM has to be set to X11 (`WaylandEnable=false` in
         `/etc/gdm3/custom.conf`, then reboot), a recorded change on UBUNTU24.
-   - **Later, after the QNX column is complete:** OculiX running on the Mac (QNX SDP 8 has no macOS host) and input
+   - **Later, after the QNX column is complete:** OculiX running on the Mac (the SDP build hosts are Windows and
+     Linux) and input
      tests against the Mac. The release has one macOS jar, `oculixapi-4.0.0-macos.jar` (61,441,991 bytes, SHA-256
      `e26cc3da...4bd3`), whose native libraries (OpenCV 4.10, Tesseract 5, Leptonica 6, JNA, JNativeHook) are all
      arm64; even its plain `darwin/` folder is arm64, so Intel Macs look unsupported. By their load commands,

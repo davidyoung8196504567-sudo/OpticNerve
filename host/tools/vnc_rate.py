@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure a VNC (RFB 3.8) server's update rate with a viewer that stays connected (spike S6).
+"""Count the updates a VNC (RFB 3.8) server sends to a viewer that stays connected (spike S6).
 
     python host/tools/vnc_rate.py HOST PASSWORD SECONDS [ENCODINGS]
 

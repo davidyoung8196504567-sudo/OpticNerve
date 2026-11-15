@@ -27,17 +27,18 @@ the procedure below.
 | VNC target: this Windows 11 laptop | **TightVNC 2.8.90 GPL** server (`tvnserver.exe` 2.8.90.0), installer `tightvnc-2.8.90-gpl-setup-64bit.msi` from <https://www.tightvnc.com/download.php>, 2,543,616 bytes, SHA-256 `9693cb4cdc2e7e482e8e3f5890415b57ef87de3369fa5c337db516218a1170ce`, Authenticode signature valid (OOO GlavSoft, timestamp 2025-10-15); kept in `C:\Users\root\opticnerve-work\tightvnc\` with the install log. TightVNC 4.0.2 (free, newer) also exists; 2.8.90 was chosen as the long-standing GPL release with classic VncAuth. **Change, 2026-11-14** (installed by Claude with David's go and his approval of the admin prompts): server only, as the Windows service `tvnserver` (automatic start), msiexec properties `ADDLOCAL=Server SERVER_REGISTER_AS_SERVICE=1 SERVER_ADD_FIREWALL_EXCEPTION=0 SERVER_ALLOW_SAS=1 SET_USEVNCAUTHENTICATION=1 VALUE_OF_USEVNCAUTHENTICATION=1 SET_ACCEPTHTTPCONNECTIONS=1 VALUE_OF_ACCEPTHTTPCONNECTIONS=0 SET_RFBPORT=1 VALUE_OF_RFBPORT=5900`: port 5900 on all interfaces, VNC password required, no web viewer on 5800, loopback connections refused (TightVNC's default). VNC password: set by David in TightVNC's own configuration window on 2026-11-14 (at most 8 characters; not recorded). Firewall: inbound rule "OpticNerve TightVNC 5900 LAN", TCP 5900, remote addresses 10.30.1.0/24 only, all profiles. This host is 10.30.1.114 on the LAN. **Undo:** `msiexec /x tightvnc-2.8.90-gpl-setup-64bit.msi` (removes the service), then `Remove-NetFirewallRule -DisplayName 'OpticNerve TightVNC 5900 LAN'` (both as administrator). Input runs against this host move the mouse and type here, so only in a slot David schedules. | Windows recorded |
 | VNC target: UBUNTU24 real desktop | **x11vnc 0.9.16-10** with libvncserver1 and libvncclient1 0.9.14+dfsg-1ubuntu0.2, from Ubuntu noble `.deb` files unpacked without root in `~/opticnerve-work/x11vnc/` (SHA256SUMS in `debs/`; David chose the unpacked copy over an apt install). Real X11 display :1 (GNOME Shell 46.0 on Xorg, Ubuntu 24.04), 1366 x 768, 32 bpp depth 24, port 5900 on all interfaces, VncAuth (password set by David, not recorded), options `-forever -shared`, server name "UBUNTU24:1". **Change, 2026-11-14 05:57 UTC** (ON-UBUNTU24, with David's go): (1) file `~/opticnerve-work/x11vnc/passwd-desktop` (mode 600, from `x11vnc -storepasswd`); (2) the process `LD_LIBRARY_PATH=~/opticnerve-work/x11vnc/usr/lib/x86_64-linux-gnu ~/opticnerve-work/x11vnc/usr/bin/x11vnc -display :1 -auth /run/user/1000/gdm/Xauthority -rfbport 5900 -rfbauth ~/opticnerve-work/x11vnc/passwd-desktop -forever -shared -o ~/opticnerve-work/x11vnc/desktop.log`, started by hand, no autostart, so gone after a logout or reboot; (3) nothing in /etc, no package, no firewall rule (ufw not filtering), no reboot. **Undo:** `pkill -x x11vnc`, delete the password file. Input runs drive David's real desktop on UBUNTU24, so only in a slot agreed with ON-UBUNTU24 and David. | UBUNTU24 recorded |
 | VNC server on the Pi target | **`vncserv` 4.2.1 B115** (`com.qnx.qnx800.target.screen.vncserv/4.2.1.00115T202610020016L`, built 2026-10-02, LibVNCServer 0.9.15), the aarch64le binary from the Windows SDP folder `qnx800_2` (`qnx800_2/target/qnx/aarch64le/bin/vncserv`; correction 2026-11-15: that folder no longer matched baseline SDP-BL-005, which pins 4.2.0, so this binary did not come from a recorded baseline; it is identified by the hashes given here, and baseline SDP-BL-006 pins 4.2.0 again; 328,752 bytes, cksum 1866226868, SHA-256 `db4c0c69...3eab`), in place of the image's 4.2.0 B70 (LibVNCServer 0.9.14, cksum 660745138). **Change, 2026-11-15 03:06 UTC** (ON-ASUSROG-win-11, David's go): (1) backup `/usr/bin/vncserv-4.2.0-B70` (cp -p, cksum checked); (2) copy `/data/home/qnxuser/vncserv-4.2.1-B115`; (3) `/usr/bin/vncserv` replaced (root:root, 755); (4) `vncserv` restarted as at boot (`vncserv -display=1 -auth`, as root), so the boot script starts 4.2.1 from now on. Password file and arguments unchanged. **Undo:** `slay vncserv; cp -p /usr/bin/vncserv-4.2.0-B70 /usr/bin/vncserv; vncserv -display=1 -auth` (as root), or the same then reboot. | Pi recorded |
+| Spike test program on the Pi target | `screen_probe`, built on 2026-11-12 from `agent/spikes/screen_probe.c` (first committed in `6660128`) on the Windows host (`C:\Users\root\qnx800_2`, baseline SDP-BL-005) with `qcc -Vgcc_ntoaarch64le -Wall -O2 -o screen_probe screen_probe.c -lscreen`. Its root parts are run with `sudo`. **Change, 2026-11-12:** the file `/tmp/screen_probe` on the Pi, SHA-256 `6eded5f1e0a7095f6c2f77548bd143ac941ed44fec9f0f5a0b7c35f8a6c9828e` (the second build; the first was `83f901f9...`). `/tmp` is on the persistent `/data` partition, so the file survives a reboot. Capture files and logs written during the spikes were deleted; nothing else on the target was changed. The source's output text has been edited since, so a new build has a different hash. Used by the spikes S2 to S5 ([DESIGN.md](DESIGN.md)) and by the update tests of `tests/visible/suite.py`. **Undo:** `rm /tmp/screen_probe`. | Pi recorded |
 | VNC client library override (host): test configuration **ON-VNC-1** | `tigervnc-java-oculix-2.0.4.jar` from Maven Central (`io.github.oculix-org:tigervnc-java-oculix:2.0.4`), 436,848 bytes, SHA-256 `de6fc7ca87d9fd704b2b1b2d172f19e55c34f53cadd7e664739315ac15224ca6` (same digest as ON-UBUNTU24's copy); downloaded 2026-11-14 to `C:\Users\root\opticnerve-work\tigervnc-java-oculix\`. Placed before the OculiX jar on the classpath. **Adopted 2026-11-14 by David as ON-VNC-1** (defined by the Oculix-MacBookM4Pro-macOS-27 session) for all OculiX and VNC testing: both jars checked by SHA-256 (the suite's SU02 (host prerequisites) does it), security types limited to `VncAuth,None` before the first `VNCScreen.start`, Enter sent as `type("\r")`, never `Key.ENTER`; JDK Temurin 25.0.4+7, with a Temurin 17 spot-check (not installed on this host yet); the JDK stated in every result. Environment variable `ON_TIGERVNC_JAR`. Against servers that offer Apple's DH login first (macOS Screen Sharing) it needs `SecurityClient.secTypes.setParam("VncAuth,None")` before connecting, or it tries a DH login and fails. **Added 2026-11-14 10:26 EST** (Claude, for the per-server rule): `tigervnc-java-oculix-2.0.2.jar` (`io.github.oculix-org:tigervnc-java-oculix:2.0.2`), 298,086 bytes, SHA-1 `25c6545e320d88d6fd2b9e043aadb6b428c3c6d5` equal to Maven Central's `.sha1`, SHA-256 `3ec287d950b395845f5cad8446d17fb92ee1cd742fb423242bad1c568abc6698` (the pinned digest), in the same folder; used first on the classpath against TightVNC 2.8.90; no environment variable. Undo: delete the folder (or that file). | Windows recorded, in use |
 | Peer review records and agent roles | Reviews: the private bare repository `git/fleet-reviews.git` on the MyBookLive share, created 2026-11-15 by ON-ASUSROG-win-11 at David's request, first commit `424bc51f`; the protocol is in [REVIEWS.md](REVIEWS.md). Windows host: work copy `C:\Users\root\opticnerve-work\fleet-reviews`. **Host change, 2026-11-15:** `git config --global --add safe.directory Z:/git/fleet-reviews.git` (git otherwise refuses the repository on the share as owned by another user). **Undo:** remove that `safe.directory` line from `~/.gitconfig` and delete the work copy; the repository itself is removed by deleting its folder on the share. MacBook M4 Pro: work copy `~/fleet-reviews`, cloned 2026-11-15 05:54 UTC (opticnerve-6b, at David's request) from `/Volumes/CLAUDE/git/fleet-reviews.git`, at `424bc51f`; no `safe.directory` entry needed, because the share mounts on this Mac as owned by the local user; no other host change. **Undo:** delete `~/fleet-reviews`. Roles: five files in `.claude/agents/`, checked with `claude plugin validate .claude/agents` (Claude Code 2.1.302); the two Fable roles name the model ID `claude-fable-5-2`. | Windows, Mac recorded |
 | This repo | git commit | - |
 
 ## How the check works
 
-`sdp/check_sdp.py` is read-only and does not rely on the Software Center being right. Each QNX package installs a
+`sdp/check_sdp.py` is read-only and works from the package descriptors on disk. Each QNX package installs a
 descriptor (`.packages/metadata/<id>/<version>/AssetDescriptor.json`) listing the size and SHA-512 of every file it
 owns. The check:
 
-1. compares the Software Center's package list with the descriptors on disk (a cross-check of the Software Center);
+1. compares the Software Center's package list with the descriptors on disk;
 2. hashes every packaged file and compares it with its descriptor; reports missing, modified and extra files;
 3. builds a test program with qcc for aarch64le and x86_64 and checks the ELF output;
 4. compares the package set and each descriptor's SHA-256 with `sdp/packages.lock`, and the overall file
@@ -51,20 +52,14 @@ Known limits:
 
 - The descriptors come from the same download as the files. The check proves the installation is complete and
   unchanged, and identical to the baseline. It does not verify QNX's signature (`package.sig`) on each package.
-- On Windows, symbolic links are installed as copies; the check compares each copy with its link target.
-- Windows file names are case-blind. The Software Center CLI's `-verifyInstallation` reports 562 "unexpected file"
-  errors on Windows, all under `target/qnx/usr/share/terminfo` (package `target.base.text.ncurses`): the package
-  lists `a/a210` and the disk has `A/a210`. Both installations made on 2026-11-12 show the identical 562. They are
-  not missing or damaged files, and the GUI's verification reports the installation as clean.
-- Two packages can ship the same path with different contents, and the Software Center installs both without
-  warning; the later one overwrites the earlier one's files. The check fails on any such path ("conflict").
-  Found on 2026-11-12: `target.screen.screen_utils` 4.0.2.00431 ships older copies of 16 files of
-  `target.screen.base` and 4 of `target.screen.vncserv`. Do not install it. Removing it deletes the 20 files;
-  Verify Installation with repair then restores them from the remaining owners.
+- On Windows the check compares a packaged symbolic link with its link target by content.
+- Windows file names are case-blind. Packaged paths that differ only by case (under
+  `target/qnx/usr/share/terminfo`, package `target.base.text.ncurses`) share one file on disk, and `check_sdp.py`
+  counts them as case collisions, not as problems.
+- The check fails if two installed packages list the same path with different contents ("conflict").
+  `target.screen.screen_utils` 4.0.2.00431 is not part of the baseline: do not install it.
 - `*.pyc` files are ignored, since running the SDP's Python tools creates them.
-- On Linux the Software Center CLI's `-verifyInstallation` reports 0 errors, which confirms the 562 are a Windows
-  file-name effect.
-- QNX SDP 8.0 build hosts are Windows and Linux only (no macOS). Both are recorded. Each line of `packages.lock`
+- The QNX SDP 8.0 build hosts here are Windows and Linux. Both are recorded. Each line of `packages.lock`
   ends with the hosts the package is installed on: 265 packages are on both (identical descriptors, so identical
   files), 29 are Windows host tools and 21 are Linux host tools. Everything that goes onto a target is in the
   common 265. `--record` replaces only the entries of the host it runs on, and refuses if a package has the same
@@ -94,8 +89,8 @@ Installs and updates are done by David in the Software Center GUI. Each change f
 Experimental packages (21 in SDP-BL-001, including the quickstart image, the Wi-Fi drivers and the camera stack)
 are pinned to exact versions like everything else. A newer version on the server is not a reason to update.
 
-Leave the installation property "Install experimental packages" switched on. Turning it off after an experimental
-package is installed blocks install, uninstall and repair (QSC 2.0.4 known issue J2812561).
+Leave the installation property "Install experimental packages" switched on (see the QSC 2.0.4 release notes,
+linked below).
 
 From SDP-BL-006 on, the installation also uses the update policy "Ultraconservative" (original versions, no
 updates) with "automatically install patches" off, so that an added package does not move the ones already
@@ -113,8 +108,17 @@ packages at exactly the 8.0.5 version and 7 newer than 8.0.5: `osr.bsdtar` 3.8.8
 Wi-Fi and camera packages). The recipe's 21 Linux host packages are absent on Windows. Installing the 8.0.5
 patch set on this baseline would therefore downgrade those 7 packages.
 
-What QSC is documented to do, and where to report problems with it, is in
-[notes/2026-11-12_qsc_documentation.md](notes/2026-11-12_qsc_documentation.md).
+QNX Software Center (QSC) documentation we followed:
+
+- User's guide: <https://www.qnx.com/developers/docs/qsc/com.qnx.doc.qsc.nav/topic/bookset.html>
+- Command-line reference: <https://qnx.com/developers/docs/qsc/com.qnx.doc.qsc.user_guide/topic/commandline_qsc.html>
+- QSC 2.0.4 release notes: <https://www.qnx.com/developers/articles/rel_7160_5.html>
+- Export and import patch sets: <https://qnx.com/developers/docs/qsc/com.qnx.doc.qsc.user_guide/topic/export_import_patch_sets.html>
+
+Terms, as documented there (check the wording at the links before quoting it): a **baseline** is "a package that
+serves as the basis of an installation"; a **patch set** is "a package that acts like a recipe for installing
+packages", listing packages and exact versions and carrying no files. The licence in use is QNX Everywhere
+(<https://qnx.software/en/developers/get-started/qnx-everywhere>).
 
 ## Reproducing the baseline on a new machine
 
@@ -125,8 +129,7 @@ Tried twice on 2026-11-12:
 - Windows, by patch set import (SDP-BL-005): the CLI's `-importAndInstall` with a text patch set listing the 258
   installed packages plus the 36 new ones (SHA-256 of the file
   `26838ebc2a772b01944b0dbe58186d7ba5b1f3a604fa573056220ea988728450`; it is now `sdp/qsc-patchset-win32.txt`).
-  The result was exactly the list: 294 packages, every file hash matching, and QSC's own export afterwards identical
-  to the input, `root-package` flags included.
+  Afterwards the installation had the 294 packages of the list and `check_sdp.py` matched.
 
 1. Install QNX Software Center 2.0.4, sign in with the myQNX account that holds the QNX Everywhere licence.
 2. Create an SDP 8.0 installation. The path is free; pass it to the check or set `QNX_SDP_DIR`.
@@ -134,21 +137,18 @@ Tried twice on 2026-11-12:
    Software Center text patch set, which is QNX's documented way to give a team identical installations: a recipe of
    packages and exact versions, with no files in it. The documented CLI sequence is `-mirror`, then
    `-importAndInstall sdp/qsc-patchset-<host>.txt -destination <path>`, both with `-myqnx.user` and `-myqnx.password`.
-   The QSC 2.0.4 GUI on Windows has no import, only export, so the CLI is the only route. What the trial showed:
-   - Close every copy of the Software Center first. With a second copy open, downloads waited about 30 seconds each
-     and timed out ("Read timed out"), with no error on screen and no progress.
-   - The import does not add to the installation: it uninstalls every installed package (24,633 files) and then
-     installs every package in the list. The SDP is unusable for the minute or two this takes, and an interruption
-     in between would leave it incomplete. Run the check afterwards in every case.
-   - The password ends up in clear text in `~/.qnx/swupdate/qnxsoftwarecenter-<n>.log` and also in
-     `~/.qnx/swupdate/.metadata/.log` (the full command line). Delete or clean both after the run. The CLI help
-     does not list an `@options_file`, so whether that works is unverified.
-   - A patch set naming a package the account cannot get fails silently in the GUI (known issue J2993519); not
-     seen here, since all packages were available.
+   Use the CLI for the import. Notes:
+   - Close every copy of the Software Center first.
+   - The import replaces the installation with exactly the packages in the list. Do not use the SDP while it runs,
+     and run the check afterwards in every case.
+   - After the run, delete or clean `~/.qnx/swupdate/qnxsoftwarecenter-<n>.log` and
+     `~/.qnx/swupdate/.metadata/.log`, which record the command line, password option included. Never print or
+     share them.
+   - QNX's own notes on patch set import are in the QSC 2.0.4 release notes and on the "Export and import patch
+     sets" page (links above).
 4. Run `python sdp/check_sdp.py <path>`. The machine is ready when it prints `MATCHES THE BASELINE`.
 
-Risk: this depends on QNX keeping these exact versions on its server. The server currently lists older versions
-alongside newer ones (for example four versions of the Pi 5 quickstart image).
+This procedure needs the exact versions in `sdp/packages.lock` to be available from the QNX server.
 
 ## Baseline history
 
@@ -157,6 +157,6 @@ alongside newer ones (for example four versions of the Pi 5 quickstart image).
 | SDP-BL-001 | 2026-11-12 | the commit that adds this row | First baseline. SDP 8.0, newest version of every package (GA tags up to 8.0.5, two at 8.0.6), no patchset package; Pi 5 BSP 0.4.0.00568; quickstart image 0.5.0.00050; Screen board rpi 1.0.0.00135. 258 packages, 24,117 files, fingerprint `a49ccaf994b541e6`. Details: [notes/2026-11-12_sdp_reinstall.md](notes/2026-11-12_sdp_reinstall.md). |
 | SDP-BL-002 | 2026-11-12 | the commit that adds this row | Linux build host added (`/home/tester/qnx800`, Ubuntu 24.04 under WSL 2): 250 packages, 22,236 files, fingerprint `7ab0954dd91d7e44`. No package changed on Windows (fingerprint still `a49ccaf994b541e6`). Lock format changed to list the hosts per package; `qsc-patchset.txt` renamed to `qsc-patchset-win32.txt`, `qsc-patchset-linux.txt` added. To match Windows, `target.base.libxml2.v13` was added on Linux and `sf.images.rpi5` removed. |
 | SDP-BL-003 | 2026-11-12 | the commit that adds this row | Linux only: 31 packages added for the Screen survey and the QEMU target: `target.screen.vncserv` 4.2.0.00070, `screen.device_input_screen`, `screen.demos`, `screen.demos.qnxeverywhere`, `screen.demos_tutorials.source`, `quickstart.qemu` 0.5.0.00050 (4 packages), `target.qemuvirt`, `driver.virtio` (4), `screen.board.vmwgfx`, and as dependencies the font engine, fontconfig, freetype, image codecs, `hypervisor.libhyp` and `screen.base.source`. Linux: 281 packages, 22,708 files, fingerprint `1ac81965a5a5a80a`. Windows unchanged and still to be brought to the same set. `check_sdp.py` now fails on package file conflicts. |
-| SDP-BL-004 | 2026-11-12 | the commit that adds this row | Linux only: 5 packages added: `osr.googletest` 1.11.0.00021, `target.utils.gdbserver` 14.2.0.00328, `screen.fonts.dejavu` and `screen.fonts.noto` 1.0.0.00017, `screen.img_codecs.compat` 2.0.0.00166. Linux: 286 packages, 22,862 files, fingerprint `504b9a5add1e0094`. During this change the Software Center uninstalled `target.screen.vncserv` in the same operation (log, 07:17:48, cause not found); the check caught it and the package was reinstalled before recording. Windows unchanged. |
+| SDP-BL-004 | 2026-11-12 | the commit that adds this row | Linux only: 5 packages added: `osr.googletest` 1.11.0.00021, `target.utils.gdbserver` 14.2.0.00328, `screen.fonts.dejavu` and `screen.fonts.noto` 1.0.0.00017, `screen.img_codecs.compat` 2.0.0.00166. Linux: 286 packages, 22,862 files, fingerprint `504b9a5add1e0094`. Windows unchanged. |
 | SDP-BL-005 | 2026-11-12 | the commit that adds this row | Windows brought to the same target packages as Linux by CLI patch set import: the 36 Linux-only target packages of SDP-BL-003 and SDP-BL-004 added. Windows: 294 packages, 24,743 files, fingerprint `36b0ad7f086bd69e`. All 36 have the same descriptors as on Linux. Hosts now differ only in host tools (29 Windows, 21 Linux). Linux unchanged. |
-| SDP-BL-006 | 2026-11-15 | the commit that adds this row | Windows only: a new installation, `C:\Users\root\qnx805`, replaces `qnx800_2` as the build folder (David installed it; `check_sdp.py` now defaults to it). Reason: on 2026-11-15 `qnx800_2` was found not to match SDP-BL-005 any more (167 packages, no `qcc.exe`, `vncserv` 4.2.1), and David asked for one of QNX's defined levels, for traceability. Made in two steps, each inventoried. (1) The SDP 8.0.5 release, update policy Ultraconservative: 228 packages, 23,568 files, fingerprint `9d13cf36ca685a43`, nothing newer than the microkernel of 2026-06-05. No patch set is applied on top. (2) Added, with "Install experimental packages" on (the quickstart image needs it): `quickstart.rpi5` 0.5.0.00050 (4 packages), `target.utils.gdbserver` 14.2.0.00328, `target.screen.vncserv` 4.2.0.00070, and as dependencies `osr.libyuv` 1787.0.0.00012 and `screen.img_codecs` 0.0.1.00022; no installed package changed. Result: 236 packages, 23,715 files, fingerprint `9556e4536e637ff3`. Against SDP-BL-005: 7 of the 8 added packages have the same version and descriptor as before (`img_codecs` was 10.0.0); 8 packages are older, at their 8.0.5 versions instead of later builds (`mkxfs` for Linux hosts, `bsdtar`, `connectivity.char`, `.devc`, `.io_char`, `openSSH`, `os_services.hid`, `usb.base`); the Pi 5 BSP, Screen board support, demos, fonts, QEMU, virtio, Wi-Fi and camera packages are not installed (they are for building an image; our programs are deployed onto the quickstart image). Checked on the target: a program built from this folder for aarch64le ran on the Pi 5, whose kernel carries the same build date (2026-06-05) as this baseline's microkernel package. Linux entries unchanged. Undo: `git revert` this commit and set `QNX_SDP_DIR` to the earlier folder. |
+| SDP-BL-006 | 2026-11-15 | the commit that adds this row | Windows only: a new installation, `C:\Users\root\qnx805`, replaces `qnx800_2` as the build folder (David installed it; `check_sdp.py` now defaults to it). Reason: on 2026-11-15 `qnx800_2` was found not to match SDP-BL-005 any more (167 packages, no `qcc.exe`, `vncserv` 4.2.1), and David asked for one of QNX's defined levels, for traceability. Made in two steps, each inventoried. (1) The SDP 8.0.5 release, update policy Ultraconservative: 228 packages, 23,568 files, fingerprint `9d13cf36ca685a43`, nothing newer than the microkernel of 2026-06-05. No patch set is applied on top. (2) Added, with "Install experimental packages" on (the quickstart image needs it): `quickstart.rpi5` 0.5.0.00050 (4 packages), `target.utils.gdbserver` 14.2.0.00328, `target.screen.vncserv` 4.2.0.00070, and as dependencies `osr.libyuv` 1787.0.0.00012 and `screen.img_codecs` 0.0.1.00022; no installed package changed. Result: 236 packages, 23,715 files, fingerprint `9556e4536e637ff3`. Against SDP-BL-005: 7 of the 8 added packages have the same version and descriptor as before (`img_codecs` was 10.0.0); 8 packages are older, at their 8.0.5 versions instead of later builds (`mkxfs` for Linux hosts, `bsdtar`, `connectivity.char`, `.devc`, `.io_char`, `openSSH`, `os_services.hid`, `usb.base`); the Pi 5 BSP, Screen board support, demos, fonts, QEMU, virtio, Wi-Fi and camera packages are not installed (they are for building an image; our programs are deployed onto the quickstart image). Checked on the target: a program built from this folder for aarch64le ran on the Pi 5, whose kernel carries the same build date (2026-06-05) as this baseline's microkernel package. Linux entries unchanged. Later the same day David deleted the earlier folders `C:\Users\root\qnx800` and `C:\Users\root\qnx800_2` (in Explorer; their entries under `~/.qnx/qconfig` are gone as well), so `qnx805` is the only SDP installation on this host. Undo: there is none for the deleted folders; to return to an earlier baseline, check out `sdp/` at that baseline's commit and make a new installation from its package list. |

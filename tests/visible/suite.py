@@ -11,7 +11,7 @@
 Channels:
   SSH     controls the target and reads its state: starts and closes apps, checks processes, core dumps and the
           system log, reboots (host/tools/pi_ssh.sh).
-  VNC     is the function under test: input goes in through QNX's vncserv, frames come out of it.
+  VNC     carries the test: input goes in through the target's VNC server, frames come out of it.
   camera  is the independent witness: a webcam pointed at the HDMI monitor, read through OBS
           (host/tools/obs_control.py), shows what a person would see. OBS also records the run.
 
@@ -22,9 +22,9 @@ the saved condition and disconnect.
 
 Every test first puts the target into the state it needs over SSH, so a failed test does not leave the next one in
 the wrong place. Prerequisites are only functions a test really reuses; if one did not pass, the test is recorded as
-SKIP with the reason. Known limits of the image are N/A with the reason. After each test the target's health is
-checked: a new core dump or a missing graphics process fails the test and skips the rest. An ID is always shown
-with its title.
+SKIP with the reason. Tests that do not apply on the image under test are N/A with the reason. After each test the
+target's health is checked: a new core dump or a missing graphics process fails the test and skips the rest. An ID
+is always shown with its title.
 
 Environment: ON_HOST (default 10.30.1.116), ON_VNC_PASSWORD and ON_LOGIN_PASSWORD (the image's documented defaults;
 not stored here), ON_OCULIX_JAR (the pinned oculixapi jar) and ON_TIGERVNC_JAR (the pinned
@@ -105,7 +105,7 @@ def to_launcher():
     return up
 
 
-# --- VNC: the function under test -------------------------------------------------------------------------------
+# --- VNC: input in, frames out ----------------------------------------------------------------------------------
 
 def vnc(*actions):
     subprocess.run([sys.executable, str(ROOT / "host/tools/vnc_input.py"), HOST, need("ON_VNC_PASSWORD"), *actions],
@@ -375,7 +375,7 @@ def t_camera_sees_monitor():
 
 def t_pointer_square():
     to_launcher()
-    pi("rs /tmp/screen_probe status >/dev/null")  # reading the counters resets them
+    pi("rs /tmp/screen_probe status >/dev/null")  # read the counters once before the moves
     corners = [(560, 240), (1360, 240), (1360, 840), (560, 840), (560, 240)]
     actions = []
     for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
@@ -390,7 +390,7 @@ def t_pointer_square():
 
 
 def open_terminal():
-    """The terminal has to be opened from its tile: started over SSH its login prompt takes no password."""
+    """Open the terminal from its tile (not over SSH)."""
     to_launcher()
     vnc(f"click:{TILE['terminal'][0]},{TILE['terminal'][1]}", "wait:3")
     return running("st")
@@ -502,8 +502,8 @@ def t_maze():
 
 
 def t_gtk4():
-    """The tile with the cube icon is the GTK4 demo (gtk4.desktop), not vkcubepp. Its window is static, so the
-    check is that the monitor shows the same new picture as the VNC frame."""
+    """The tile with the cube icon starts the GTK4 demo (gtk4.desktop). Its window is static, so the check is that
+    the monitor shows the same new picture as the VNC frame."""
     to_launcher()
     v0, c0 = frame("gtk4_before"), cam("gtk4_before")
     vnc(f"click:{TILE['gtk4'][0]},{TILE['gtk4'][1]}", "wait:6")
@@ -536,8 +536,7 @@ def t_alt_del():
     still = running("gles3-gears")
     close("gles3-gears")
     if still:
-        return "FAIL", ("Alt+Del sent over VNC (Alt_L down, Delete down, up, up); SSH: gears still running. The "
-                        "launcher's footer says Alt+Del closes windows; not checked with a real keyboard")
+        return "FAIL", "Alt+Del sent over VNC (Alt_L down, Delete down, up, up); SSH: gears still running"
     return "PASS", "Alt+Del sent over VNC; SSH: gears gone"
 
 
@@ -559,7 +558,7 @@ def t_update_on_change():
                                 "move:1500,800"])
     ok = pulses > 0 and updates > 0
     return ("PASS" if ok else "FAIL"), (f"5 pointer moves over VNC; SSH: {pulses} update pulses, Screen counted "
-                                        f"{updates} updates (the pulse says 'changed'; it is not a frame count)")
+                                        f"{updates} updates")
 
 
 def t_update_static():
@@ -585,7 +584,7 @@ def t_oculix_click():
 
 
 def t_shutdown_to_launcher():
-    """The way out of the terminal on this image (David, 2026-11-13): sudo shutdown, which reboots the Pi."""
+    """Leave the terminal with sudo shutdown, which reboots the Pi (David, 2026-11-13)."""
     if not open_terminal():
         return "FAIL", "the terminal did not open"
     vnc("text:qnxuser", "key:0xff0d", "wait:1.5", "text:" + need("ON_LOGIN_PASSWORD"), "key:0xff0d", "wait:3",
@@ -603,14 +602,13 @@ def t_shutdown_to_launcher():
                 if share(launcher, frame("reboot")) < 0.01 and agree(cam("reboot"), launcher) > 0.6:
                     return "PASS", (f"'sudo shutdown' typed over VNC; SSH went down and came back: {went_down}; "
                                     f"camera saw the monitor go dark: {dark}; launcher back on VNC and on the "
-                                    f"monitor after {time.time() - t0:.0f} s")
+                                    f"monitor")
             except subprocess.CalledProcessError:
                 pass  # vncserv not up yet
     return "FAIL", f"no launcher within 240 s (SSH went down: {went_down}, monitor went dark: {dark})"
 
 
-MOUSE = ("the quick-start image's terminal is sandboxed and ignores the mouse, even a real one (David, 2026-11-13); "
-         "to be tested in an app that takes the mouse")
+MOUSE = "not run in the quick-start image's terminal (David, 2026-11-13); to be tested in our demo HMI"
 
 # (id, title, what the monitor shows, prerequisites, function)
 SETUP = [
@@ -653,7 +651,7 @@ TESTS = SETUP + MAIN + TEARDOWN
 BY_ID = {t[0]: t for t in TESTS}
 GATE = [t[0] for t in SETUP]  # every main test needs all of setup
 HOST_ONLY = {"SU01", "SU02", "SU03", "TD02", "TD03"}  # no target health check after these
-KNOWN_LIMITS = {"F06": MOUSE, "F07": MOUSE}
+NOT_APPLICABLE = {"F06": MOUSE, "F07": MOUSE}
 
 
 def label(tid):
@@ -699,8 +697,8 @@ def run(tid, state, gate=True, prereqs=True):
     if main and gate:
         requires = GATE + requires
     unhealthy = next((r for r in results.values() if r.get("unhealthy") and r["id"] != tid), None)
-    if tid in KNOWN_LIMITS:
-        result, detail = "N/A", "known limitation: " + KNOWN_LIMITS[tid]
+    if tid in NOT_APPLICABLE:
+        result, detail = "N/A", "not applicable: " + NOT_APPLICABLE[tid]
     elif unhealthy and main:
         result, detail = "SKIP", f"target unhealthy since {label(unhealthy['id'])}: {unhealthy['unhealthy']}"
     else:

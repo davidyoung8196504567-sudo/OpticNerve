@@ -3,33 +3,31 @@
 Status: **accepted by David on 2026-11-12**, including the native Screen demo HMI (see "Scope for the demo") and
 the phase changes at the end, which are now in [PLAN.md](PLAN.md).
 
-Evidence: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md) (what `vncserv` does on the
-Pi 5), the Screen API reference installed with the SDP (`target/qnx/usr/include/screen/screen.h` and the Screen
-docs under `target/qnx/usr/help/eclipse/plugins/com.qnx.doc.screen/`), and Oculix's own documentation.
+Evidence: [notes/2026-11-12_pi5_first_boot.md](notes/2026-11-12_pi5_first_boot.md) (the image, `vncserv` and its
+options on the Pi 5), the Screen API reference installed with the SDP (`target/qnx/usr/include/screen/screen.h` and
+the Screen docs under `target/qnx/usr/help/eclipse/plugins/com.qnx.doc.screen/`), and Oculix's own documentation.
 
 ## Decision
 
-**Pixels and input go through QNX's own `vncserv`; the ON agent does what `vncserv` cannot.** We do not write or
-port a VNC server.
+**Pixels and input go through QNX's own `vncserv`; the ON agent adds frame freshness, display state, region capture
+and status.** We do not write or port a VNC server.
 
 Why:
 
 - `vncserv` (package `target.screen.vncserv`, pinned in our SDP baseline) already runs by default on the Pi 5
-  quick-start image. On 2026-11-12 it served the whole 1920 x 1080 display, including OpenGL ES, Vulkan, a video
-  layer and the Weston/XFCE desktop, and it forwarded keys, pointer moves and clicks (menus, submenus and browser
-  buttons all responded).
+  quick-start image, started as `vncserv -display=1 -auth` on port 5900, for the 1920 x 1080 display.
 - Oculix documents a VNC client: `VNCScreen.start(host, port, password, ...)`, built on a TigerVNC Java viewer, with
   VNC password authentication, which is what `vncserv` uses. So Oculix can talk to `vncserv` directly. Not yet
   tested against `vncserv` (spike S1).
-- Writing or porting an RFB server would spend most of the time to 2026-12-15 on something that already works.
+- Writing or porting an RFB server would spend most of the time to 2026-12-15 on something the image already
+  provides.
 
-What `vncserv` does not do, seen on day 1, is where the agent earns its place:
+What the agent adds:
 
-- It cannot tell the tester whether a frame is current. We captured one completely black frame while the monitor
-  showed the desktop.
-- It does nothing about screen blanking and the lock screen, which make a test fail for the wrong reason.
-- It knows nothing about windows, so a test can only find things by image matching.
-- It offers no status or control a test can query.
+- a frame-freshness signal, so a test knows when the screen has been updated;
+- display idle and power state, and handling of blanking and the lock screen;
+- (stretch) a window list, so a test can find an app's window without image matching;
+- status and control that a test can query.
 
 ## Architecture
 
@@ -49,21 +47,21 @@ What `vncserv` does not do, seen on day 1, is where the agent earns its place:
 ## The ON agent
 
 A native C program on the target, running as root, registered as a resource manager at `/dev/opticnerve`. Every
-feature below names the Screen API it relies on (from `screen.h`) and the day-1 problem it answers.
+feature below names the Screen API it relies on (from `screen.h`) and what it is for.
 
-| Feature | Screen API | Problem it answers |
+| Feature | Screen API | Purpose |
 |---|---|---|
-| **Frame freshness**: count compositions; report "display updated N times since T" and the time of the last update | `screen_notify(ctx, SCREEN_NOTIFY_UPDATE, display, &sigevent)` ("notification when Screen completes composition"); `SCREEN_DISPLAY_METRIC_UPDATE_COUNT` via `SCREEN_PROPERTY_METRICS` | the black frame; lets a test wait until the screen has settled before matching |
+| **Frame freshness**: count compositions; report "display updated N times since T" and the time of the last update | `screen_notify(ctx, SCREEN_NOTIFY_UPDATE, display, &sigevent)` ("notification when Screen completes composition"); `SCREEN_DISPLAY_METRIC_UPDATE_COUNT` via `SCREEN_PROPERTY_METRICS` | lets a test wait until the screen has settled before matching |
 | **Idle and power state**: report whether the display is idle and its power mode | `SCREEN_PROPERTY_IDLE_STATE` (read-only), `SCREEN_PROPERTY_POWER_MODE`, `SCREEN_EVENT_IDLE` | blanking during a test is detected and reported, not mistaken for a failure |
 | **Keep-awake** during a test session | a visible window with `SCREEN_PROPERTY_IDLE_MODE = SCREEN_IDLE_MODE_KEEP_AWAKE` | Screen's own idle blanking. Weston's lock screen is a separate layer (see "Scope") |
-| **Region capture** for assertions, independent of VNC: write a region of the display to a file | `screen_read_display()` with a `SCREEN_DISPLAY_MANAGER_CONTEXT` (needs effective root and write access to `/dev/screen/.dpymgr`) | a second, direct view of the screen to cross-check `vncserv`'s frames |
+| **Region capture** for assertions, independent of VNC: write a region of the display to a file | `screen_read_display()` with a `SCREEN_DISPLAY_MANAGER_CONTEXT` (needs effective root and write access to `/dev/screen/.dpymgr`) | a second, direct view of the screen for assertions |
 | **Status and control** | resource manager (`resmgr_attach`, message passing) | the test can ask "is the target ready?" |
-| **Component versions on screen** (David, 2026-11-15): a small label in the launcher's bottom bar, next to the IP address and image ID, showing the running `vncserv` version and build (for example "vncserv 4.2.1 B115") and the agent's version; the same in the status text | a small visible window: `screen_create_window()`, `SCREEN_PROPERTY_POSITION`, `_SIZE`, `_ZORDER` above the launcher, text drawn into its buffer with a built-in bitmap font (Screen has no text API); the version read from the running binary (`/proc/<pid>/exefile`, its `use -i` record) | a swapped-in `vncserv` (4.2.0 B70 → 4.2.1 B115) is visible in every frame, the camera recording and the demo video. The launcher's own banner is not configurable for this: `BottomBannerText` in `desktop.conf` differs from the text it shows. The label's rectangle is fixed, so tests exclude it from pixel comparisons, as they do the pointer |
+| **Component versions on screen** (David, 2026-11-15): a small label in the launcher's bottom bar, next to the IP address and image ID, showing the running `vncserv` version and build (for example "vncserv 4.2.1 B115") and the agent's version; the same in the status text | a small visible window: `screen_create_window()`, `SCREEN_PROPERTY_POSITION`, `_SIZE`, `_ZORDER` above the launcher, text drawn into its buffer with a built-in bitmap font; the version read from the running binary (`/proc/<pid>/exefile`, its `use -i` record) | a swapped-in `vncserv` (4.2.0 B70 → 4.2.1 B115) is visible in every frame, the camera recording and the demo video. The label's rectangle is fixed, so tests exclude it from pixel comparisons |
 | *Window list (stretch)*: id, owner pid, position, size, visibility | `SCREEN_WINDOW_MANAGER_CONTEXT`, `SCREEN_EVENT_CREATE`, `SCREEN_PROPERTY_ID_STRING`, `_OWNER_PID`, `_POSITION`, `_SIZE`, `_VISIBLE` | find an app's window without image matching. Unproven: a window manager is already running (spike S3) |
 
-Input injection is **not** in the agent: `vncserv` already forwards keys and pointer to Screen, and its
-`-use_touch` option turns mouse buttons into touch contacts. `screen_inject_event()` stays available if a spike
-shows a gap.
+Input injection is **not** in the agent: keys and pointer go in through `vncserv` (its usage text: "Events from the
+keyboard and mouse are forwarded to Screen"; its `-use_touch` option turns mouse buttons into touch contacts).
+`screen_inject_event()` stays available to the agent.
 
 ### Interface
 
@@ -85,36 +83,34 @@ shows a gap.
 ## Scope for the demo
 
 Decided: the demo HMI is a **native Screen application** (C, Screen API), not an app under the Weston/XFCE
-desktop. That keeps the keep-awake and capture paths simple and shows the QNX-specific stack. The desktop still
-works over `vncserv` (shown on day 1), and Weston's own idle and lock settings (`idle-time`, `locking=true` in
-`~/.config/weston.ini`) can be configured for test runs as a recorded target change.
+desktop. That keeps the keep-awake and capture paths simple and shows the QNX-specific stack. Weston's own
+idle and lock settings (`idle-time`, `locking=true` in `~/.config/weston.ini`) can be configured for test runs as a
+recorded target change.
 
 ## Spikes before building (each a yes/no, time-boxed)
 
 Nothing in these may change a target without being recorded.
 
-Results for S2 to S6 (2026-11-12): [notes/2026-11-12_spikes.md](notes/2026-11-12_spikes.md). In short: capture and
-update notifications work; the window list and keep-awake do not apply on this image; `vncserv` resends full frames
-even when nothing changed. The changes they suggest to this design are proposed there, not yet made here.
+S2 to S6 were run on the Pi on 2026-11-12 with `agent/spikes/screen_probe.c` and the host tools (build command and
+target change: [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), row "Spike test program on the Pi target"). Design
+changes that followed, proposed and not yet made here: freshness through `screen_notify()` only; no keep-awake
+window and no window list in the agent.
 
 | # | Question | How |
 |---|---|---|
-| S1 | Does Oculix's `VNCScreen` connect to `vncserv`, see the screen and click? | Oculix on Windows against the Pi: open the Applications menu, as the Python tools did |
-| S2 | Does `screen_read_display()` as root capture the same pixels as `vncserv`, and does it include the Weston surface and the cursor? | a 50-line C test built with qcc, run once on the Pi |
-| S3 | Can a `SCREEN_WINDOW_MANAGER_CONTEXT` be created and receive `SCREEN_EVENT_CREATE` while `fullscreen-winmgr` or Weston is the window manager? (`screen_register_window_manager()` fails if a manager exists) | same test program |
-| S4 | Does a keep-awake window stop blanking in the native session? What stops it under Weston? | test program plus a timed wait |
-| S5 | Does `screen_notify(SCREEN_NOTIFY_UPDATE)` fire per composition, and did the black frame coincide with an idle or power state? | test program logging updates and idle state |
-| S6 | `vncserv` frame rate with a viewer that stays connected (incremental updates), and its CPU load | Oculix or the Python tools in a loop |
+| S1 | Does Oculix's `VNCScreen` connect to `vncserv`, see the screen and click? | Oculix on Windows against the Pi: `host/spikes/s1/S1VncScreen.java` |
+| S2 | Can the agent capture the display with `screen_read_display()` as root, a region as well as the whole, with the Weston surface and the cursor? | a C test program built with qcc (`agent/spikes/screen_probe.c`), run on the Pi |
+| S3 | Can a `SCREEN_WINDOW_MANAGER_CONTEXT` be created and receive `SCREEN_EVENT_CREATE` while `fullscreen-winmgr` or Weston is the window manager? | same test program |
+| S4 | Does the agent need a keep-awake window in the native session, and under Weston? | test program plus a timed wait |
+| S5 | Does `screen_notify(SCREEN_NOTIFY_UPDATE)` deliver a pulse when the display is updated? | test program logging updates and idle state |
+| S6 | Can the host tools stay connected and ask for incremental updates, like a viewer that does not reconnect for every frame? | `host/tools/vnc_rate.py` |
 
 ## Risks and tunables
 
-- **`vncserv` is closed QNX code** we do not control. If it misbehaves we can only reconfigure it or replace it.
-  Replacing it is the fallback (own RFB server on `screen_read_display()` and `screen_inject_event()`), not the
-  plan.
+- **`vncserv` is a QNX binary**: we configure it through its options and do not change it. The fallback is our own
+  RFB server (on `screen_read_display()` and `screen_inject_event()`), not the plan.
 - **Pixel format:** `vncserv` reads back as `rgb565` by default. `-format=rgba8888` is available; changing it means
   editing `/system/etc/startup/post_startup.sh` on the target, a recorded target change. Decide after S1 and S6.
-- **Frame rate:** a one-shot full frame took about 0.3 s; with a stay-connected viewer it should be faster
-  (unmeasured, S6).
 - **Oculix version:** the README says Oculix 4.x; the sources found on 2026-11-12 describe 3.0.x builds. Pin the
   exact release and its hash in the config management doc before S1.
 - **Deployment:** the agent goes onto the target in a reproducible, recorded way (a script that copies the

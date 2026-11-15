@@ -12,7 +12,8 @@ connects to it and runs image-matching GUI tests against any QNX app. Entry for 
 ## Why no Java on the target
 
 Oculix is Java (an MIT-licensed SikuliX1 fork) and depends on `java.desktop` (`java.awt.Robot`, `BufferedImage`,
-Swing), OpenCV and Tesseract. As of 2026-11-12 there is no usable JVM for QNX 8.0:
+Swing), OpenCV and Tesseract. No JVM runs on the target; the agent is native C. The JVMs for QNX 8.0 we looked at
+on 2026-11-12:
 
 - **OpenJDK 21 HotSpot on QNX 8.0 aarch64** exists only as a 2025 FAU master's thesis (Loganathan; CC BY 4.0). It is
   built `--enable-headless-only` with `java.desktop` excluded, was validated on QEMU only (real hardware is future
@@ -41,8 +42,8 @@ Source: <https://qnx.devpost.com/rules> (read 2026-11-12). Submission deadline *
 
 ## Hosts
 
-QNX SDP 8.0 has **no macOS or ARM host** support. Supported (8.0.3 / 8.0.4 release notes): Windows 10/11, Ubuntu
-Desktop 24.04 and 22.04, RHEL 9. Ubuntu 24.04 needs SDP 8.0.2 or later.
+QNX SDP 8.0 build hosts (8.0.3 / 8.0.4 release notes): Windows 10/11, Ubuntu Desktop 24.04 and 22.04, RHEL 9; so
+the build hosts here are Windows and Ubuntu, not the Mac. Ubuntu 24.04 needs SDP 8.0.2 or later.
 
 - **Windows 11 (x86_64):** the survey host for now. Survey 2026-11-12 found: Software Center 2.0.4; SDP base 8.0.0
   (patchsets up to 8.0.5 = 8.0.5.00390 offered, no 8.0.6); the Pi 5 *quick-start image* 0.4.0 installed (one 12.25 GB
@@ -60,16 +61,15 @@ PCIe; a CSI camera on CAM/DISP 1; full-size HDMI0/HDMI1; 3.5 mm audio split from
 board with 2 fans, ARGB LEDs, an OLED and a thermal sensor, driven over I2C by Freenove's Python service (Raspberry
 Pi OS only). Needs a 5.1 V / 5 A supply.
 
-What QNX's Pi 5 BSP documentation says (BSP release notes, Screen board-support notes; read 2026-11-12):
+What we use from QNX's Pi 5 BSP documentation (BSP release notes, Screen board-support notes; read 2026-11-12; see
+those documents for the supported hardware and the known issues):
 
-- Labelled **Experimental Software**. Boots from microSD; USB mass storage works.
-- Screen graphics: OpenGL ES 3.1 and Vulkan 1.3 via Mesa (`v3d_dri.so`); **2 micro-HDMI displays only**, up to 4K60;
-  configs `graphics-rpi5-hdmi1.conf`, `-hdmi2.conf`, `-2xhdmi.conf`, `-virtual.conf`. Touch listed only for a Lilliput
-  USB HID monitor.
-- No DSI, camera or audio driver is named, so the case screen, camera and speakers are expected not to work under QNX.
-  The Freenove fan/OLED service will not run; check the Pi 5 Active Cooler spins before any load.
-- Known issues: GL apps crash if run as a different user from Screen and `drm-rpi5` (run both as root); client
-  allocated buffers are not supported by `drm-rpi`; use `/dev/dri/`, not `/dev/drm/`.
+- Boot from microSD.
+- Screen graphics: OpenGL ES 3.1 and Vulkan 1.3 via Mesa (`v3d_dri.so`); configs `graphics-rpi5-hdmi1.conf`,
+  `-hdmi2.conf`, `-2xhdmi.conf`, `-virtual.conf`. We use HDMI0 at 1920 x 1080.
+- We do not use the case's DSI screen, camera or speakers; the display is an HDMI monitor. The Freenove fan/OLED
+  service is for Raspberry Pi OS; check the Pi 5 Active Cooler spins before any load.
+- Run GL apps as the same user as Screen and `drm-rpi5` (root), and use `/dev/dri/`.
 
 Keep QNX on a **separate microSD** so the Pi's existing Raspberry Pi OS card stays intact.
 

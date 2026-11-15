@@ -10,13 +10,15 @@ Details and history are in the linked documents.
 - David does every QNX install and update. Claude verifies, records and advises.
 - Every change to a target is recorded: what, where, how to undo it. The same goes for tools added to a host
   (webcam, OBS, OCR).
-- Passwords are never written into the repo. Software Center logs are never printed unfiltered (they hold the
-  myQNX password in clear text). Test devices keep their documented default passwords for now.
+- Passwords are never written into the repo. Software Center logs are never printed or shared. Test devices keep
+  their documented default passwords for now.
 - WSL is not used (2026-11-12). The Linux host is UBUNTU24.
 - Ask before pushing.
-- **QNX issues stay private** (David, 2026-11-15). Defects found in QNX software (crashes, wrong behaviour, test
-  evidence about QNX components) are kept on the LAN (the Windows host's evidence folder and the MyBookLive share), not
-  in this public repository. OculiX issues stay public, as before.
+- **No judgment of QNX software or infrastructure in this repository** (David, 2026-11-15). Nothing that judges the
+  QNX 8 software or infrastructure (the OS, Screen, `vncserv`, the quick-start image, the SDP, the Software Center,
+  myQNX, QNX's documentation) goes in this repository; such material is kept privately, on the LAN (the Windows
+  host's evidence folder and the MyBookLive share). Instructions of what we used (versions, hashes, settings,
+  commands, steps) are fine, so that judges can reproduce our results. OculiX issues stay public, as before.
 
 ## Tests
 
@@ -32,8 +34,8 @@ Details and history are in the linked documents.
 - **Foundations first** (2026-11-13). A function is tested before the functions that reuse it. Every test lists its
   prerequisites. If one did not pass, the test is not run: it is recorded as SKIP, with the reason naming the
   prerequisite and its result. A prerequisite is a function the test really reuses, not just the test before it.
-- **A known limit of the image is N/A with the reason**, not a failure and not a silent gap (for example: the
-  quick-start image's terminal ignores the mouse).
+- **A test that does not apply on the image under test is N/A with the reason**, not a failure and not a silent
+  gap.
 - **An ID always comes with its title** (2026-11-13), for example `F03 (click opens an app)`, in tool output, skip
   reasons, tables and messages. The ID is the key for traceability; the title is what a person can follow.
 - **A visible test must be able to show its claim on screen.** A test with nothing to act on proves nothing: set up
@@ -58,11 +60,11 @@ Details and history are in the linked documents.
 ## OculiX
 
 - **The same VNC settings on all test hosts** (2026-11-14). The goal is one VNC server product and version on
-  Windows, macOS and Linux, so results compare like for like; QNX's `vncserv` is fixed by its build and the ON agent
-  makes up the difference. The only common product, RealVNC Server, needs a Premium subscription for the direct
-  connections OculiX uses, so **first** each host uses a free server with the same settings (VNC password login,
-  at most 8 characters, port 5900, the real desktop), and the product is recorded with every result. RealVNC
-  Premium is in the budget and can be added later for a retest on one product.
+  Windows, macOS and Linux, so results compare like for like; QNX's `vncserv` is used as shipped. The only
+  common product, RealVNC Server, needs a Premium subscription for the direct connections OculiX uses, so
+  **first** each host uses a free server with the same settings (VNC password login, at most 8 characters, port
+  5900, the real desktop), and the product is recorded with every result. RealVNC Premium is in the budget and can
+  be added later for a retest on one product.
 
 - **Test configuration ON-VNC-1** (2026-11-14) for all OculiX and VNC testing: tigervnc-java-oculix 2.0.4 first on
   the classpath, then the OculiX 4.0.0 jar, both checked by SHA-256; security types limited to `VncAuth,None` before

@@ -10,4 +10,4 @@ each one costs, what could break, and how it will be tested. Use QNX documentati
 library on the MyBookLive share, `library/qnx`) and say which statements come from documentation and which are your inference. Write the result as a
 document ready for a review packet.
 
-Rules for every OpticNerve role: follow docs/HOW_WE_WORK.md and docs/REVIEWS.md. Never write passwords anywhere. QNX defects stay private (never into the public repo). Nothing is posted to GitHub. Say what was measured and what was only reasoned, and what was not checked.
+Rules for every OpticNerve role: follow docs/HOW_WE_WORK.md and docs/REVIEWS.md. Never write passwords anywhere. Nothing that judges QNX software or infrastructure goes into the public repo (instructions of what we used are fine); such material is kept privately. Nothing is posted to GitHub. Say what was measured and what was only reasoned, and what was not checked.

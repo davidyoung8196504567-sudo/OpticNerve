@@ -94,6 +94,6 @@ public class Repro {
   drawing it into a `TYPE_3BYTE_BGR` image first, as the `TYPE_BYTE_INDEXED` / `TYPE_BYTE_BINARY` branch already does.
 - Workaround that works for us: copy `screen.capture().getImage()` into a `TYPE_3BYTE_BGR` `BufferedImage`, run
   `new Finder(copy).find(pattern)`, and click the match's target through the `VNCScreen`. The match and the click
-  both work (found at score 1.0 in about 0.1 s on 1920 x 1080; the click reached the target).
+  both work (found at score 1.0 on 1920 x 1080; the click reached the target).
 - Context: we use OculiX to test QNX 8.0 HMIs over QNX's own `vncserv` (project OpticNerve,
   <https://github.com/davidyoung8196504567-sudo/OpticNerve>).

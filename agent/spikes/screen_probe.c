@@ -1,8 +1,7 @@
 /*
  * screen_probe: phase 2 spikes S2 to S5 (see docs/DESIGN.md).
  *
- * Throwaway test program, one subcommand per question. Plain-text output so the results can be pasted into
- * docs/notes. Not part of the agent.
+ * Throwaway test program, one subcommand per question. Plain-text output. Not part of the agent.
  *
  *   screen_probe status                    display list, idle state and timeout, keep-awakes, power mode, metrics
  *   screen_probe watch SECS [rearm]        S5: count SCREEN_NOTIFY_UPDATE pulses per second, with idle state
@@ -115,7 +114,7 @@ static int cmd_status(void)
 	printf("idle_timeout_ns %lld (%.1f s)\n", timeout, timeout / 1e9);
 	print_idle(d);
 	print_metrics(d);
-	printf("metrics read again at once (do they reset on read?):\n");
+	printf("metrics, second read:\n");
 	print_metrics(d);
 	screen_destroy_context(ctx);
 	return 0;

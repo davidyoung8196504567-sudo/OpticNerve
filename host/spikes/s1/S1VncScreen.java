@@ -4,9 +4,10 @@
 //   java -cp oculixapi-4.0.0-windows.jar host/spikes/s1/S1VncScreen.java HOST PASSWORD find PATTERN.png OUTDIR [click]
 //
 // capture: connect with VNCScreen.start, time three full captures, save the first.
-// find: try Region.exists on the VNCScreen (fails in OculiX 4.0.0, see docs/notes/2026-11-12_spikes.md), then the
-// workaround: copy the capture into a TYPE_3BYTE_BGR image, run a Finder on it, and with "click" click the match
-// through the VNCScreen and save a capture taken 2 s later.
+// find: try Region.exists on the VNCScreen (fails in OculiX 4.0.0, see
+// docs/upstream/oculix-vncscreen-find-classcast.md), then the workaround: copy the capture into a TYPE_3BYTE_BGR
+// image, run a Finder on it, and with "click" click the match through the VNCScreen and save a capture taken 2 s
+// later.
 import java.awt.image.BufferedImage;
 import java.io.File;
 import javax.imageio.ImageIO;

@@ -1,9 +1,8 @@
 # QNX SDP 8.0 reinstall with Raspberry Pi 5 packages (2026-11-12)
 
-Follow-up to [2026-11-12_win11_survey.md](2026-11-12_win11_survey.md). The original SDP at `%USERPROFILE%\qnx800`
-disappeared from disk mid-morning (cause not found) while the Software Center still listed it. The Software Center
-was cleaned up and the SDP reinstalled through the Software Center GUI. This note records what is installed now,
-checked read-only from the Software Center CLI (`-offline -listInstalledRoots`, `-exportPatchSetText`).
+Follow-up to [2026-11-12_win11_survey.md](2026-11-12_win11_survey.md). The SDP was reinstalled on 2026-11-12
+through the Software Center GUI. This note records what is installed now, checked read-only from the Software
+Center CLI (`-offline -listInstalledRoots`, `-exportPatchSetText`).
 
 ## Headline
 
@@ -83,10 +82,6 @@ stack (7), `screen.board.drm` and `screen.board.intel`, `wpa_supplicant_2.11.ios
 `python sdp/check_sdp.py` (see [../CONFIG_MANAGEMENT.md](../CONFIG_MANAGEMENT.md)) hashed all 24,117 packaged files
 in `qnx800_2` against the SHA-512 values in QNX's package descriptors: none missing, modified or extra. This is
 recorded as baseline SDP-BL-001.
-
-The Software Center CLI's `-verifyInstallation` reports 562 "unexpected file" errors, in `qnx800` and `qnx800_2`
-alike, all under `target/qnx/usr/share/terminfo`. They are file-name case differences on Windows (`A/a210` on disk,
-`a/a210` in the package list), not damage. The GUI's verification reports the installation as clean.
 
 ## Toolchain check (`qnx800_2`)
 

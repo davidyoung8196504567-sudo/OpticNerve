@@ -71,7 +71,7 @@ starts only when the disposition is recorded, or when David waives the review fo
 - **Records in git**, not in messages: the private bare repository `git/fleet-reviews.git` on the MyBookLive share
   (created 2026-11-15), one folder per review, `R-nnn/`, with templates in `templates/`. Git gives history, diffs and
   nothing lost when a session ends. It stays off GitHub, which keeps the rules that nothing goes to GitHub from ON
-  sessions and that QNX issues stay private.
+  sessions and that nothing that judges QNX software or infrastructure is published.
 - **Messages are pointers**: "R-012 ready at fleet-reviews abc1234, lens: concurrency, due before slot 4". The receipt
   rule stays as it is.
 - **The share's other folders** carry only large files (cores, recordings, PDFs), each with a checksum.
