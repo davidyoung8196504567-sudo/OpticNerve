@@ -18,6 +18,22 @@ recorded disposition of every finding.
 
 Other items get a review when David asks for one, or when the author is unsure.
 
+## Hosts and their part
+
+Proposed on 2026-11-15; David configured the peer sessions that day. Each session's actual model and effort are
+confirmed with it at the next sync and recorded in the fleet-reviews repository.
+
+| Session | Host | Part |
+|---|---|---|
+| ON-ASUSROG-win-11 | Windows 11 laptop (the SDP baseline host; pushes to GitHub) | author of designs and code; runs the tests on the Pi |
+| ON-UBUNTU24 | Ubuntu 24.04 host | first reviewer; Linux-side tests |
+| ON-MacBookM4Pro | MacBook Pro M4 Pro | second reviewer, on a different model from the first where possible |
+| Oculix session | MacBook Pro M4 Pro, in David's OculiX fork | reviewer for protocol and OculiX interoperability at G2 and G4 |
+
+The lens for each review is named in its request. To take part, a peer needs three things: its OpticNerve working tree
+at the current `main` (the roles are files in `.claude/agents/`, so a checkout of a branch without them has no roles),
+a session started after that folder existed, and a clone of `git/fleet-reviews.git`.
+
 ## The review packet
 
 The author writes `R-nnn-request.md` with:
