@@ -83,6 +83,13 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   `66ba6229...`), recorded once in the repo, so a later image or a changed MOTD is caught. The fresh-install setup
   test above (create the `opticnerve` user) follows in the same scenario.
 
+- **Launcher walkthrough with a GTK Demo crawl** (David, 2026-11-15): walk the quick-start image's launcher as a
+  showcase of the image and of what OpticNerve adds, and inside GTK Demo crawl the navigation list on the left: open
+  each entry, capture it, find its widgets (buttons, sliders, text fields, lists, drawing areas) and probe which ones
+  take pointer or keyboard input, recording the response of each. Avoid GTK Inspector (Ctrl+Shift+I): on the Pi it
+  blacked out the screen until gtk4-demo was closed over SSH. Each demo is closed before the next, and the target is
+  checked after each (processes, core dumps). A candidate for the demo video.
+
 ## OculiX issues found: fix after the ON agent work
 
 David contributes to OculiX through his fork <https://github.com/davidyoung8196504567-sudo/Oculix>. Problems we find
