@@ -43,10 +43,11 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 
 ## Master table: what was measured, per host, target and configuration
 
-A summary of every measured result in this document, as of 2026-11-14 (slots 1 to 3 included). Each row is one
+A summary of every measured result in this document, as of 2026-11-15 (slots 1 to 3 and the Windows → Pi input run
+included). Each row is one
 combination: the host OculiX ran on, the VNC server it drove, and the VNC client library. The sections below hold
 the details, numbers and sources. A printable copy of this section is [OCULIX_MASTER_TABLE.pdf](OCULIX_MASTER_TABLE.pdf)
-(regenerated 2026-11-15). Only measured results with OculiX itself are listed; results with our own VNC tool
+(made with `host/tools/master_table_pdf.py`). Only measured results with OculiX itself are listed; results with our own VNC tool
 and the "by design" cells are left out. The local-host column has not been measured on any host.
 
 Configurations:
