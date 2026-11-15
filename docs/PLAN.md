@@ -36,7 +36,7 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   free -g; lsblk -d -o NAME,ROTA,SIZE,MODEL
   cat /etc/redhat-release
   ```
-- [ ] Confirm the direction for gate G1 ([REVIEWS.md](REVIEWS.md)): our own VNC server. DESIGN.md is then written,
+- [x] Confirm the direction for gate G1 ([REVIEWS.md](REVIEWS.md)): our own VNC server (confirmed 2026-11-15). DESIGN.md is then written,
   with the alternatives and licence constraints, and goes to peer review.
 - [ ] Close the Notepad test tab on the Windows laptop ("Don't save").
 
