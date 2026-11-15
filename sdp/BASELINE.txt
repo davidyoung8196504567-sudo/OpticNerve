@@ -1,8 +1,8 @@
 [win32]
-packages = 294
-files = 24743
-bytes = 11619340302
-fingerprint = 36b0ad7f086bd69ef822344d9861b48a1a44dc7da5acf2a42bff726e546bb7be
+packages = 236
+files = 23715
+bytes = 6673681094
+fingerprint = 9556e4536e637ff3faafa63d041656c9b5f663a5889f1a53180eac83f6f128a9
 case_collisions = 0
 
 [linux]

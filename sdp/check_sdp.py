@@ -4,7 +4,7 @@
     python sdp/check_sdp.py [SDP_DIR]            check (read-only), exit 0 = matches
     python sdp/check_sdp.py [SDP_DIR] --record   rewrite the baseline files from SDP_DIR
 
-SDP_DIR defaults to $QNX_SDP_DIR, then ~/qnx800_2.
+SDP_DIR defaults to $QNX_SDP_DIR, then ~/qnx805.
 
 The check does not trust the QNX Software Center. It reads the package
 descriptors that QNX ships inside the SDP (.packages/metadata/<id>/<version>/
@@ -165,7 +165,7 @@ def read_baseline():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("sdp", nargs="?", default=os.environ.get("QNX_SDP_DIR", str(Path.home() / "qnx800_2")))
+    ap.add_argument("sdp", nargs="?", default=os.environ.get("QNX_SDP_DIR", str(Path.home() / "qnx805")))
     ap.add_argument("--record", action="store_true", help="rewrite the baseline files from this installation")
     args = ap.parse_args()
     sdp = Path(args.sdp).resolve()

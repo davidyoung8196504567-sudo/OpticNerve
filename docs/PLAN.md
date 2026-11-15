@@ -79,7 +79,7 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 
 ## Status on 2026-11-12 (day 1)
 
-- Phase 0: build hosts done (Windows and Linux at SDP-BL-005, not "SDP 8.0.5": see the config management doc); Pi 5
+- Phase 0: build hosts done (Windows at SDP-BL-006, the SDP 8.0.5 release, since 2026-11-15; the Linux entries are still the SDP-BL-005 set: see the config management doc); Pi 5
   boots QNX from its own microSD (the Raspberry Pi OS card is separate). QEMU target not yet booted.
 - Phase 1: done. Design [DESIGN.md](DESIGN.md) accepted by David: build on `vncserv`, the ON agent adds frame
   freshness, idle/keep-awake, region capture and status via `/dev/opticnerve`; the demo HMI is a native Screen
