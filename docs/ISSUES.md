@@ -1,23 +1,13 @@
 # Issues found by our testing
 
-Every defect our tests found in OculiX, in QNX and in third-party VNC servers, with an internal ID for tracking.
+Every defect our tests found in OculiX and in third-party VNC servers, with an internal ID for tracking.
 Started 2026-11-14. The evidence and measurements are in [OCULIX_VNC_MATRIX.md](OCULIX_VNC_MATRIX.md).
 
 How issues are reported:
 
 - **OculiX** (open source): the Oculix session drafts each report in David's fork. David reviews it and raises it
   upstream together with its fix, as a pull request. Nothing is filed until David has reviewed it.
-- **QNX**: defects are reported to QNX **privately**, through QNX support, with the evidence attached. Only the
-  internal ID, a one-line title and the QNX reference are listed here, so that QNX support and the QNX development
-  team can find each report.
 - **Third-party VNC servers**: recorded here; reported upstream only if we show the cause.
-
-## QNX
-
-| ID | Issue | Status | QNX reference |
-|---|---|---|---|
-| ON-QNX-001 | `vncserv` 4.2.0 (quick-start image 20260902) crashed once after a client disconnected ([note](notes/2026-11-14_vncserv_crash.md)) | case write-up ready; to be reported to QNX support privately; not reproduced in 280 further connections (140 on 4.2.0, 140 on 4.2.1); the Pi now runs 4.2.1 | to be added |
-| ON-QNX-002 | Graphics stack on the Pi 5: `drm-rpi5`, `screen` and `rpi_thermal` terminated together (2026-11-12, [spikes note](notes/2026-11-12_spikes.md)), and `drm-rpi5` again on 2026-11-13 | under investigation; not reported | none yet |
 
 ## OculiX 4.0.0 (with its VNC client, tigervnc-java-oculix)
 

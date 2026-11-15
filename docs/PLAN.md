@@ -90,6 +90,13 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   blacked out the screen until gtk4-demo was closed over SSH. Each demo is closed before the next, and the target is
   checked after each (processes, core dumps). A candidate for the demo video.
 
+## Fallback: our own VNC server on QNX
+
+(David, 2026-11-15.) If QNX's `vncserv` gets in the way of the agent work, build our own VNC server for QNX from open
+source (LibVNCServer, GPL-2.0-or-later, which this repository's licence must then allow for), with Screen capture
+through `screen_read_display()` and input through `screen_inject_event()`, and run it in place of `vncserv`. Not
+started; the agent is built on `vncserv` until then (DESIGN.md, decision of 2026-11-12).
+
 ## OculiX issues found: fix after the ON agent work
 
 David contributes to OculiX through his fork <https://github.com/davidyoung8196504567-sudo/Oculix>. Problems we find

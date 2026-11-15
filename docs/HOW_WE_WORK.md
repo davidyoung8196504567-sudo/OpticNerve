@@ -14,6 +14,9 @@ Details and history are in the linked documents.
   myQNX password in clear text). Test devices keep their documented default passwords for now.
 - WSL is not used (2026-11-12). The Linux host is UBUNTU24.
 - Ask before pushing.
+- **QNX issues stay private** (David, 2026-11-15). Defects found in QNX software (crashes, wrong behaviour, test
+  evidence about QNX components) are kept on the LAN (the Windows host's evidence folder and the MyBookLive share), not
+  in this public repository. OculiX issues stay public, as before.
 
 ## Tests
 

@@ -46,7 +46,7 @@ Where the QNX column says "with our VNC tool", the function was proved with `hos
 A summary of every measured result in this document, as of 2026-11-14 (slots 1 to 3 included). Each row is one
 combination: the host OculiX ran on, the VNC server it drove, and the VNC client library. The sections below hold
 the details, numbers and sources. A printable copy of this section is [OCULIX_MASTER_TABLE.pdf](OCULIX_MASTER_TABLE.pdf)
-(made from commit a71690e). Only measured results with OculiX itself are listed; results with our own VNC tool
+(regenerated 2026-11-15). Only measured results with OculiX itself are listed; results with our own VNC tool
 and the "by design" cells are left out. The local-host column has not been measured on any host.
 
 Configurations:
@@ -128,7 +128,6 @@ Not yet measured with OculiX:
 - Touch.
 - `observe` and `onChange`.
 - Keyboard layouts.
-- Reproducing the one `vncserv` crash of the Windows → Pi run (reported to QNX privately).
 - `vncserv -format=rgba8888` on the Pi. This is a target change.
 - Repeat runs. Most results above come from one run each; only the TightVNC runs and the Mac → TightVNC 2.0.2 runs
   were repeated.
@@ -209,7 +208,7 @@ Caps Lock there (QNX not measured). Input on the Pi waits for a slot David sched
 **On the Pi** (ON-UBUNTU24, 2026-11-14, 04:3x to 04:46 UTC; ON-VNC-1 with `oculixapi-4.0.0-linux.jar`, Temurin
 25.0.4+7, through an RFB proxy that logs what OculiX sent; one run): pointer phase on the launcher, keyboard phase in
 st under `cat -v`, then `sudo shutdown` back to the launcher (0 pixels different from the frame before, no app left
-open, no new core dump). The Pi had rebooted by itself at 04:33:15 UTC before the slot (cause unknown). For the ON
+open, no new core dump). For the ON
 agent and the suite: send Enter as `type("\r")`, Delete as the Delete keysym (0xffff), avoid Ctrl+Shift and
 Ctrl+Alt combinations through OculiX, and do not expect to see the pointer in VNC frames.
 
@@ -434,12 +433,8 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      files and `PiInputProbe.java` phases, from the share, checked against its SHA256SUMS) through `rfb_tap.py` on
      this host, with `StepProbe` v3, plus new steps: double click, middle click and wheel in gtk4-demo, and slot 3's
      keys in st under `cat -v`. GTK Inspector (Ctrl+Shift+I) left out. A check after every phase that `vncserv` was
-     running and no core dump was new; recordings `OpticNerve_2026-11-14_2338Z_win-pi-input.mp4` (up to the crash)
-     and `OpticNerve_2026-11-14_2349Z_win-pi-input.mp4`.
-     - **`vncserv` crashed once**, after g2a's last step, most likely at its disconnect; the next connection was
-       refused. The client sent only complete, well-formed messages. After `vncserv` was restarted as at boot, the
-       same steps and the rest of the run did not crash. The evidence is kept privately and the defect is reported to
-       QNX privately as ON-QNX-001: [notes/2026-11-14_vncserv_crash.md](notes/2026-11-14_vncserv_crash.md).
+     running and no core dump was new; recordings `OpticNerve_2026-11-14_2338Z_win-pi-input.mp4` and
+     `OpticNerve_2026-11-14_2349Z_win-pi-input.mp4`.
      - **The same as from UBUNTU24:** pointer events 68 of 68 counted by Screen in the launcher phase; `click`,
        `hover`, `rightClick`, `dragDrop`; `Button.*` does nothing; a bare `mouseUp()` leaves the button held (the
        selection kept growing); `mouseUp(ALL)` recovers; typing, capitals and all ASCII punctuation exact; Return
@@ -459,25 +454,7 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
 " to VK_RETURN (13), and
        `VNCRobot.keyToXlib` knows only Java's VK_ENTER (10); the Linux layout maps them to VK_ENTER, hence Return.
      - Teardown: Ctrl+D, `sudo shutdown`; VNC back after 33 s; the frame equals the frame before the run (0 pixels
-       differ); no new core dump after the restart; no app open; `/tmp/screen_probe` still present.
-   - **`vncserv` 4.2.0 B70 → 4.2.1 B115 on the Pi, stress and repeat**, 2026-11-15 02:44 to 03:36 UTC, David's go;
-     the same setup as the run above, through the tap, recorded (`OpticNerve_2026-11-15_0335Z_win-pi-input.mp4`). After
-     every 10 connections: `vncserv` running, its memory (`pidin mem`) and the core dump list. 4.2.1 is built on
-     LibVNCServer 0.9.15, 4.2.0 on 0.9.14.
-     - **A, stock 4.2.0** (running since the 23:48 restart): 100 bare connect, capture and stop cycles, then the crash
-       sequence (`open`, g1a, g1b, g2a, with gtk4-demo closed over SSH before each) 10 times: 140 connections, **no
-       crash**, no new core dump, the same process throughout, data memory 9 to 10 MB with no growth.
-     - **Swap** (recorded in CONFIG_MANAGEMENT.md): the stock binary kept as `/usr/bin/vncserv-4.2.0-B70`, 4.2.1 from the
-       SDP baseline installed as `/usr/bin/vncserv` and started as at boot; `use -i` shows B115; frames as before
-       (1920 x 1080, 16 bpp).
-     - **B, 4.2.1**: the same 140 connections, **no crash**, memory 9 to 10 MB.
-     - **C, 4.2.1**: the full Windows → Pi run again (gtk4-demo phases, launcher, login, `stty`, `cat -v` keys, the
-       Windows key lines, `sudo shutdown`): every phase sent the same messages and the screen showed the same text as on
-       4.2.0 (the same 1 exception in the keys phase and 4 in the Windows key lines); after the reboot 4.2.1 started by
-       itself from the boot script, and the launcher frame equals the frame of 2026-11-14 (0 pixels differ).
-     - So the crash (ON-QNX-001) did not reproduce in 280 more connections on either version, and 4.2.1 behaves the same
-       as 4.2.0 for every OculiX function tested. Whether 4.2.1 fixes the crash is not shown. 4.2.1 stays on the Pi for
-       agent development (David, 2026-11-15).
+       differ); no app open; `/tmp/screen_probe` still present.
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen

@@ -7,8 +7,7 @@ only on David's go, and non-visible tests.
 
 ## Setup
 
-- Target: Pi 5 at 10.30.1.116, unchanged since 2026-11-12 (`/tmp/screen_probe` SHA-256 `6eded5f1...` still there;
-  the three cores of the 21:43 UTC crash still in `/data/var/dumper/`, no new ones). It was in the **native session**
+- Target: Pi 5 at 10.30.1.116, unchanged since 2026-11-12 (`/tmp/screen_probe` SHA-256 `6eded5f1...` still there). It was in the **native session**
   (`fullscreen-winmgr -s demolauncher,st,gtk` + `demolauncher`, no Weston), showing the launcher. Yesterday S2 to S6
   ran in the Developer Desktop session (Weston), mostly over its lock screen; S1 ran in the native session.
 - Same programs as yesterday: `agent/spikes/screen_probe.c` (as root via `sudo`), `host/tools/vnc_snapshot.py`,
