@@ -16,7 +16,7 @@ How issues are reported:
 
 | ID | Issue | Status | QNX reference |
 |---|---|---|---|
-| ON-QNX-001 | `vncserv` 4.2.0 (quick-start image 20260902) crashed once after a client disconnected ([note](notes/2026-11-14_vncserv_crash.md)) | case write-up ready; to be reported to QNX support privately; reproduction runs planned | to be added |
+| ON-QNX-001 | `vncserv` 4.2.0 (quick-start image 20260902) crashed once after a client disconnected ([note](notes/2026-11-14_vncserv_crash.md)) | case write-up ready; to be reported to QNX support privately; not reproduced in 280 further connections (140 on 4.2.0, 140 on 4.2.1); the Pi now runs 4.2.1 | to be added |
 | ON-QNX-002 | Graphics stack on the Pi 5: `drm-rpi5`, `screen` and `rpi_thermal` terminated together (2026-11-12, [spikes note](notes/2026-11-12_spikes.md)), and `drm-rpi5` again on 2026-11-13 | under investigation; not reported | none yet |
 
 ## OculiX 4.0.0 (with its VNC client, tigervnc-java-oculix)

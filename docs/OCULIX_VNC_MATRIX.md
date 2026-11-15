@@ -460,6 +460,24 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
        `VNCRobot.keyToXlib` knows only Java's VK_ENTER (10); the Linux layout maps them to VK_ENTER, hence Return.
      - Teardown: Ctrl+D, `sudo shutdown`; VNC back after 33 s; the frame equals the frame before the run (0 pixels
        differ); no new core dump after the restart; no app open; `/tmp/screen_probe` still present.
+   - **`vncserv` 4.2.0 B70 → 4.2.1 B115 on the Pi, stress and repeat**, 2026-11-15 02:44 to 03:36 UTC, David's go;
+     the same setup as the run above, through the tap, recorded (`OpticNerve_2026-11-15_0335Z_win-pi-input.mp4`). After
+     every 10 connections: `vncserv` running, its memory (`pidin mem`) and the core dump list. 4.2.1 is built on
+     LibVNCServer 0.9.15, 4.2.0 on 0.9.14.
+     - **A, stock 4.2.0** (running since the 23:48 restart): 100 bare connect, capture and stop cycles, then the crash
+       sequence (`open`, g1a, g1b, g2a, with gtk4-demo closed over SSH before each) 10 times: 140 connections, **no
+       crash**, no new core dump, the same process throughout, data memory 9 to 10 MB with no growth.
+     - **Swap** (recorded in CONFIG_MANAGEMENT.md): the stock binary kept as `/usr/bin/vncserv-4.2.0-B70`, 4.2.1 from the
+       SDP baseline installed as `/usr/bin/vncserv` and started as at boot; `use -i` shows B115; frames as before
+       (1920 x 1080, 16 bpp).
+     - **B, 4.2.1**: the same 140 connections, **no crash**, memory 9 to 10 MB.
+     - **C, 4.2.1**: the full Windows → Pi run again (gtk4-demo phases, launcher, login, `stty`, `cat -v` keys, the
+       Windows key lines, `sudo shutdown`): every phase sent the same messages and the screen showed the same text as on
+       4.2.0 (the same 1 exception in the keys phase and 4 in the Windows key lines); after the reboot 4.2.1 started by
+       itself from the boot script, and the launcher frame equals the frame of 2026-11-14 (0 pixels differ).
+     - So the crash (ON-QNX-001) did not reproduce in 280 more connections on either version, and 4.2.1 behaves the same
+       as 4.2.0 for every OculiX function tested. Whether 4.2.1 fixes the crash is not shown. 4.2.1 stays on the Pi for
+       agent development (David, 2026-11-15).
    - **UBUNTU24 → this Windows 11 laptop:** Windows has no VNC server built in; one is installed (TightVNC, UltraVNC
      or TigerVNC; David chooses) and recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), with a firewall rule.
    - **Both hosts → the MacBook M4 Pro:** macOS Screen Sharing (port 5900), with "VNC viewers may control screen

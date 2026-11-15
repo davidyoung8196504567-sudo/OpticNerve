@@ -12,6 +12,13 @@ core dump. It did not happen again in the rest of the run.
 - The evidence (the core dump, the binaries, the debugger output, the system log and the full analysis) is kept
   privately and is not published here. Defects in QNX are reported to QNX privately, not in this public repository.
 
+## Reproduction attempts
+
+On 2026-11-15, 140 connections against the same `vncserv` 4.2.0, then 140 against 4.2.1 (from the SDP baseline,
+now installed on the Pi), each set made of 100 plain connect and disconnect cycles and 10 repeats of the session
+sequence that preceded the crash: no crash, no new core dump, no memory growth. The full input run on 4.2.1 gave the
+same results as on 4.2.0. Details in OCULIX_VNC_MATRIX.md.
+
 ## Reported to QNX
 
 | Date | Channel | Reference |
