@@ -23,6 +23,23 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 | 5 | Oculix suite | Demo HMI (a native Screen application) on QNX; Oculix test suite and preset on the host; runs green on Pi 5 and QEMU | 2026-12-10 |
 | 6 | Submission | Build and run instructions, description naming the QNX-specific files, video, tutorial | 2026-12-14 |
 
+## David's to-do (Claude reminds him until done)
+
+- [ ] **Intel server (HC8000) online** (added 2026-11-15): run Ethernet to it (it is in the sound-insulated area), find
+  its login, then run the read-only CPU and virtualization check below and paste the output to Claude, who then
+  recommends RHEL 9.7 + KVM/libvirt or Proxmox and adds it to the plan:
+  ```bash
+  lscpu | grep -E "Model name|Socket|Core|Thread|NUMA node\(s\)"
+  /lib64/ld-linux-x86-64.so.2 --help | grep supported
+  grep -o -w -E "vmx|ept|vpid" /proc/cpuinfo | sort | uniq -c
+  sudo dmesg | grep -i -E "DMAR|IOMMU" | head -5
+  free -g; lsblk -d -o NAME,ROTA,SIZE,MODEL
+  cat /etc/redhat-release
+  ```
+- [ ] Confirm the design change to our own VNC server (then DESIGN.md is updated).
+- [ ] Decide whether to file the private `vncserv` crash case with QNX; if so, give Claude the QNX reference.
+- [ ] Close the Notepad test tab on the Windows laptop ("Don't save").
+
 ## Rules to keep (from the official rules, read 2026-11-12)
 
 - Public repo with an open-source licence; all source and build instructions; it must really build for or run on QNX
