@@ -128,7 +128,7 @@ Not yet measured with OculiX:
 - Touch.
 - `observe` and `onChange`.
 - Keyboard layouts.
-- The cause of the one `vncserv` crash during the Windows → Pi run (it did not reproduce).
+- Reproducing the one `vncserv` crash of the Windows → Pi run (reported to QNX privately).
 - `vncserv -format=rgba8888` on the Pi. This is a target change.
 - Repeat runs. Most results above come from one run each; only the TightVNC runs and the Mac → TightVNC 2.0.2 runs
   were repeated.
@@ -434,15 +434,10 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      keys in st under `cat -v`. GTK Inspector (Ctrl+Shift+I) left out. A check after every phase that `vncserv` was
      running and no core dump was new; recordings `OpticNerve_2026-11-14_2338Z_win-pi-input.mp4` (up to the crash)
      and `OpticNerve_2026-11-14_2349Z_win-pi-input.mp4`.
-     - **`vncserv` crashed once** (core `vncserv.core`, 13,893,632 bytes, 23:37 UTC, copied off the Pi and checked by
-       cksum; kept on this host, not in the repo). It happened after g2a's last step (Ctrl+Shift+A, whose capture was
-       normal), most likely at g2a's disconnect: the next connection was refused. The last messages the client sent
-       were complete `FramebufferUpdateRequest`s; `vncserv` saw the tap's close, as in every phase before. g2a's wire
-       bytes are identical to ON-UBUNTU24's run 12, which did not crash. `vncserv` was restarted by hand as at boot
-       (`vncserv -display=1 -auth`, as root); a bare connect, capture and stop, then g2a again, did **not** crash, and
-       nothing crashed in the rest of the run. So the cause is not known and the crash did not reproduce. The Pi log's
-       repeating "uhub0/uhub1: detached" lines continue with `vncserv` up, so they are not part of the crash. A
-       backtrace needs the SDP's debugger.
+     - **`vncserv` crashed once**, after g2a's last step, most likely at its disconnect; the next connection was
+       refused. The client sent only complete, well-formed messages. After `vncserv` was restarted as at boot, the
+       same steps and the rest of the run did not crash. The evidence is kept privately and the defect is reported to
+       QNX privately: [notes/2026-11-14_vncserv_crash.md](notes/2026-11-14_vncserv_crash.md).
      - **The same as from UBUNTU24:** pointer events 68 of 68 counted by Screen in the launcher phase; `click`,
        `hover`, `rightClick`, `dragDrop`; `Button.*` does nothing; a bare `mouseUp()` leaves the button held (the
        selection kept growing); `mouseUp(ALL)` recovers; typing, capitals and all ASCII punctuation exact; Return
