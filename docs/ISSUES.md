@@ -37,9 +37,9 @@ ON-VNC-1 configuration works around it (docs/HOW_WE_WORK.md).
 | ON-OX-009 | `Button.*` constants do nothing in `mouseDown`/`mouseUp`; a bare `mouseUp()` re-sends the press and leaves the button held | `Mouse.*` constants only | 3 |
 | ON-OX-010 | `paste()` and `type()` with non-ASCII text send only Ctrl+V and no clipboard message; nothing arrives, and the call returns success | type the text; ON agent | 5 |
 | ON-OX-011 | `type("a", SHIFT)` and Ctrl+Shift+letter send the lowercase keysym with Shift held (x11vnc gives "a"; TigerVNC leaves Caps Lock on) | type capitals as capitals; avoid Ctrl+Shift | 6 (a comment on #334) |
-| ON-OX-012 | `KeyModifier.META` sends Meta_L, not Super | none needed so far | none yet |
-| ON-OX-013 | Partial captures and `getColor` send update requests with width and height where the code expects corners (`VNCClient.java:167`); servers clip them, so results are right | none needed | none yet (measured on the wire by ON-UBUNTU24; results right) |
-| ON-OX-014 | OCR does not load on macOS: OculiX 4.0.0 pins Legerix 5.5.0-8 (Legerix#20, fixed in 5.5.0-9); on Linux it needs `LD_LIBRARY_PATH` | OCR from Windows or Linux | none (upstream: Legerix#20 for macOS; Linux most likely Legerix#26, to confirm) |
+| ON-OX-012 | `KeyModifier.META` sends Meta_L, not Super | none needed so far | 12 |
+| ON-OX-013 | Partial captures and `getColor` send update requests with width and height where the code expects corners (`VNCClient.java:167`); servers clip them, so results are right | none needed | 13 (low severity; measured on the wire by ON-UBUNTU24; results right) |
+| ON-OX-014 | OCR does not load on macOS: OculiX 4.0.0 pins Legerix 5.5.0-8 (Legerix#20, fixed in 5.5.0-9); on Linux it needs `LD_LIBRARY_PATH` | OCR from Windows or Linux | none (upstream: Legerix#20 for macOS; Legerix#26 for Linux, its RUNPATH is a CI path plus a broken `$ORIGIN`) |
 | ON-OX-015 | Calls return success when nothing was delivered, and a decoder exception kills the reader thread while the script carries on | check stderr for `Thread-N` exceptions; keep a capture | tracker only; covered by drafts 3, 4, 5 and 9 |
 
 ## Third-party VNC servers
