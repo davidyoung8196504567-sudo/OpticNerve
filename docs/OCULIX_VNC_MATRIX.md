@@ -134,6 +134,8 @@ Not yet measured with OculiX:
   were repeated.
 - A working OCR setup on the Mac. OCR does not load there because of Legerix#20.
 
+Every defect found is listed with an internal ID in [ISSUES.md](ISSUES.md).
+
 ON-VNC-1 fixes what OculiX sees, not its input. On TigerVNC, configurations A and C sent identical input, so the
 input defects in the table remain under every configuration, and the ON agent works around them.
 
@@ -437,7 +439,7 @@ Points from the "Oculix-MacBookM4Pro-macOS-27" session (working in David's Oculi
      - **`vncserv` crashed once**, after g2a's last step, most likely at its disconnect; the next connection was
        refused. The client sent only complete, well-formed messages. After `vncserv` was restarted as at boot, the
        same steps and the rest of the run did not crash. The evidence is kept privately and the defect is reported to
-       QNX privately: [notes/2026-11-14_vncserv_crash.md](notes/2026-11-14_vncserv_crash.md).
+       QNX privately as ON-QNX-001: [notes/2026-11-14_vncserv_crash.md](notes/2026-11-14_vncserv_crash.md).
      - **The same as from UBUNTU24:** pointer events 68 of 68 counted by Screen in the launcher phase; `click`,
        `hover`, `rightClick`, `dragDrop`; `Button.*` does nothing; a bare `mouseUp()` leaves the button held (the
        selection kept growing); `mouseUp(ALL)` recovers; typing, capitals and all ASCII punctuation exact; Return

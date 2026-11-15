@@ -1,4 +1,6 @@
-# `vncserv` crash on the Pi, 2026-11-14
+# ON-QNX-001: `vncserv` crash on the Pi, 2026-11-14
+
+Internal ID **ON-QNX-001** ([ISSUES.md](../ISSUES.md)).
 
 During the Windows → Pi input run (OCULIX_VNC_MATRIX.md, "Input, Windows host → the Pi"), QNX's VNC server
 `vncserv` on the Raspberry Pi 5 (QNX 8.0 quick-start image 20260902) crashed once, at about 23:37 UTC, and wrote a
@@ -14,7 +16,7 @@ core dump. It did not happen again in the rest of the run.
 
 | Date | Channel | Reference |
 |---|---|---|
-| to be filled in | to be filled in | to be filled in |
+| to be added | QNX technical support (private case) | to be added |
 
 The reference lets QNX support and the QNX development team find the report. It is listed here so the judges can see
 that the defect was reported.
