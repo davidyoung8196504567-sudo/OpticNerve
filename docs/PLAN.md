@@ -36,8 +36,8 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
   free -g; lsblk -d -o NAME,ROTA,SIZE,MODEL
   cat /etc/redhat-release
   ```
-- [ ] Confirm the design change to our own VNC server (then DESIGN.md is updated).
-- [ ] Decide whether to file the private `vncserv` crash case with QNX; if so, give Claude the QNX reference.
+- [ ] Confirm the direction for gate G1 ([REVIEWS.md](REVIEWS.md)): our own VNC server. DESIGN.md is then written,
+  with the alternatives and licence constraints, and goes to peer review.
 - [ ] Close the Notepad test tab on the Windows laptop ("Don't save").
 
 ## Rules to keep (from the official rules, read 2026-11-12)
@@ -103,9 +103,27 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 - **Launcher walkthrough with a GTK Demo crawl** (David, 2026-11-15): walk the quick-start image's launcher as a
   showcase of the image and of what OpticNerve adds, and inside GTK Demo crawl the navigation list on the left: open
   each entry, capture it, find its widgets (buttons, sliders, text fields, lists, drawing areas) and probe which ones
-  take pointer or keyboard input, recording the response of each. Avoid GTK Inspector (Ctrl+Shift+I): on the Pi it
-  blacked out the screen until gtk4-demo was closed over SSH. Each demo is closed before the next, and the target is
-  checked after each (processes, core dumps). A candidate for the demo video.
+  take pointer or keyboard input, recording the response of each. Ctrl+Shift+I (GTK Inspector) is not used on
+  the Pi. Each demo is closed before the next, and the target is checked after each. A candidate for the demo video.
+- **A sample HMI built with Crank Storyboard** (David, 2026-11-15; time permitting): a custom sample app on the QNX
+  target as the thing the tests drive. It would give the tests an app that takes the mouse and has real controls
+  (buttons, sliders, lists, screen transitions), which the quick-start image's launcher and terminal do not.
+  Storyboard also supports the Raspberry Pi 5 and the Sitara AM5728 (David). To check first: Storyboard is a
+  commercial product, so its licence must allow this use; which Storyboard runtime exists for QNX 8.0 on the Pi 5;
+  the hackathon asks for original work without proprietary third-party code or assets, so the sample app would be an
+  optional test target and the repository must build and run without it; and the demo video must not show
+  third-party trademarks.
+
+## Hardware pool (not yet in use)
+
+- **Intel server (HC8000)**: 2U, Xeon with 20 cores and 40 threads, 128 GB, 4 x 6 TB hard drives, RHEL 9.7
+  installed. A candidate host for QNX 8.0 x86_64 targets under QEMU/KVM and for build virtual machines (RHEL 9 is
+  a supported QNX SDP host). It waits for the CPU and virtualization check in David's to-do list.
+- **TI Sitara AM5728 board** (David, 2026-11-15): a 32-bit ARM board (Cortex-A15) that QNX supports with a QNX 7
+  BSP. QNX 8.0 runs only on AArch64 and x86_64, so it cannot be a QNX 8.0 target; it could show the tools working
+  against an older QNX release, as an extra beyond the submission. To check first: whether SDP 7.x is available
+  under David's non-commercial licence (the hackathon excludes projects that use a commercial QNX licence), and
+  how QNX 7's own VNC server for Screen behaves.
 
 ## Our own VNC server on QNX, built for OculiX
 
