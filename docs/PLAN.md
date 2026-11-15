@@ -108,6 +108,13 @@ for), in place of `vncserv`, designed around what OculiX and the tests need:
   component versions on screen (DESIGN.md).
 - **Its own version in the RFB desktop name**, so every client shows what is running.
 
+**To do first: pick a stable LibVNCServer version** (David, 2026-11-15) from its GitHub releases
+(<https://github.com/LibVNC/libvncserver/releases>), and build only from that: a release tag, not `master`. Record the
+tag, its commit hash and the SHA-256 of the source archive in CONFIG_MANAGEMENT.md, like the other pinned components,
+and change it only as a recorded update. Candidates: 0.9.15, the version QNX's own `vncserv` 4.2.1 is built on (now
+on the Pi), and the newest stable release at the time of choosing; check each one's open issues against the threaded
+client handling the server will use.
+
 This replaces the plan to build the agent beside `vncserv` (DESIGN.md, decision of 2026-11-12) once David confirms
 the change; until then `vncserv` 4.2.1 stays on the Pi.
 
