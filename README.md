@@ -1,52 +1,40 @@
-# OpticNerve
+# fleet-reviews
 
-![OpticNerve: eyes and hands on any QNX 8.0 screen](docs/brand/opticnerve-banner-serious.png)
+Peer review records of the OpticNerve fleet (ON-ASUSROG-win-11, ON-UBUNTU24, ON-MacBookM4Pro, the Oculix session).
+The protocol is in the OpticNerve repository, `docs/REVIEWS.md`. This repository holds only the records.
 
-**Gives your test tools eyes and hands on any QNX 8.0 screen.**
-
-> Status: work in progress for the QNX Global Hackathon (November to December 2026). Nothing here builds yet.
-
-## The problem
-
-The HMI on a car dashboard, an infusion pump or a factory panel is tested by hand far more often than it should be.
-Desktop GUI test tools can't see inside an embedded target: they need a JVM, a desktop and an input API that a
-real-time OS doesn't provide. So teams either tap through test plans manually or build one-off rigs per product.
-
-## The idea
-
-Oculix (the open-source successor of SikuliX) already automates GUIs by **seeing** the screen and **acting** on it
-with image matching and OCR. It runs on Windows, macOS and Linux. OpticNerve is the missing link to the target: the
-**ON agent**, which puts eyeballs on a QNX 8.0 screen for Oculix 4.x on the host.
-
-```
-  host (Windows / macOS / Linux)                     target (QNX 8.0, e.g. Raspberry Pi 5)
- +------------------------------+                   +-------------------------------------+
- |  Oculix 4.x test scripts     |   VNC (RFB)       |  ON agent (OpticNerve)              |
- |  image match, OCR, asserts   | <---------------> |   - captures the display (Screen)   |
- +------------------------------+   frames out,     |   - injects touch / mouse / keys    |
-                                    input in        |   - resource manager: /dev/opticnerve |
-                                                    |  the app under test (any toolkit)   |
-                                                    +-------------------------------------+
-```
-
-- **No Java on the target.** The agent is a small native C program; the heavy lifting stays on the host.
-- **Toolkit-agnostic.** It works at the QNX Screen level, so it can test an app built with any GUI toolkit.
-- **QNX-native.** Built as a resource manager using QNX message passing.
+**Private. LAN only.** It lives on the MyBookLive share (`git/fleet-reviews.git`) and is never pushed to GitHub or any
+other outside service. It may hold material that must not be public (findings about QNX components, unpublished
+drafts). No passwords here either.
 
 ## Layout
 
-| Folder | Contents |
-|---|---|
-| `agent/` | The QNX 8.0 agent (C): Screen capture, input injection, VNC server, resource manager |
-| `host/` | Oculix scripts, a sample test suite and the connection preset |
-| `image/` | Build files for Raspberry Pi 5 and QEMU boot images that include the agent |
-| `sdp/` | The pinned QNX SDP baseline and the script that checks a build host against it |
-| `docs/` | Plan, [configuration management](docs/CONFIG_MANAGEMENT.md), design notes and the tutorial |
+    R-nnn/                      one folder per review, numbered from R-001
+      R-nnn-request.md          the author's review packet
+      R-nnn-findings-<host>.md  one file per reviewer
+      R-nnn-disposition.md      the author's answer to every finding, and the gate result
+      (patches, logs, small evidence files the review needs; large files go to the share with a checksum)
+    templates/                  copy these to start
 
-## Build and run
+## How to use it
 
-To come: QNX SDP version, target (Raspberry Pi 5 hardware or QEMU) and toolchain will be listed here.
+1. **Author**: take the next free number (pull first; the number is yours once your request is pushed). Copy
+   `templates/R-000-request.md` to `R-nnn/R-nnn-request.md`, fill it in for one exact commit, commit as
+   `R-nnn: request`, push, and send each reviewer a pointer message (review number, this repository's commit, lens, due
+   point).
+2. **Reviewer**: pull, read the request, review the item at the named commit with your lens. Write
+   `R-nnn-findings-<host>.md` from the template and **commit it before you pull or open any other findings for the same
+   review**. Then `git pull --rebase`, push, and send the author a pointer message.
+3. **Author**: when the findings are in, write `R-nnn-disposition.md`: every finding fixed (with the commit), rejected
+   (with the reason) or deferred (with where it is tracked). Disagreements go to David. Commit as `R-nnn: disposition`
+   and push. The next phase starts when the disposition is recorded, or when David waives the review.
 
-## Licence
+Say for every statement whether it was measured, read from the code or documentation, or reasoned. "Not checked" is a
+valid entry.
 
-MIT. See [LICENSE](LICENSE).
+## Getting a copy
+
+- Windows: `git clone //10.30.1.109/CLAUDE/git/fleet-reviews.git` (or `Z:/git/fleet-reviews.git`)
+- Linux, macOS: `git clone <where the CLAUDE share is mounted>/git/fleet-reviews.git`
+
+Created 2026-11-15 by ON-ASUSROG-win-11 at David's request.
