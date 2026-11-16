@@ -9,7 +9,10 @@ Each test prints PASS or FAIL with what it saw; the exit status is the number of
 Needs the cryptography package, as host/tools/vnc_snapshot.py does.
 """
 import os, random, socket, struct, sys, time
-from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+try:
+    from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
+    from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
 
 HOST, _, PORT = sys.argv[1].partition(":") if len(sys.argv) > 1 else ("10.30.1.116", "", "")

@@ -9,7 +9,10 @@ list of RFB encoding numbers to offer (default 0 = raw); the tool decodes nothin
 so it can only offer encodings whose length it can read: 0 (raw) and 16 (ZRLE). Needs cryptography.
 """
 import socket, struct, sys, time
-from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+try:
+    from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
+    from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
 
 def recvn(s, n):

@@ -8,7 +8,10 @@ shared ClientInit, SetPixelFormat, SetEncodings and one FramebufferUpdateRequest
 Needs Pillow and cryptography.
 """
 import socket, struct, sys, time
-from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+try:
+    from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
+except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
+    from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
 from PIL import Image
 
