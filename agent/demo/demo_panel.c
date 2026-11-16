@@ -23,7 +23,7 @@
 static const char FONT_CHARS[] = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ+-:.";
 static const unsigned char FONT[][7] = {
 	{ 0, 0, 0, 0, 0, 0, 0 },                                 /* space */
-	{ 0x0e, 0x11, 0x13, 0x15, 0x19, 0x11, 0x0e },            /* 0 */
+	{ 0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e },            /* 0, plain: OCR read a slashed one as 5 */
 	{ 0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e },            /* 1 */
 	{ 0x0e, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1f },            /* 2 */
 	{ 0x1f, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0e },            /* 3 */
@@ -83,7 +83,7 @@ static void fill(int x, int y, int w, int h, unsigned rgb)
 /* Draws text at x,y with each font pixel `scale` screen pixels square; unknown characters draw as space. */
 static void text(int x, int y, int scale, const char *s, unsigned rgb)
 {
-	for (; *s; s++, x += 6 * scale) {
+	for (; *s; s++, x += 7 * scale) { /* two columns between letters: easier to read by OCR */
 		char c = (*s >= 'a' && *s <= 'z') ? (char)(*s - 32) : *s;
 		const char *at = strchr(FONT_CHARS, c);
 		int g = at && c ? (int)(at - FONT_CHARS) : 0;
@@ -102,7 +102,7 @@ static const struct button BUTTONS[3] = {
 	{ 160, 700, 420, 200, "+1" }, { 750, 700, 420, 200, "RESET" }, { 1340, 700, 420, 200, "LAMP" } };
 
 static int counter, lamp_red;
-static char line[33];
+static char line[25];
 
 static void draw(void)
 {
@@ -113,17 +113,17 @@ static void draw(void)
 	text(160, 200, 8, "COUNT", 0x9fb3c8);
 	snprintf(buf, sizeof(buf), "%d", counter);
 	fill(160, 280, 700, 180, 0x0f1720);
-	text(190, 300, 20, buf, 0xffd166);
+	text(190, 330, 12, buf, 0xffd166); /* scale 12: OCR read larger blocky digits wrongly */
 	text(1100, 200, 8, "LAMP", 0x9fb3c8);
 	fill(1100, 280, 180, 180, lamp_red ? 0xe63946 : 0x2a9d8f);
 	text(1320, 340, 8, lamp_red ? "RED" : "GREEN", 0xffffff);
 	text(160, 520, 6, "TEXT:", 0x9fb3c8);
 	fill(400, 505, 1360, 80, 0x0f1720);
-	text(420, 520, 7, line, 0xffffff);
+	text(420, 514, 8, line, 0xffffff);
 	for (int i = 0; i < 3; i++) {
 		const struct button *b = &BUTTONS[i];
 		fill(b->x, b->y, b->w, b->h, 0x3a86ff);
-		int tw = (int)strlen(b->label) * 6 * 10 - 10;
+		int tw = (int)strlen(b->label) * 7 * 10 - 20;
 		text(b->x + (b->w - tw) / 2, b->y + (b->h - 70) / 2, 10, b->label, 0xffffff);
 	}
 }
