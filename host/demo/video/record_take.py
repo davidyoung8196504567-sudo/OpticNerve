@@ -26,6 +26,11 @@ MINTTY = r"C:\Program Files\Git\usr\bin\mintty.exe"
 name = next((a for a in sys.argv[1:] if not a.startswith("--")), "take")
 dry = "--dry" in sys.argv
 flags = Path(tempfile.mkdtemp(prefix="opticnerve-take-"))
+# Minimise every window first (as Win+D does; OBS keeps recording): Windows does not bring a window opened by a
+# background program to the front, so any window left open would cover the terminal (take 11 of 2026-11-16).
+subprocess.run(["powershell", "-NoProfile", "-Command", "(New-Object -ComObject Shell.Application).MinimizeAll()"],
+               check=False)
+time.sleep(1)
 subprocess.Popen([MINTTY, "-w", "max", "-t", "OpticNerve demo", "-o", "FontHeight=40", "/usr/bin/bash", "-l", "-c",
                   "TAKE_DIR=$1 exec bash $2", "take", flags.as_posix(), (HERE / "take.sh").as_posix()])
 time.sleep(5)
