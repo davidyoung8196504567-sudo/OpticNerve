@@ -16,6 +16,10 @@
  *        wm    window manager context
  *        app   application context
  *   dev  create a keyboard device and a pointer device in the context and name them in the events
+ *   pf=N set SCREEN_PROPERTY_FLAGS of pointer events to N (for example 0x2000, SCREEN_FLAG_POSITION_VALID)
+ *   rel  pointer events carry SCREEN_PROPERTY_DISPLACEMENT (X, Y as a relative move) instead of a position
+ *   dsp  set SCREEN_PROPERTY_DISPLAY of every event to the display
+ *   The three options above may follow CTX in any order, before or after dev.
  *
  * X and Y are display coordinates. Needs root for every CTX except app.
  *
@@ -35,6 +39,7 @@ static screen_context_t ctx;
 static screen_display_t disp;
 static screen_device_t kbd, ptr;
 static int failures;
+static int pflags = -1, relative, set_display;
 
 static void fail(const char *what)
 {
@@ -65,8 +70,16 @@ static void pointer(const char *what, int x, int y, int buttons)
 	if (screen_create_event(&ev) != 0)
 		fail("screen_create_event");
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
-	screen_set_event_property_iv(ev, SCREEN_PROPERTY_POSITION, pos);
-	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SOURCE_POSITION, pos);
+	if (pflags >= 0)
+		report("  set FLAGS", screen_set_event_property_iv(ev, SCREEN_PROPERTY_FLAGS, &pflags));
+	if (relative) {
+		report("  set DISPLACEMENT", screen_set_event_property_iv(ev, SCREEN_PROPERTY_DISPLACEMENT, pos));
+	} else {
+		screen_set_event_property_iv(ev, SCREEN_PROPERTY_POSITION, pos);
+		screen_set_event_property_iv(ev, SCREEN_PROPERTY_SOURCE_POSITION, pos);
+	}
+	if (set_display)
+		report("  set DISPLAY", screen_set_event_property_pv(ev, SCREEN_PROPERTY_DISPLAY, (void **)&disp));
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_BUTTONS, &buttons);
 	if (ptr)
 		screen_set_event_property_pv(ev, SCREEN_PROPERTY_DEVICE, (void **)&ptr);
@@ -124,16 +137,25 @@ int main(int argc, char **argv)
 	else
 		goto usage;
 	int a = 2, devices = 0;
-	if (strcmp(argv[a], "dev") == 0) {
-		devices = 1;
-		a++;
+	for (; a < argc; a++) {
+		if (strcmp(argv[a], "dev") == 0)
+			devices = 1;
+		else if (strncmp(argv[a], "pf=", 3) == 0)
+			pflags = (int)strtol(argv[a] + 3, NULL, 0);
+		else if (strcmp(argv[a], "rel") == 0)
+			relative = 1;
+		else if (strcmp(argv[a], "dsp") == 0)
+			set_display = 1;
+		else
+			break;
 	}
 	if (a >= argc)
 		goto usage;
 	const char *cmd = argv[a++];
 	int rest = argc - a;
 
-	printf("inject_probe: context %s%s, uid %d\n", argv[1], devices ? ", own devices" : "", (int)geteuid());
+	printf("inject_probe: context %s%s, pointer flags %d%s%s, uid %d\n", argv[1], devices ? ", own devices" : "",
+	       pflags, relative ? ", relative" : "", set_display ? ", display set" : "", (int)geteuid());
 	if (screen_create_context(&ctx, type) != 0)
 		fail("screen_create_context");
 	printf("%-34s ok\n", "screen_create_context");
@@ -185,6 +207,6 @@ int main(int argc, char **argv)
 	printf("calls that failed: %d\n", failures);
 	return failures ? 1 : 0;
 usage:
-	fprintf(stderr, "usage: inject_probe ip|ipdm|wm|app [dev] s7 X Y | move X Y | click X Y | key SYM [MOD]\n");
+	fprintf(stderr, "usage: inject_probe ip|ipdm|wm|app [dev] [pf=N] [rel] [dsp] s7 X Y | move X Y | click X Y | key SYM [MOD]\n");
 	return 2;
 }
