@@ -7,7 +7,8 @@
 
 #define ON_DEV_PATH "/dev/opticnerve"
 
-/* wait: blocks until a composition is signalled, the screen has been quiet for quiet_ms, or timeout_ms passes. */
+/* wait: blocks until a composition is signalled, the screen has been quiet for quiet_ms (with since >= 0: quiet after a
+ * change past since), or timeout_ms passes. */
 struct on_dev_wait {
 	int64_t since;      /* in: return at once if the composition count is already greater; -1 for none */
 	int32_t timeout_ms; /* in */

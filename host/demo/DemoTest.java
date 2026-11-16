@@ -76,12 +76,28 @@ public class DemoTest {
     static java.io.BufferedReader sshOut;
     static java.io.Writer sshIn;
 
+    // The change count from the last wait: the next wait asks for a change past it (-since), so it cannot return on the
+    // stillness before the panel has responded, and then for a short quiet time (100 ms in a -brief run, as the panel
+    // draws each response in one frame; 300 ms otherwise, for the pointer marker's animation).
+    static long seen = -1;
+
     static void settle() throws Exception {
         if (System.getenv("ON_LOGIN_PASSWORD") == null) {
             Thread.sleep(700);
             return;
         }
         long t0 = System.nanoTime();
+        String said = agent("wait -since=" + seen + " -quiet=" + (brief ? 100 : 300) + " -timeout=3");
+        if (!brief) System.out.printf("     opticnerve wait: %s (%.1f s)%n", said, (System.nanoTime() - t0) / 1e9);
+    }
+
+    // Before the first action: the change count now.
+    static void startCount() throws Exception {
+        if (System.getenv("ON_LOGIN_PASSWORD") != null) agent("wait -since=0 -timeout=1");
+    }
+
+    // Runs `opticnerve ARGS` on the target and returns its output; notes the change count it reports.
+    static String agent(String args) throws Exception {
         if (ssh == null) {
             String askpass = new File("host/tools/pi_askpass.sh").getAbsolutePath().replace('\\', '/');
             // Git's ssh through bash (askpass is a shell script); no quotes inside the bash command, since Java on
@@ -97,11 +113,13 @@ public class DemoTest {
             sshOut = new java.io.BufferedReader(new java.io.InputStreamReader(ssh.getInputStream()));
             sshIn = new java.io.OutputStreamWriter(ssh.getOutputStream());
         }
-        sshIn.write("/data/opticnerve/bin/opticnerve wait -quiet=300 -timeout=3 2>&1; echo '#end'\n");
+        sshIn.write("/data/opticnerve/bin/opticnerve " + args + " 2>&1; echo '#end'\n");
         sshIn.flush();
         StringBuilder said = new StringBuilder();
         for (String l; (l = sshOut.readLine()) != null && !l.equals("#end"); ) said.append(l.trim());
-        if (!brief) System.out.printf("     opticnerve wait: %s (%.1f s)%n", said, (System.nanoTime() - t0) / 1e9);
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(change|quiet|timeout) (\\d+)$").matcher(said);
+        if (m.matches()) seen = Long.parseLong(m.group(2));
+        return said.toString();
     }
 
     static void shot(String name) throws Exception {
@@ -188,6 +206,7 @@ public class DemoTest {
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
         if (slow) org.sikuli.basics.Settings.MoveMouseDelay = 1.0f;
+        if (brief) org.sikuli.basics.Settings.MoveMouseDelay = 0; // the pointer jumps: only the search and the panel's response take time
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent (VNC, port 5901)");
         s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
         boolean framed = s != null && s.capture() != null; // a frame arrived, not just an object returned
@@ -198,6 +217,7 @@ public class DemoTest {
         plus = cut(160, 700, 420, 200, "plus");
         reset = cut(750, 700, 420, 200, "reset");
         lampButton = cut(1340, 700, 420, 200, "lamp");
+        startCount();
         int allChecks = 0, allFails = 0;
         double total = 0;
         for (int i = 1; i <= repeat; i++) {

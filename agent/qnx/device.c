@@ -351,7 +351,9 @@ on_time device_pass(on_time now)
 		}
 		if (!w->w.quiet_ms && st.signals > w->start_count)
 			reply_wait(w, st.signals, ON_WAIT_CHANGE);
-		else if (w->w.quiet_ms && now >= quiet_at)
+		else if (w->w.quiet_ms && (w->w.since < 0 || st.signals > w->start_count) && now >= quiet_at)
+			/* with -since, quiet counts only after a change past it, so a wait started before the screen
+			 * responds cannot return on the stillness before the response */
 			reply_wait(w, st.signals, ON_WAIT_QUIET);
 		else if (now >= w->deadline)
 			reply_wait(w, st.signals, ON_WAIT_TIMEOUT);

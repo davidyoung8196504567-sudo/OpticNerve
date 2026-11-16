@@ -134,7 +134,7 @@ java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/spike
 | Command | What it does |
 |---|---|
 | `opticnerve status` | the status text: version, process ID, display, change count, captures, clients |
-| `opticnerve wait [-timeout=S] [-since=COUNT] [-quiet=MS]` | waits for the next screen change (exit 0) or the timeout (exit 2); `-since` returns at once if the change count is already past COUNT; `-quiet` waits until the screen has settled |
+| `opticnerve wait [-timeout=S] [-since=COUNT] [-quiet=MS]` | waits for the next screen change (exit 0) or the timeout (exit 2); `-since` returns at once if the change count is already past COUNT; `-quiet` waits until the screen has settled (no change for MS); with `-since`, it first waits for a change past COUNT |
 | `opticnerve current` | captures and says, for each VNC client, whether its last frame is current |
 | `opticnerve capture X Y W H FILE` | writes a region of the screen to FILE (PPM), as the calling user |
 | `opticnerve stop` | stops the agent (root only) |
