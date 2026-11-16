@@ -251,17 +251,21 @@ int main(int argc, char **argv)
 	screen_set_window_property_iv(win, SCREEN_PROPERTY_BUFFER_SIZE, size);
 	screen_set_window_property_iv(win, SCREEN_PROPERTY_POSITION, pos);
 	screen_set_window_property_cv(win, SCREEN_PROPERTY_ID_STRING, 16, "opticnerve-demo");
-	if (screen_create_window_buffers(win, 1) != 0) {
+	/* Two buffers: a frame is drawn into the one not on show and posted only when it is complete, so the monitor
+	 * never shows a half-drawn frame (with one buffer the marker's animation flickered on the monitor). */
+	if (screen_create_window_buffers(win, 2) != 0) {
 		perror("buffers");
 		return 1;
 	}
-	screen_buffer_t buf;
-	screen_get_window_property_pv(win, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)&buf);
-	screen_get_buffer_property_pv(buf, SCREEN_PROPERTY_POINTER, (void **)&fb);
-	screen_get_buffer_property_iv(buf, SCREEN_PROPERTY_STRIDE, &stride);
+	screen_buffer_t bufs[2];
+	screen_get_window_property_pv(win, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)bufs);
+	int back = 0;
 	int dirty[4] = { 0, 0, W, H };
+	screen_get_buffer_property_pv(bufs[back], SCREEN_PROPERTY_POINTER, (void **)&fb);
+	screen_get_buffer_property_iv(bufs[back], SCREEN_PROPERTY_STRIDE, &stride);
 	draw();
-	screen_post_window(win, buf, 1, dirty, 0);
+	screen_post_window(win, bufs[back], 1, dirty, 0);
+	back ^= 1;
 
 	screen_event_t ev;
 	screen_create_event(&ev);
@@ -321,9 +325,12 @@ int main(int argc, char **argv)
 		}
 	redraw:
 		if (changed) {
+			screen_get_buffer_property_pv(bufs[back], SCREEN_PROPERTY_POINTER, (void **)&fb);
+			screen_get_buffer_property_iv(bufs[back], SCREEN_PROPERTY_STRIDE, &stride);
 			draw();
 			animating = overlay();
-			screen_post_window(win, buf, 1, dirty, 0);
+			screen_post_window(win, bufs[back], 1, dirty, 0);
+			back ^= 1;
 		}
 	}
 	screen_destroy_window(win);
