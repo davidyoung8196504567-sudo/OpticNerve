@@ -2,12 +2,16 @@
 // the OpticNerve agent, and checks what the panel shows. Each step prints PASS or FAIL; the exit status is the
 // number of failures.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail] [-slow]
 //
 // Needs the agent running on HOST (port 5901) and demo_panel showing. -fail adds one check that expects the wrong
 // count, to show what a caught failure looks like. Between steps the test asks the agent on the target, over SSH,
 // to wait until the screen has settled (`opticnerve wait -quiet`), when ON_LOGIN_PASSWORD is set; otherwise it
 // waits a fixed time. Configuration ON-VNC-1: the tigervnc-java-oculix jar first, security types VncAuth,None.
+//
+// Before each step the test prints a caption line ("==> ..."), for the video's captions. -slow paces the run for
+// recording: a pause after each caption, and slower pointer moves (OculiX Settings.MoveMouseDelay), so the demo
+// panel's pointer trail can be followed.
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -21,6 +25,14 @@ public class DemoTest {
     static VNCScreen s;
     static File out;
     static int fails, n;
+
+    static boolean slow;
+
+    static void caption(String text) throws Exception {
+        System.out.println();
+        System.out.println("==> " + text);
+        if (slow) Thread.sleep(1500);
+    }
 
     static void check(String name, boolean ok, String detail) {
         if (!ok) fails++;
@@ -92,31 +104,39 @@ public class DemoTest {
     public static void main(String[] a) throws Exception {
         boolean showFailure = java.util.Arrays.asList(a).contains("-fail");
         record = java.util.Arrays.asList(a).contains("-record");
+        slow = java.util.Arrays.asList(a).contains("-slow");
         out = new File(a.length > 2 && !a[2].startsWith("-") ? a[2] : "demo-out");
         out.mkdirs();
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
+        if (slow) org.sikuli.basics.Settings.MoveMouseDelay = 1.0f;
+        caption("Connecting to the QNX 8.0 target through the OpticNerve agent (VNC, port 5901)");
         s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
         check("connect to the OpticNerve agent", s != null, a[0] + ":5901");
         shot("start");
 
+        caption("Finding the RESET button by image, and clicking it");
         Pattern plus = cut(160, 700, 420, 200, "plus"), reset = cut(750, 700, 420, 200, "reset"),
                 lampButton = cut(1340, 700, 420, 200, "lamp");
         Match m = s.exists(reset, 3);
         check("find the RESET button by image", m != null, m == null ? "not found" : "score " + m.getScore());
         s.click(reset);
         settle();
+        caption("Checking the count shows 0, pixel by pixel");
         String r0 = countIs(0);
         check("after RESET the count shows 0", r0 != null, r0 == null ? "no match with count_0.png" : r0);
 
+        caption("Clicking +1 three times; the agent on the target says when the screen has settled");
         for (int i = 1; i <= 3; i++) {
             s.click(plus);
             settle();
         }
+        caption("Checking the count shows 3");
         String r3 = countIs(3);
         check("after three clicks on +1 the count shows 3", r3 != null, r3 == null ? "no match with count_3.png" : r3);
         shot("count3");
 
+        caption("Clicking LAMP and checking the lamp changes colour");
         String before = lamp();
         s.click(lampButton);
         settle();
@@ -124,6 +144,7 @@ public class DemoTest {
         check("LAMP switches the lamp's colour", !before.equals(after), before + " -> " + after);
         shot("lamp");
 
+        caption("Typing on the target's keyboard input, and reading the text back with OCR");
         s.type("\r");  // Return clears the text line (Enter as "\r", ON-VNC-1)
         settle();
         s.type("hello pi 5");
@@ -133,10 +154,12 @@ public class DemoTest {
         shot("typed");
 
         if (showFailure && !record) {
+            caption("A check that expects the wrong count, to show a failure being caught");
             String wrong = countIs(0);
             check("(deliberate) the count still shows 0", wrong != null, wrong == null ? "no match with count_0.png" : wrong);
         }
         s.stop();
+        System.out.println();
         System.out.println(fails == 0 ? "ALL PASSED" : fails + " FAILED");
         System.exit(fails);
     }
