@@ -184,6 +184,47 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 - **Not addressed:** QNX security policies; encryption (VNC authentication is not meant for untrusted networks).
 - **Not included:** boot images (the agent is deployed onto the quick-start image as it is shipped); start at boot.
 
+## Future work
+
+### A redaction layer
+
+Hide sensitive areas of the screen from everything that leaves the target (tests, recordings, remote viewers),
+updated live as the screen changes: a login screen, a generated key, a line on a censor list.
+
+- **Where:** in the agent's frame stream. The agent already reads every frame and tracks changes in 64x64 tiles for
+  each client; before a frame is sent, listed rectangles are blacked out or blurred. Nothing hidden leaves the
+  target, and the rest of the frame stays exact. (An overlay window on the target's own display does not fit the
+  quick-start image, where application windows are shown full screen.)
+- **Detection has to happen on the target.** OCR in the test tool on the host would need the pixels before deciding
+  to hide them. In order of effort:
+  1. rules by application or window, which Screen reports to the agent ("when the Terminal shows `Password:`, hide
+     the line after it"), and fixed rectangles;
+  2. template matching in C on the frame (a known field, a known logo);
+  3. OCR on the target with a censor list. This needs an OCR engine on QNX and adds latency to every changed
+     region.
+- **No leak while deciding:** a changed region's tiles are held back until detection has run on them, rather than
+  sent and masked afterwards. The per-client tile marks make this a natural extension.
+- **A first step:** `opticnerve redact X Y W H` (and `unredact`), a rectangle the agent blacks out in every frame it
+  sends, set by a script on the target. Estimate for rules and rectangles: a few days, most of it tests.
+
+Typed passwords are not the main case: a login prompt does not echo them. The cases are text that is shown, such as
+a default password in a message of the day.
+
+### OCR with word positions: Octachorix
+
+[Octachorix](https://github.com/oculix-org/Octachorix), from the same family of repositories as OculiX, is a
+Tesseract runtime for the JVM that returns text, word positions and confidences in one pass, and loads exactly the
+native library it is given (paired with [Legerix](https://github.com/oculix-org/Legerix), which ships those
+libraries). Word positions are what both the redaction layer's OCR rules and our OCR checks need (today
+`LoginTest.java` compares whole-screen text). Octachorix is GPL-3.0 and OpticNerve is MIT, which matters if it is
+ever bundled; using it from a test is the simpler path.
+
+### Input below Screen
+
+The agent's input reaches application windows only (see Settings and limits). Driving the launcher and
+window-manager shortcuts would need input from a virtual input device at the driver level, which looks to the system
+like a real keyboard and mouse. Not tried yet.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
