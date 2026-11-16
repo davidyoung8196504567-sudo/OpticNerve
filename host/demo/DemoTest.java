@@ -213,7 +213,7 @@ public class DemoTest {
             System.out.printf("%s%d checks, %d failed, %.1f s%n", repeat > 1 ? "run " + i + ": " : "", checks, fails - failsBefore, secs);
         }
         if (repeat > 1)
-            System.out.printf("%n%d runs, %d checks, %d failed, %.1f s per run on average%n", repeat, allChecks, allFails, total / repeat);
+            System.out.printf("%n%d runs, %d checks, %d failed, %.1f s per run%n", repeat, allChecks, allFails, total / repeat);
     }
 
     static Pattern plus, reset, lampButton;
