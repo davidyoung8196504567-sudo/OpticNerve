@@ -3,7 +3,8 @@
  * select_attach(), Screen's composition signal, the timer and SIGTERM as pulses. The core (agent/core) decides; this
  * file only does what the core asks and tells it what happened.
  *
- *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS]
+ *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-v]
+ *   -v logs every connection and every injected event to standard error (key values included: test use only).
  *
  * Runs in the foreground and logs to standard error (detaching comes later). Needs root: the display manager and
  * input provider context types.
@@ -41,7 +42,7 @@ static screen_context_t sctx;
 static screen_display_t disp;
 static screen_pixmap_t pixmap;
 static screen_buffer_t pbuf;
-static int dsize[2], ptr_x, ptr_y;
+static int dsize[2], ptr_x, ptr_y, verbose;
 
 static on_time now_ns(void)
 {
@@ -138,7 +139,11 @@ static void inject_key(uint32_t sym, int down)
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_FLAGS, &flags);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SYM, &code);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_KEY_CAP, &code);
-	screen_inject_event(disp, ev);
+	int rc = screen_inject_event(disp, ev);
+	screen_flush_context(sctx, 0); /* deliver now; whether Screen would hold it otherwise is not tested */
+	if (verbose)
+		fprintf(stderr, "key 0x%x -> 0x%x %s: %s\n", (unsigned)sym, (unsigned)code, down ? "down" : "up",
+			rc ? strerror(errno) : "ok");
 	screen_destroy_event(ev);
 }
 
@@ -162,7 +167,10 @@ static void inject_pointer(int x, int y, int mask)
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_BUTTONS, &buttons);
 	if (wheel)
 		screen_set_event_property_iv(ev, SCREEN_PROPERTY_MOUSE_WHEEL, &wheel);
-	screen_inject_event(disp, ev);
+	int rc = screen_inject_event(disp, ev);
+	screen_flush_context(sctx, 0); /* deliver now; whether Screen would hold it otherwise is not tested */
+	if (verbose)
+		fprintf(stderr, "pointer %d,%d buttons 0x%x: %s\n", ptr_x, ptr_y, (unsigned)buttons, rc ? strerror(errno) : "ok");
 	screen_destroy_event(ev);
 }
 
@@ -229,6 +237,8 @@ static int on_listen(select_context_t *ctp, int fd, unsigned flags, void *handle
 	fds[slot] = c;
 	want_write[slot] = 0;
 	watch(slot);
+	if (verbose)
+		fprintf(stderr, "accepted slot %d\n", slot);
 	return 0;
 }
 
@@ -289,6 +299,8 @@ static void take_actions(void)
 			capture();
 			break;
 		case ON_ACT_CLOSE:
+			if (verbose)
+				fprintf(stderr, "closed slot %d\n", a.slot);
 			close_fd(a.slot);
 			break;
 		case ON_ACT_SHUTDOWN_SEND:
@@ -363,6 +375,8 @@ int serve_main(int argc, char **argv)
 			passfile = argv[i] + 10;
 		else if (strncmp(argv[i], "-holdoff=", 9) == 0)
 			holdoff_ms = atoi(argv[i] + 9);
+		else if (strcmp(argv[i], "-v") == 0)
+			verbose = 1;
 		else {
 			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS]\n");
 			return 2;

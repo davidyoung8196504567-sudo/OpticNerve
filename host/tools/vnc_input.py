@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Send keyboard and pointer input to a VNC (RFB 3.8) server.
 
-    python host/tools/vnc_input.py HOST PASSWORD ACTION...
+    python host/tools/vnc_input.py HOST[:PORT] PASSWORD ACTION...
 
 Actions, done in order:
     text:STRING        type the characters (key press and release each)
@@ -31,7 +31,8 @@ def recvn(s, n):
 
 
 def connect(host, password):
-    s = socket.create_connection((host, 5900), timeout=10)
+    host, _, port = host.partition(":")  # HOST or HOST:PORT (default 5900)
+    s = socket.create_connection((host, int(port or 5900)), timeout=10)
     recvn(s, 12)
     s.sendall(b"RFB 003.008\n")
     types = recvn(s, recvn(s, 1)[0])
