@@ -200,8 +200,8 @@ updated live as the screen changes: a login screen, a generated key, a line on a
   1. rules by application or window, which Screen reports to the agent ("when the Terminal shows `Password:`, hide
      the line after it"), and fixed rectangles;
   2. template matching in C on the frame (a known field, a known logo);
-  3. OCR on the target with a censor list. This needs an OCR engine on QNX and adds latency to every changed
-     region.
+  3. OCR on the target with a censor list. This is research: it needs an OCR engine ported to QNX, and it adds
+     latency to every changed region.
 - **No leak while deciding:** a changed region's tiles are held back until detection has run on them, rather than
   sent and masked afterwards. The per-client tile marks make this a natural extension.
 - **A first step:** `opticnerve redact X Y W H` (and `unredact`), a rectangle the agent blacks out in every frame it
