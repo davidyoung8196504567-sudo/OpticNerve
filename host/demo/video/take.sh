@@ -4,7 +4,8 @@
 #
 # Needs: the agent installed on the target and stopped (host/tools/opticnerve_deploy.py install); demo_panel built
 # (agent/build/aarch64le/demo_panel); ON_LOGIN_PASSWORD, ON_VNC_PASSWORD, ON_TIGERVNC_JAR and ON_OCULIX_JAR set, and
-# optionally ON_HOST (default 10.30.1.116). Passwords come from the environment; nothing prints them.
+# optionally ON_HOST (default 10.30.1.116). Passwords come from the environment; nothing prints them. TAKE_LOGIN=1
+# adds the login sanity test (host/demo/LoginTest.java), which types the login password into the target's Terminal.
 cd "$(dirname "$0")/../../.." || exit 1
 T=${TAKE_DIR:?TAKE_DIR not set}
 H=${ON_HOST:-10.30.1.116}
@@ -31,6 +32,12 @@ say "The same test at full speed, three times in a row (the panel without its po
 bash host/tools/pi_ssh.sh 'cd /data/home/qnxuser; slay -f demo_panel >/dev/null 2>&1; nohup ./demo_panel -nomarker 600 > demo.log 2>&1 < /dev/null & sleep 1' > /dev/null
 run "java DemoTest $H -brief -repeat=3" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/DemoTest.java $H \"\$ON_VNC_PASSWORD\" demo-out -brief -repeat=3 -cols=50 2>&1 | grep --line-buffered -E '^(PASS|FAIL|ALL|[0-9]+ |run |    )'"
 sleep 5
+if [ "$TAKE_LOGIN" = 1 ]; then   # set by whoever runs the take: the test types the login password
+    bash host/tools/pi_ssh.sh 'slay -f demo_panel >/dev/null 2>&1' > /dev/null
+    say "A sanity test of the image itself: log in on the target's Terminal and check the message of the day"
+    run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
+    sleep 5
+fi
 say "Ask the agent on the target what it is doing"
 run "ssh target opticnerve status" "bash host/tools/pi_ssh.sh '/data/opticnerve/bin/opticnerve status | head -9'"
 sleep 6
