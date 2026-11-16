@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Grab one frame from a VNC (RFB 3.8) server, view-only, and save it as an image.
 
-    python host/tools/vnc_snapshot.py HOST PASSWORD OUT.png
+    python host/tools/vnc_snapshot.py HOST[:PORT] PASSWORD OUT.png
 
 Uses VNC password authentication and raw encoding. Sends no input events: only a
 shared ClientInit, SetPixelFormat, SetEncodings and one FramebufferUpdateRequest.
@@ -21,7 +21,8 @@ def recvn(s, n):
     return b
 
 host, pw, out = sys.argv[1], sys.argv[2].encode(), sys.argv[3]
-s = socket.create_connection((host, 5900), timeout=10)
+host, _, port = host.partition(":")                    # HOST or HOST:PORT (default 5900)
+s = socket.create_connection((host, int(port or 5900)), timeout=10)
 print("server:", recvn(s, 12)); s.sendall(b"RFB 003.008\n")
 n = recvn(s, 1)[0]; types = list(recvn(s, n)); assert 2 in types, types
 s.sendall(bytes([2]))

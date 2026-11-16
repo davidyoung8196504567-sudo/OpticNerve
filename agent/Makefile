@@ -11,11 +11,15 @@ ARCH ?= aarch64le x86_64
 CFLAGS = -std=c11 -Wall -Wextra -Werror -O2 -Icore
 CORE = core/on_core.c core/on_des.c
 
-all: $(foreach a,$(ARCH),build/$(a)/core_test)
+all: $(foreach a,$(ARCH),build/$(a)/core_test build/$(a)/opticnerve)
 
 build/%/core_test: tests/core_test.c $(CORE) core/on_core.h core/on_des.h
 	mkdir -p $(dir $@)
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ tests/core_test.c $(CORE)
+
+build/%/opticnerve: qnx/main.c qnx/serve.c $(CORE) core/on_core.h core/on_des.h
+	mkdir -p $(dir $@)
+	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ qnx/main.c qnx/serve.c $(CORE) -lscreen -lsocket
 
 clean:
 	rm -rf build
