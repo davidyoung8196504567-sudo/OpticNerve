@@ -131,19 +131,63 @@ static int map_key(uint32_t sym)
 	return -1;
 }
 
+/* X keysym to the USB keyboard usage code a real keyboard puts in SCREEN_PROPERTY_SCAN (US layout); 0 if none.
+ * Some applications read it: the quick-start image's Terminal (st) ends a line only on a Return that carries its
+ * scan code, 0x28, as the real keyboard's does (logged with agent/spikes/input_log.c, 2026-11-16). */
+static int map_scan(uint32_t sym)
+{
+	static const char shifted_digits[] = ")!@#$%^&*(";
+	static const struct { const char *keys; int usage; } punct[] = {
+		{ " ", 0x2c }, { "-_", 0x2d }, { "=+", 0x2e }, { "[{", 0x2f }, { "]}", 0x30 }, { "\\|", 0x31 },
+		{ ";:", 0x33 }, { "'\"", 0x34 }, { "`~", 0x35 }, { ",<", 0x36 }, { ".>", 0x37 }, { "/?", 0x38 },
+	};
+	static const struct { uint32_t sym; int usage; } named[] = {
+		{ 0xff0d, 0x28 }, { 0xff1b, 0x29 }, { 0xff08, 0x2a }, { 0xff09, 0x2b }, { 0xff61, 0x46 }, { 0xff63, 0x49 },
+		{ 0xff50, 0x4a }, { 0xff55, 0x4b }, { 0xffff, 0x4c }, { 0xff57, 0x4d }, { 0xff56, 0x4e }, { 0xff53, 0x4f },
+		{ 0xff51, 0x50 }, { 0xff54, 0x51 }, { 0xff52, 0x52 }, { 0xff8d, 0x58 }, { 0xffe3, 0xe0 }, { 0xffe1, 0xe1 },
+		{ 0xffe9, 0xe2 }, { 0xffeb, 0xe3 }, { 0xffe4, 0xe4 }, { 0xffe2, 0xe5 }, { 0xffea, 0xe6 }, { 0xffec, 0xe7 },
+	};
+	if (sym >= 'a' && sym <= 'z')
+		return 0x04 + (int)(sym - 'a');
+	if (sym >= 'A' && sym <= 'Z')
+		return 0x04 + (int)(sym - 'A');
+	if (sym >= '1' && sym <= '9')
+		return 0x1e + (int)(sym - '1');
+	if (sym == '0')
+		return 0x27;
+	if (sym >= 0xffbe && sym <= 0xffc9) /* F1 to F12 */
+		return 0x3a + (int)(sym - 0xffbe);
+	if (sym > 0 && sym < 0x80) {
+		const char *d = strchr(shifted_digits, (int)sym);
+		if (d)
+			return d == shifted_digits ? 0x27 : 0x1e + (int)(d - shifted_digits) - 1;
+		for (size_t i = 0; i < sizeof(punct) / sizeof(punct[0]); i++)
+			if (strchr(punct[i].keys, (int)sym))
+				return punct[i].usage;
+	}
+	for (size_t i = 0; i < sizeof(named) / sizeof(named[0]); i++)
+		if (named[i].sym == sym)
+			return named[i].usage;
+	return 0;
+}
+
 static void inject_key(uint32_t sym, int down)
 {
 	int code = map_key(sym);
 	if (code < 0)
 		return;
 	screen_event_t ev;
-	int type = SCREEN_EVENT_KEYBOARD, flags = KEY_SYM_VALID | KEY_CAP_VALID | (down ? KEY_DOWN : 0);
+	int type = SCREEN_EVENT_KEYBOARD, flags = KEY_SYM_VALID | KEY_CAP_VALID | (down ? KEY_DOWN : 0), scan = map_scan(sym);
+	if (scan)
+		flags |= KEY_SCAN_VALID;
 	if (screen_create_event(&ev) != 0)
 		return;
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_FLAGS, &flags);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SYM, &code);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_KEY_CAP, &code);
+	if (scan)
+		screen_set_event_property_iv(ev, SCREEN_PROPERTY_SCAN, &scan);
 	int rc = screen_inject_event(disp, ev);
 	screen_flush_context(sctx, 0); /* deliver now; whether Screen would hold it otherwise is not tested */
 	if (verbose)
