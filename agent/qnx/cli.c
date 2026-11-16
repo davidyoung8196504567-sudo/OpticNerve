@@ -156,6 +156,55 @@ static int cmd_current(void)
 	return all ? 0 : 2;
 }
 
+/* capture X Y W H FILE: the agent captures; this process writes FILE itself, as the calling user, as PPM (P6). */
+static int cmd_capture(int argc, char **argv)
+{
+	if (argc != 5) {
+		fprintf(stderr, "usage: opticnerve capture X Y W H FILE\n");
+		return 2;
+	}
+	struct on_dev_snapshot s = { atoi(argv[0]), atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), 0, 0, 0 };
+	int fd = open_dev();
+	if (fd < 0)
+		return 1;
+	int rc = devctl(fd, ON_DCMD_SNAPSHOT, &s, sizeof(s), NULL);
+	if (rc != EOK) {
+		fprintf(stderr, "opticnerve: capture: %s\n", strerror(rc));
+		close(fd);
+		return 1;
+	}
+	uint8_t *buf = malloc(s.bytes ? s.bytes : 1);
+	size_t got = 0;
+	while (buf && got < s.bytes) {
+		ssize_t r = read(fd, buf + got, s.bytes - got);
+		if (r <= 0)
+			break;
+		got += (size_t)r;
+	}
+	close(fd);
+	if (!buf || got != s.bytes) {
+		fprintf(stderr, "opticnerve: capture: read %zu of %u bytes\n", got, s.bytes);
+		free(buf);
+		return 1;
+	}
+	FILE *f = fopen(argv[4], "wb");
+	if (!f) {
+		fprintf(stderr, "opticnerve: capture: %s: %s\n", argv[4], strerror(errno));
+		free(buf);
+		return 1;
+	}
+	fprintf(f, "P6\n%d %d\n255\n", s.w, s.h);
+	int ok = fwrite(buf, 1, got, f) == got;
+	ok = fclose(f) == 0 && ok;
+	free(buf);
+	if (!ok) {
+		fprintf(stderr, "opticnerve: capture: writing %s failed\n", argv[4]);
+		return 1;
+	}
+	printf("%dx%d at %d,%d, content %llu, %s\n", s.w, s.h, s.x, s.y, (unsigned long long)s.content, argv[4]);
+	return 0;
+}
+
 static pid_t agent_pid(void)
 {
 	char buf[8192];
@@ -219,6 +268,8 @@ static int run(const char *cmd, int argc, char **argv)
 		return cmd_wait(argc, argv);
 	if (strcmp(cmd, "current") == 0)
 		return cmd_current();
+	if (strcmp(cmd, "capture") == 0)
+		return cmd_capture(argc, argv);
 	if (strcmp(cmd, "stop") == 0)
 		return cmd_stop();
 	if (strcmp(cmd, "passwd") == 0)
@@ -234,7 +285,7 @@ static int run(const char *cmd, int argc, char **argv)
  */
 int cli_main(const char *cmd, int argc, char **argv)
 {
-	static const char *known[] = { "status", "wait", "current", "stop", "passwd" };
+	static const char *known[] = { "status", "wait", "current", "capture", "stop", "passwd" };
 	int ok = 0;
 	for (size_t i = 0; i < sizeof(known) / sizeof(known[0]); i++)
 		ok |= strcmp(cmd, known[i]) == 0;

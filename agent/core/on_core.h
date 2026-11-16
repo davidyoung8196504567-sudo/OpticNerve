@@ -73,6 +73,10 @@ void on_captured(struct on_core *c, const uint8_t *pixels, int stride, on_time s
  * will reach once a capture taken after this call has finished; the caller is answered then. */
 uint64_t on_want_capture(struct on_core *c);
 
+/* Copies a region of the core's copy of the screen as RGB bytes (3 per pixel, rows top to bottom). The region is
+ * clipped to the screen first; *w and *h are updated. Returns the number of bytes written, 0 if nothing is left. */
+size_t on_read_region(const struct on_core *c, int x, int y, int *w, int *h, uint8_t *rgb, size_t cap);
+
 /* Reap, decide, reap. Returns when the core next needs to be called with nothing else having happened. */
 on_time on_schedule(struct on_core *c, on_time now);
 

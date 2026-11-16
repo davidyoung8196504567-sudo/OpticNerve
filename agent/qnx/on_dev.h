@@ -26,7 +26,17 @@ struct on_dev_current {
 	uint32_t queued[6]; /* out: bytes queued */
 };
 
+/* snapshot: the agent captures, then keeps the region for this open file; read() then returns its RGB bytes once.
+ * At most two open files hold a snapshot at a time. */
+struct on_dev_snapshot {
+	int32_t x, y, w, h; /* in: the region; out: w and h after clipping to the screen */
+	uint64_t content;   /* out: content number of the capture */
+	uint32_t bytes;     /* out: bytes that read() will return (w * h * 3) */
+	int32_t pad;
+};
+
 #define ON_DCMD_WAIT __DIOTF(_DCMD_MISC, 0x40, struct on_dev_wait)
+#define ON_DCMD_SNAPSHOT __DIOTF(_DCMD_MISC, 0x42, struct on_dev_snapshot)
 #define ON_DCMD_CURRENT __DIOTF(_DCMD_MISC, 0x41, struct on_dev_current)
 
 #endif

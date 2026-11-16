@@ -11,6 +11,7 @@ struct _iofunc_ocb;
 #define RESMGR_OCB_T struct _iofunc_ocb /* the handlers take the iofunc OCB, as the iofunc helpers do */
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/dispatch.h>
@@ -33,10 +34,11 @@ static on_time last_signal_time;
 static uint64_t last_signal_count;
 
 static struct waiter {
-	int used, current; /* current: a "current" request waiting for a capture */
+	int used, current; /* current: 1 a "current" request, 2 a snapshot, each waiting for a capture */
 	rcvid_t rcvid;
 	void *ocb;
 	struct on_dev_wait w;
+	struct on_dev_snapshot s;
 	uint64_t start_count, capture_target;
 	on_time deadline;
 } waiters[WAITERS];
@@ -46,6 +48,28 @@ static struct text {
 	size_t len;
 	char buf[TEXT_MAX];
 } texts[TEXTS];
+
+/* Snapshots waiting to be read, one per open file, at most SNAPS at a time (design 4.10). */
+#define SNAPS 2
+static struct snap {
+	void *ocb;
+	uint8_t *buf;
+	size_t len, off;
+} snaps[SNAPS];
+
+static struct snap *snap_for(void *ocb)
+{
+	for (int i = 0; i < SNAPS; i++)
+		if (snaps[i].ocb == ocb)
+			return &snaps[i];
+	return NULL;
+}
+
+static void snap_free(struct snap *s)
+{
+	free(s->buf);
+	memset(s, 0, sizeof(*s));
+}
 
 static struct text *text_for(void *ocb, int create)
 {
@@ -108,6 +132,18 @@ static int dev_read(resmgr_context_t *ctp, io_read_t *msg, iofunc_ocb_t *ocb)
 	int nonblock, rc = iofunc_read_verify(ctp, msg, ocb, &nonblock);
 	if (rc != EOK)
 		return rc;
+	struct snap *sn = snap_for(ocb);
+	if (sn && sn->buf) { /* after a snapshot, read() returns its bytes once */
+		size_t n = sn->len - sn->off;
+		if (n > msg->i.nbytes)
+			n = msg->i.nbytes;
+		_IO_SET_READ_NBYTES(ctp, n);
+		MsgReply(ctp->rcvid, (long)n, sn->buf + sn->off, n);
+		sn->off += n;
+		if (sn->off >= sn->len)
+			snap_free(sn);
+		return _RESMGR_NOREPLY;
+	}
 	struct text *t = text_for(ocb, 1);
 	if (!t)
 		return EBUSY;
@@ -164,6 +200,41 @@ static void reply_current(struct waiter *w)
 	w->used = 0;
 }
 
+static void reply_snapshot(struct waiter *w)
+{
+	struct {
+		struct _io_devctl_reply hdr;
+		struct on_dev_snapshot s;
+	} r;
+	memset(&r, 0, sizeof(r));
+	r.hdr.nbytes = sizeof(r.s);
+	r.s = w->s;
+	struct snap *sn = snap_for(w->ocb);
+	struct on_stats st;
+	on_stats(core, &st);
+	int width = w->s.w, height = w->s.h;
+	size_t cap = (size_t)info->width * info->height * 3;
+	uint8_t *buf = sn ? malloc(cap) : NULL;
+	size_t n = buf ? on_read_region(core, w->s.x, w->s.y, &width, &height, buf, cap) : 0;
+	if (!sn || !buf || !n) {
+		free(buf);
+		if (sn)
+			snap_free(sn);
+		MsgError(w->rcvid, !sn || buf ? EINVAL : ENOMEM);
+		w->used = 0;
+		return;
+	}
+	sn->buf = buf;
+	sn->len = n;
+	sn->off = 0;
+	r.s.w = width;
+	r.s.h = height;
+	r.s.content = st.content;
+	r.s.bytes = (uint32_t)n;
+	MsgReply(w->rcvid, EOK, &r, sizeof(r));
+	w->used = 0;
+}
+
 static int dev_devctl(resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
 {
 	int rc = iofunc_devctl_default(ctp, msg, ocb);
@@ -173,7 +244,7 @@ static int dev_devctl(resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb
 	for (int i = 0; i < WAITERS && !w; i++)
 		if (!waiters[i].used)
 			w = &waiters[i];
-	if (msg->i.dcmd != ON_DCMD_WAIT && msg->i.dcmd != ON_DCMD_CURRENT)
+	if (msg->i.dcmd != ON_DCMD_WAIT && msg->i.dcmd != ON_DCMD_CURRENT && msg->i.dcmd != ON_DCMD_SNAPSHOT)
 		return ENOSYS;
 	if (!w)
 		return EAGAIN; /* the table is full: an error of its own, not a timeout */
@@ -191,6 +262,20 @@ static int dev_devctl(resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb
 			return EINVAL;
 		w->start_count = w->w.since >= 0 ? (uint64_t)w->w.since : st.signals;
 		w->deadline = now + (on_time)w->w.timeout_ms * 1000000;
+	} else if (msg->i.dcmd == ON_DCMD_SNAPSHOT) {
+		if (msg->i.nbytes < sizeof(struct on_dev_snapshot))
+			return EINVAL;
+		w->s = *(struct on_dev_snapshot *)_DEVCTL_DATA(msg->i);
+		struct snap *sn = snap_for(ocb);
+		if (sn)
+			snap_free(sn); /* a new snapshot replaces one this open file has not read */
+		sn = snap_for(NULL);
+		if (!sn)
+			return EMFILE; /* two snapshots are held already: an error of its own */
+		sn->ocb = ocb;
+		w->current = 2;
+		w->capture_target = on_want_capture(core);
+		w->deadline = now + 5000000000LL;
 	} else {
 		w->current = 1;
 		w->capture_target = on_want_capture(core);
@@ -218,6 +303,9 @@ static int dev_close_ocb(resmgr_context_t *ctp, void *reserved, iofunc_ocb_t *oc
 	struct text *t = text_for(ocb, 0);
 	if (t)
 		memset(t, 0, sizeof(*t));
+	struct snap *sn = snap_for(ocb);
+	if (sn)
+		snap_free(sn);
 	for (int i = 0; i < WAITERS; i++)
 		if (waiters[i].used && waiters[i].ocb == ocb)
 			waiters[i].used = 0;
@@ -242,9 +330,15 @@ on_time device_pass(on_time now)
 		if (!w->used)
 			continue;
 		if (w->current) {
-			if (st.captures >= w->capture_target)
-				reply_current(w);
-			else if (now >= w->deadline) {
+			if (st.captures >= w->capture_target) {
+				if (w->current == 2)
+					reply_snapshot(w);
+				else
+					reply_current(w);
+			} else if (now >= w->deadline) {
+				struct snap *sn = w->current == 2 ? snap_for(w->ocb) : NULL;
+				if (sn)
+					snap_free(sn);
 				MsgError(w->rcvid, ETIMEDOUT);
 				w->used = 0;
 			}

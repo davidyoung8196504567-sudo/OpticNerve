@@ -10,6 +10,7 @@ static const char usage[] =
 	"       opticnerve status\n"
 	"       opticnerve wait [-timeout=S] [-since=COUNT] [-quiet=MS]\n"
 	"       opticnerve current\n"
+	"       opticnerve capture X Y W H FILE\n"
 	"       opticnerve stop                                                                            (root)\n"
 	"       opticnerve passwd [-passfile=PATH] < password                                              (root)\n";
 

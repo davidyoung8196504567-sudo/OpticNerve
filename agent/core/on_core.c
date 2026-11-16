@@ -625,6 +625,32 @@ static void send_update(struct on_core *c, int idx, struct rect area)
 	s->incr_timed = 0;
 }
 
+size_t on_read_region(const struct on_core *c, int x, int y, int *w, int *h, uint8_t *rgb, size_t cap)
+{
+	struct rect r = { x, y, *w, *h };
+	if (x < 0 || y < 0 || *w <= 0 || *h <= 0 || !clip(c, &r)) {
+		*w = *h = 0;
+		return 0;
+	}
+	size_t need = (size_t)r.w * r.h * 3;
+	if (need > cap) {
+		*w = *h = 0;
+		return 0;
+	}
+	size_t row = (size_t)c->cfg.width * 4, k = 0;
+	for (int j = 0; j < r.h; j++) {
+		const uint8_t *s = c->cur + (size_t)(r.y + j) * row + (size_t)r.x * 4;
+		for (int i = 0; i < r.w; i++, s += 4) {
+			rgb[k++] = s[2];
+			rgb[k++] = s[1];
+			rgb[k++] = s[0];
+		}
+	}
+	*w = r.w;
+	*h = r.h;
+	return k;
+}
+
 uint64_t on_want_capture(struct on_core *c)
 {
 	c->device_want = 1;
