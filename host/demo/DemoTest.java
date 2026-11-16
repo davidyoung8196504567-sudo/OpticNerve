@@ -2,7 +2,7 @@
 // the OpticNerve agent, and checks what the panel shows. Each step prints PASS or FAIL; the exit status is the
 // number of failures.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail] [-slow]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail] [-slow] [-cols=N]
 //
 // Needs the agent running on HOST (port 5901) and demo_panel showing. -fail adds one check that expects the wrong
 // count, to show what a caught failure looks like. Between steps the test asks the agent on the target, over SSH,
@@ -27,16 +27,42 @@ public class DemoTest {
     static int fails, n;
 
     static boolean slow;
+    static int cols; // -cols=N: wrap output at word boundaries to N columns (for a large font in the video); 0: no wrap
+
+    // Prints text after a first-line prefix; continuation lines are indented to the prefix's width.
+    static void say(String prefix, String text) {
+        if (cols <= prefix.length() + 10) {
+            System.out.println(prefix + text);
+            return;
+        }
+        String indent = " ".repeat(prefix.length());
+        StringBuilder line = new StringBuilder(prefix);
+        int start = prefix.length();
+        for (String w : text.split(" ")) {
+            if (line.length() > start && line.length() + 1 + w.length() > cols) {
+                System.out.println(line);
+                line = new StringBuilder(indent);
+            }
+            if (line.length() > start && line.charAt(line.length() - 1) != ' ') line.append(' ');
+            line.append(w);
+        }
+        System.out.println(line);
+    }
 
     static void caption(String text) throws Exception {
         System.out.println();
-        System.out.println("==> " + text);
+        say("==> ", text);
         if (slow) Thread.sleep(1500);
     }
 
     static void check(String name, boolean ok, String detail) {
         if (!ok) fails++;
-        System.out.printf("%-4s %-44s %s%n", ok ? "PASS" : "FAIL", name, detail);
+        if (cols > 0) {
+            say(ok ? "PASS " : "FAIL ", name);
+            say("     ", detail);
+        } else {
+            System.out.printf("%-4s %-44s %s%n", ok ? "PASS" : "FAIL", name, detail);
+        }
     }
 
     // The agent on the target says when the screen has settled; without SSH, a fixed pause.
@@ -109,7 +135,7 @@ public class DemoTest {
             run(a);
             code = fails;
         } catch (Throwable e) {
-            System.out.println("FAIL " + "the test stopped on an error: " + e);
+            say("FAIL ", "the test stopped on an error: " + e);
             code = fails + 1;
         }
         try {
@@ -125,6 +151,7 @@ public class DemoTest {
         boolean showFailure = java.util.Arrays.asList(a).contains("-fail");
         record = java.util.Arrays.asList(a).contains("-record");
         slow = java.util.Arrays.asList(a).contains("-slow");
+        for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
         out = new File(a.length > 2 && !a[2].startsWith("-") ? a[2] : "demo-out").getAbsoluteFile();
         out.mkdirs();
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
