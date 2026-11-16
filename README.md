@@ -150,6 +150,19 @@ Every request has a time limit: an agent that does not answer makes a command pr
 | `host/tests/robustness.py <Pi>:5901` | from a host | wrong password, unknown messages, a fifth client, silent connections, a client that stops reading, 208 connections closed at every protocol state |
 | `host/spikes/oculix_input/OculixInputProbe.java` | from a host | 15 OculiX input calls through the agent; what arrives is logged by `agent/spikes/input_log.c` on the target |
 
+## The demo
+
+`agent/demo/demo_panel.c` is a small instrument panel for the target (three buttons, a counter, a lamp, a text line),
+and `host/demo/DemoTest.java` is the OculiX test that drives it through the agent:
+
+```
+java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out [-slow] [-fail] [-brief] [-repeat=N] [-cols=N]
+```
+
+The demo video was recorded with `host/demo/video/record_take.py`, which runs the shots of `host/demo/video/take.sh`
+in a full-screen terminal while OBS records (Windows with Git for Windows and OBS Studio; the OBS scene and the webcam
+settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` runs the shots without OBS.
+
 ## Settings and limits
 
 - **Port 5901**, VNC authentication only (type 2), RFB 3.8 only, Raw encoding, 32 bits per pixel; a client that asks
