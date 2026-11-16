@@ -69,6 +69,10 @@ void on_signalled(struct on_core *c, on_time now);
  * memory, stride in bytes. started/ended: when the read began and ended. The core copies what it needs. */
 void on_captured(struct on_core *c, const uint8_t *pixels, int stride, on_time started, on_time ended);
 
+/* A caller on the device needs fresh pixels (design 4.5, consumer 3). Returns the value that on_stats().captures
+ * will reach once a capture taken after this call has finished; the caller is answered then. */
+uint64_t on_want_capture(struct on_core *c);
+
 /* Reap, decide, reap. Returns when the core next needs to be called with nothing else having happened. */
 on_time on_schedule(struct on_core *c, on_time now);
 

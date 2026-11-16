@@ -27,15 +27,20 @@
 #include <screen/screen.h>
 #include "on_core.h"
 #include "on_des.h"
+#include "on_dev.h"
+#include "device.h"
+#include <sys/procmgr.h>
 
 #define ON_VERSION "0.1.0"
 #define PULSE_TIMER (_PULSE_CODE_MINAVAIL + 0)
 #define PULSE_SCREEN (_PULSE_CODE_MINAVAIL + 1)
 #define PULSE_TERM (_PULSE_CODE_MINAVAIL + 2)
+#define PULSE_HUP (_PULSE_CODE_MINAVAIL + 3)
 
 static dispatch_t *dpp;
 static struct on_core *core;
-static int coid, quit, listen_fd = -1;
+static int coid, quit, reload, listen_fd = -1;
+static const char *passfile = "/data/opticnerve/etc/vncpasswd";
 static int fds[ON_SLOTS], want_write[ON_SLOTS];
 static timer_t timer;
 static screen_context_t sctx;
@@ -277,17 +282,21 @@ static int on_pulse(message_context_t *ctp, int code, unsigned flags, void *hand
 	(void)ctp;
 	(void)flags;
 	(void)handle;
-	if (code == PULSE_SCREEN)
+	if (code == PULSE_SCREEN) {
 		on_signalled(core, now_ns());
-	else if (code == PULSE_TERM)
+		device_signal(now_ns());
+	} else if (code == PULSE_TERM) {
 		quit = 1;
+	} else if (code == PULSE_HUP) {
+		reload = 1;
+	}
 	return 0;
 }
 
 static void on_term(int sig)
 {
-	(void)sig;
-	MsgSendPulse(coid, -1, PULSE_TERM, 0); /* safe in a signal handler; the loop wakes and sees it */
+	/* safe in a signal handler; the loop wakes and sees it */
+	MsgSendPulse(coid, -1, sig == SIGHUP ? PULSE_HUP : PULSE_TERM, 0);
 }
 
 static void take_actions(void)
@@ -331,6 +340,9 @@ static void run_pass(void)
 		take_actions();
 		flush();
 		take_actions();
+		on_time dw = device_pass(now_ns());
+		if (dw < wake)
+			wake = dw;
 		on_stats(core, &st);
 		if (st.captures == before) {
 			struct itimerspec it = { 0 };
@@ -345,6 +357,12 @@ static void run_pass(void)
 	struct itimerspec it = { 0 };
 	it.it_value.tv_nsec = 1000000; /* more work is waiting: come back at once */
 	timer_settime(timer, 0, &it, NULL);
+}
+
+static void display_state(int *idle, int *power)
+{
+	screen_get_display_property_iv(disp, SCREEN_PROPERTY_IDLE_STATE, idle);
+	screen_get_display_property_iv(disp, SCREEN_PROPERTY_POWER_MODE, power);
 }
 
 static int read_password(const char *path, uint8_t pw[8])
@@ -364,8 +382,7 @@ static int read_password(const char *path, uint8_t pw[8])
 
 int serve_main(int argc, char **argv)
 {
-	int display_no = 1, port = 5901, holdoff_ms = 33;
-	const char *passfile = "/data/opticnerve/etc/vncpasswd";
+	int display_no = 1, port = 5901, holdoff_ms = 33, foreground = 0;
 	for (int i = 0; i < argc; i++) {
 		if (strncmp(argv[i], "-display=", 9) == 0)
 			display_no = atoi(argv[i] + 9);
@@ -377,17 +394,27 @@ int serve_main(int argc, char **argv)
 			holdoff_ms = atoi(argv[i] + 9);
 		else if (strcmp(argv[i], "-v") == 0)
 			verbose = 1;
+		else if (strcmp(argv[i], "-foreground") == 0)
+			foreground = 1;
 		else {
-			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS]\n");
+			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-v] "
+					"[-foreground]\n");
 			return 2;
 		}
 	}
+	if (access(ON_DEV_PATH, F_OK) == 0) {
+		fprintf(stderr, "opticnerve: %s already exists: an agent is running\n", ON_DEV_PATH);
+		return 1;
+	}
+	/* Detach from the terminal unless asked not to; standard error stays where the caller sent it. */
+	if (!foreground && procmgr_daemon(0, PROCMGR_DAEMON_NOCHDIR | PROCMGR_DAEMON_NOCLOSE | PROCMGR_DAEMON_NODEVNULL) < 0)
+		die("procmgr_daemon");
 	signal(SIGPIPE, SIG_IGN); /* a peer that resets mid-send must not end the agent (UBUNTU24 finding 8) */
 
 	if (!(dpp = dispatch_create()))
 		die("dispatch_create");
 	if (pulse_attach(dpp, 0, PULSE_TIMER, on_pulse, NULL) < 0 || pulse_attach(dpp, 0, PULSE_SCREEN, on_pulse, NULL) < 0 ||
-	    pulse_attach(dpp, 0, PULSE_TERM, on_pulse, NULL) < 0)
+	    pulse_attach(dpp, 0, PULSE_TERM, on_pulse, NULL) < 0 || pulse_attach(dpp, 0, PULSE_HUP, on_pulse, NULL) < 0)
 		die("pulse_attach");
 	if ((coid = message_connect(dpp, MSG_FLAG_SIDE_CHANNEL)) < 0)
 		die("message_connect");
@@ -397,6 +424,7 @@ int serve_main(int argc, char **argv)
 		die("timer_create");
 	signal(SIGTERM, on_term);
 	signal(SIGINT, on_term);
+	signal(SIGHUP, on_term);
 
 	screen_setup(display_no);
 	char host[64] = "qnx", name[128];
@@ -427,6 +455,9 @@ int serve_main(int argc, char **argv)
 	if (select_attach(dpp, NULL, listen_fd, SELECT_FLAG_READ | SELECT_FLAG_REARM, on_listen, NULL) != 0)
 		die("select_attach listen");
 
+	struct device_info di = { ON_VERSION, dsize[0], dsize[1], port, now_ns, display_state };
+	device_init(dpp, core, &di);
+
 	dispatch_context_t *ctp = dispatch_context_alloc(dpp);
 	if (!ctp)
 		die("dispatch_context_alloc");
@@ -439,6 +470,16 @@ int serve_main(int argc, char **argv)
 			dispatch_handler(ctp);
 		} else if (errno != EINTR) {
 			die("dispatch_block");
+		}
+		if (reload) {
+			/* SIGHUP from `opticnerve passwd`: read the file again; a bad file changes nothing (design 4.7) */
+			reload = 0;
+			uint8_t k[8];
+			if (read_password(passfile, k))
+				on_set_key(core, k, 1);
+			else
+				fprintf(stderr, "opticnerve: %s has no password: the key in use stays\n", passfile);
+			memset(k, 0, sizeof(k));
 		}
 		run_pass();
 	}

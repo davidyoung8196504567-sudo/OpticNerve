@@ -17,9 +17,9 @@ build/%/core_test: tests/core_test.c $(CORE) core/on_core.h core/on_des.h
 	mkdir -p $(dir $@)
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ tests/core_test.c $(CORE)
 
-build/%/opticnerve: qnx/main.c qnx/serve.c $(CORE) core/on_core.h core/on_des.h
+build/%/opticnerve: qnx/main.c qnx/serve.c qnx/device.c qnx/cli.c qnx/device.h qnx/on_dev.h $(CORE) core/on_core.h core/on_des.h
 	mkdir -p $(dir $@)
-	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ qnx/main.c qnx/serve.c $(CORE) -lscreen -lsocket
+	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ qnx/main.c qnx/serve.c qnx/device.c qnx/cli.c $(CORE) -lscreen -lsocket
 
 clean:
 	rm -rf build

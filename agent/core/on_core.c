@@ -62,7 +62,7 @@ struct on_core {
 	int input_owner;          /* slot whose input is injected; -1 none */
 	on_time now;              /* the time of the current on_schedule() */
 	/* capture state */
-	int in_flight, in_flight_timed;
+	int in_flight, in_flight_timed, device_want;
 	uint64_t captures_done;
 	on_time last_end, last_dur;
 	struct on_stats st;
@@ -625,6 +625,12 @@ static void send_update(struct on_core *c, int idx, struct rect area)
 	s->incr_timed = 0;
 }
 
+uint64_t on_want_capture(struct on_core *c)
+{
+	c->device_want = 1;
+	return c->captures_done + (c->in_flight ? 2 : 1);
+}
+
 on_time on_schedule(struct on_core *c, on_time now)
 {
 	on_time wake = ON_NEVER;
@@ -672,6 +678,8 @@ on_time on_schedule(struct on_core *c, on_time now)
 		}
 	}
 
+	if (c->device_want)
+		want = 1;
 	/* at most one capture in flight, and the hold-off after the last one */
 	if (want && !c->in_flight) {
 		on_time gap = c->last_dur > c->cfg.holdoff_min ? c->last_dur : c->cfg.holdoff_min;
@@ -682,6 +690,7 @@ on_time on_schedule(struct on_core *c, on_time now)
 			if (c->in_flight_timed)
 				c->st.timed_captures++;
 			c->st.signalled = 0;
+			c->device_want = 0;
 			push(c, (struct on_action){ .type = ON_ACT_CAPTURE, .slot = -1 });
 		} else if (ok < wake) {
 			wake = ok;
