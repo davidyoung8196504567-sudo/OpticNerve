@@ -176,6 +176,11 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 - **Who can do what on the target:** the agent runs as root. Any user who can log in to the target can read its
   status and capture the screen through `/dev/opticnerve` without the VNC password; input needs a VNC connection and
   the password. Stopping the agent and setting its password are root only. This fits a single-user test target.
+- **Input reaches application windows only:** the agent injects input through Screen, which delivers it to the
+  focused application (the demo panel, a Terminal). The quick-start image's launcher and window-manager shortcuts
+  (Alt+Tab) take input from the input devices themselves, so a test starts applications over SSH instead
+  (`host/demo/LoginTest.java` starts the launcher's Terminal as the launcher does). Injected keys carry the same key
+  symbol and USB scan code as a real keyboard's.
 - **Not addressed:** QNX security policies; encryption (VNC authentication is not meant for untrusted networks).
 - **Not included:** boot images (the agent is deployed onto the quick-start image as it is shipped); start at boot.
 
