@@ -62,7 +62,7 @@ public class DemoTest {
         BufferedImage img = s.capture(x, y, w, h).getImage();
         File f = new File(out, "pattern_" + name + ".png");
         ImageIO.write(img, "png", f);
-        return new Pattern(f.getPath()).similar(0.9);
+        return new Pattern(f.getAbsolutePath()).similar(0.9); // OculiX resolves a relative path in its own image folder
     }
 
     // OCR of a region with OculiX. The panel's letters are a blocky pixel font; Tesseract reads them at the sizes the
@@ -78,7 +78,7 @@ public class DemoTest {
     static boolean record;
 
     static String countIs(int n) throws Exception {
-        File ref = new File("host/demo/ref", "count_" + n + ".png");
+        File ref = new File("host/demo/ref", "count_" + n + ".png").getAbsoluteFile();
         if (record) {
             ref.getParentFile().mkdirs();
             ImageIO.write(s.capture(160, 280, 700, 180).getImage(), "png", ref);
@@ -101,18 +101,40 @@ public class DemoTest {
         return c.toString();
     }
 
-    public static void main(String[] a) throws Exception {
+    // Any error ends the run as a failure: OculiX's VNC threads would otherwise keep the program alive (a take of
+    // 2026-11-16 hung after a pattern was not found).
+    public static void main(String[] a) {
+        int code;
+        try {
+            run(a);
+            code = fails;
+        } catch (Throwable e) {
+            System.out.println("FAIL " + "the test stopped on an error: " + e);
+            code = fails + 1;
+        }
+        try {
+            if (s != null) s.stop();
+        } catch (Throwable ignored) {
+        }
+        System.out.println();
+        System.out.println(code == 0 ? "ALL PASSED" : code + " FAILED");
+        System.exit(code);
+    }
+
+    static void run(String[] a) throws Exception {
         boolean showFailure = java.util.Arrays.asList(a).contains("-fail");
         record = java.util.Arrays.asList(a).contains("-record");
         slow = java.util.Arrays.asList(a).contains("-slow");
-        out = new File(a.length > 2 && !a[2].startsWith("-") ? a[2] : "demo-out");
+        out = new File(a.length > 2 && !a[2].startsWith("-") ? a[2] : "demo-out").getAbsoluteFile();
         out.mkdirs();
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
         if (slow) org.sikuli.basics.Settings.MoveMouseDelay = 1.0f;
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent (VNC, port 5901)");
         s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
-        check("connect to the OpticNerve agent", s != null, a[0] + ":5901");
+        boolean framed = s != null && s.capture() != null; // a frame arrived, not just an object returned
+        check("connect to the OpticNerve agent", framed, a[0] + ":5901" + (framed ? "" : ", no frame"));
+        if (!framed) return;
         shot("start");
 
         caption("Finding the RESET button by image, and clicking it");
@@ -158,9 +180,5 @@ public class DemoTest {
             String wrong = countIs(0);
             check("(deliberate) the count still shows 0", wrong != null, wrong == null ? "no match with count_0.png" : wrong);
         }
-        s.stop();
-        System.out.println();
-        System.out.println(fails == 0 ? "ALL PASSED" : fails + " FAILED");
-        System.exit(fails);
     }
 }
