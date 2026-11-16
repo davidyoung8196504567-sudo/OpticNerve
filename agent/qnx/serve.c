@@ -45,6 +45,7 @@ static int fds[ON_SLOTS], want_write[ON_SLOTS];
 static timer_t timer;
 static screen_context_t sctx;
 static screen_display_t disp;
+static screen_device_t kbd;
 static screen_pixmap_t pixmap;
 static screen_buffer_t pbuf;
 static int dsize[2], ptr_x, ptr_y, verbose;
@@ -87,6 +88,16 @@ static void screen_setup(int display_no)
 	disp = d[display_no - 1];
 	free(d);
 	screen_get_display_property_iv(disp, SCREEN_PROPERTY_SIZE, dsize);
+
+	/* A keyboard device of our own: Screen keeps the modifiers of key events that name a device, and drops them from
+	 * events that do not (logged with agent/spikes/input_log.c, 2026-11-16). Without it no Ctrl, Alt or Shift. */
+	if (screen_create_device_type(&kbd, sctx, SCREEN_EVENT_KEYBOARD) == 0) {
+		screen_set_device_property_cv(kbd, SCREEN_PROPERTY_ID_STRING, (int)strlen("opticnerve-kbd"), "opticnerve-kbd");
+		screen_flush_context(sctx, 0);
+	} else {
+		kbd = NULL;
+		fprintf(stderr, "opticnerve: no keyboard device of our own (%s): keys go without modifiers\n", strerror(errno));
+	}
 
 	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_READ, format = SCREEN_FORMAT_RGBA8888;
 	if (screen_create_pixmap(&pixmap, sctx) != 0)
@@ -171,11 +182,34 @@ static int map_scan(uint32_t sym)
 	return 0;
 }
 
+/* The character on the same key without Shift (US layout): 'A' -> 'a', ':' -> ';', '!' -> '1'; others unchanged. */
+static uint32_t unshifted(uint32_t sym)
+{
+	static const char from[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ)!@#$%^&*(_+{}|:\"~<>?";
+	static const char to[] = "abcdefghijklmnopqrstuvwxyz0123456789-=[]\\;'`,./";
+	const char *p = sym > 0 && sym < 0x80 ? strchr(from, (int)sym) : NULL;
+	return p ? (uint32_t)(unsigned char)to[p - from] : sym;
+}
+
+/* Modifier keys held by the client, as KEYMOD_* bits. Some applications take Shift, Ctrl and Alt from the event's
+ * SCREEN_PROPERTY_MODIFIERS rather than from the modifier keys' own events: the Developer Desktop (Weston) typed Ctrl+A
+ * as "a" and ':' as ';' without them (2026-11-16). */
+static int held_mods;
+
 static void inject_key(uint32_t sym, int down)
 {
 	int code = map_key(sym);
 	if (code < 0)
 		return;
+	int bit = sym == 0xffe1 || sym == 0xffe2 ? KEYMOD_SHIFT
+		: sym == 0xffe3 || sym == 0xffe4 ? KEYMOD_CTRL
+		: sym == 0xffe9 || sym == 0xffea ? KEYMOD_ALT : 0;
+	if (bit)
+		held_mods = down ? held_mods | bit : held_mods & ~bit;
+	/* A client may send a shifted character without Shift held (a VNC keysym is the character): it gets the Shift
+	 * modifier and the unshifted key cap, as a real keyboard's event would have. */
+	uint32_t base = unshifted(sym);
+	int mods = held_mods | (base != sym ? KEYMOD_SHIFT : 0), cap = map_key(base);
 	screen_event_t ev;
 	int type = SCREEN_EVENT_KEYBOARD, flags = KEY_SYM_VALID | KEY_CAP_VALID | (down ? KEY_DOWN : 0), scan = map_scan(sym);
 	if (scan)
@@ -185,7 +219,10 @@ static void inject_key(uint32_t sym, int down)
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_FLAGS, &flags);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SYM, &code);
-	screen_set_event_property_iv(ev, SCREEN_PROPERTY_KEY_CAP, &code);
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_KEY_CAP, &cap);
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_MODIFIERS, &mods);
+	if (kbd)
+		screen_set_event_property_pv(ev, SCREEN_PROPERTY_DEVICE, (void **)&kbd);
 	if (scan)
 		screen_set_event_property_iv(ev, SCREEN_PROPERTY_SCAN, &scan);
 	int rc = screen_inject_event(disp, ev);
@@ -540,6 +577,8 @@ int serve_main(int argc, char **argv)
 	take_actions(); /* releases held keys and buttons, closes sockets */
 	close(listen_fd);
 	screen_destroy_pixmap(pixmap);
+	if (kbd)
+		screen_destroy_device(kbd);
 	screen_destroy_context(sctx);
 	on_core_free(core);
 	return 0;
