@@ -214,7 +214,7 @@ Ctrl+Alt combinations through OculiX, and do not match on the pointer in VNC fra
 |---|---|---|---|---|
 | Start, focus and close applications: `App` | yes (Windows, macOS, Linux) | **no**: `App` acts on the local system | no | **ON agent / SSH:** the suite starts and closes apps over SSH, A01 (camera viewfinder runs), A04 (Gears tile) |
 | Clipboard: `App.getClipboard`/`setClipboard` | yes | **no**: local clipboard only | no | not needed so far |
-| Run a command | yes (local) | no | no | **SSH** (the `on` command) |
+| Run a command | yes (local) | no | no | **SSH** (the `opticnerve` command) |
 | Know what is running, crashes, logs | local tools | no | no | **ON agent / SSH:** processes, core dumps and system log checked after every test |
 | Put the target back in a known state | n/a | no | no | **SSH:** the suite closes apps after each app test, A04 (Gears tile); it reboots the target with `sudo shutdown`, A03 (sudo shutdown returns to the launcher); TD01 (target back to its initial condition) checks the result |
 | Global hotkeys, recorder, capture prompt | yes | local to the host | local to the host | none needed |

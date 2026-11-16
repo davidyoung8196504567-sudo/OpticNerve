@@ -18,7 +18,7 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 | 0 | Setup | Linux build host on SDP 8.0.5; Pi 5 boots QNX from a spare microSD; QEMU target boots | 2026-11-19 |
 | 1 | Survey and design | Know whether QNX 8.0 ships a VNC or remote-screen component and what Screen offers for capture and input injection; choose: port a VNC library or write the server | 2026-11-21 |
 | 2 | Spikes and agent core | Spikes S1 to S6 answered ([DESIGN.md](DESIGN.md)); agent runs as a resource manager (`/dev/opticnerve`) with frame freshness, idle/power state and keep-awake | 2026-11-28 |
-| 3 | Capture and host access | Region capture (`screen_read_display()`); the `on` command on the target; host helpers over SSH | 2026-12-03 |
+| 3 | Capture and host access | Region capture (`screen_read_display()`); the `opticnerve` command on the target; host helpers over SSH | 2026-12-03 |
 | 4 | Window list and hardening | Window list if spike S3 allows; error handling, reproducible deployment of the agent | 2026-12-07 |
 | 5 | Oculix suite | Demo HMI (a native Screen application) on QNX; Oculix test suite and preset on the host; runs green on Pi 5 and QEMU | 2026-12-10 |
 | 6 | Submission | Build and run instructions, description naming the QNX-specific files, video, tutorial | 2026-12-14 |
@@ -119,9 +119,12 @@ Category: Developer Tooling & Host Tools (phase 1 decided against porting a VNC 
 
 ## Our own VNC server on QNX, built for OculiX
 
-(David, 2026-11-15: "it's actually easier to build a custom VNC server to work with OculiX".) A VNC server for QNX
-8.0 of our own, from open source (LibVNCServer, GPL-2.0-or-later, which this repository's licence must then allow
-for), in place of `vncserv`, designed around what OculiX and the tests need:
+(David, 2026-11-15: "it's actually easier to build a custom VNC server to work with OculiX".) A small RFB server of
+our own for QNX 8.0, written by us and not built on LibVNCServer. The design is
+[DESIGN_SERVER.md](DESIGN_SERVER.md), in review R-001 (gate G1); it holds the alternatives that were weighed (ours
+is alternative C there), the test outline and the milestones. The server and the ON agent are one binary,
+`opticnerve`. It listens on port 5901 beside the `vncserv` that the quick-start image starts on port 5900, and never
+replaces it. It is designed around what OculiX and the tests need:
 
 - **Pixel format and encodings OculiX decodes correctly**: 32 bpp rgb888 and an encoding it handles, so ON-OX-001 to
   003 never arise, with pixels taken from `screen_read_display()` at 32 bpp.
@@ -139,18 +142,12 @@ for), in place of `vncserv`, designed around what OculiX and the tests need:
   component versions on screen (DESIGN.md).
 - **Its own version in the RFB desktop name**, so every client shows what is running.
 
-**To do first: pick a stable LibVNCServer version** (David, 2026-11-15) from its GitHub releases
-(<https://github.com/LibVNC/libvncserver/releases>), and build only from that: a release tag, not `master`. Record the
-tag, its commit hash and the SHA-256 of the source archive in CONFIG_MANAGEMENT.md, like the other pinned components,
-and change it only as a recorded update. Candidates: 0.9.15, the version QNX's own `vncserv` 4.2.1 is built on (now
-on the Pi), and the newest stable release at the time of choosing; check each one's open issues against the threaded
-client handling the server will use.
-
 **Acceptance tests:** the Pi column of OCULIX_VNC_MATRIX.md, the RFB taps and the fake servers, run against our
-server.
+server (the outline is in DESIGN_SERVER.md, section 7).
 
-This replaces the plan to build the agent beside `vncserv` (DESIGN.md, decision of 2026-11-12) once David confirms
-the change; until then `vncserv` 4.2.1 stays on the Pi.
+Once review R-001 accepts DESIGN_SERVER.md, it replaces the decision of 2026-11-12 in [DESIGN.md](DESIGN.md), which
+was to build the agent beside `vncserv` without a server of our own. The image's `vncserv` stays on the Pi, running
+and untouched, and is how OculiX reaches the Pi until our server is ready.
 
 ## OculiX issues found: fix after the ON agent work
 

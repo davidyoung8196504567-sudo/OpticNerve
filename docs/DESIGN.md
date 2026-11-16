@@ -1,5 +1,8 @@
 # OpticNerve design (phase 1)
 
+The server and agent design is now [DESIGN_SERVER.md](DESIGN_SERVER.md), which is in review R-001 (gate G1). This
+page is the earlier design of 2026-11-12, kept for the record.
+
 Status: **accepted by David on 2026-11-12**, including the native Screen demo HMI (see "Scope for the demo") and
 the phase changes at the end, which are now in [PLAN.md](PLAN.md).
 
@@ -37,7 +40,7 @@ What the agent adds:
  | Oculix test script      | <-----------------------> | vncserv (QNX)                   |
  |  VNCScreen: see, click  |   frames out, input in    |   screen capture, input to Screen|
  |                         |                           +---------------------------------+
- |  on-status, on-capture  |   SSH, :22                | on (CLI)  --message passing-->  |
+ |  opticnerve status, ... |   SSH, :22                | opticnerve (CLI) --messages-->  |
  |  (helpers over SSH)     | ------------------------> | ON agent: resource manager      |
  +-------------------------+                           |   /dev/opticnerve               |
                                                        |   Screen API (privileged ctx)   |
@@ -56,7 +59,7 @@ feature below names the Screen API it relies on (from `screen.h`) and what it is
 | **Keep-awake** during a test session | a visible window with `SCREEN_PROPERTY_IDLE_MODE = SCREEN_IDLE_MODE_KEEP_AWAKE` | Screen's own idle blanking. Weston's lock screen is a separate layer (see "Scope") |
 | **Region capture** for assertions, independent of VNC: write a region of the display to a file | `screen_read_display()` with a `SCREEN_DISPLAY_MANAGER_CONTEXT` (needs effective root and write access to `/dev/screen/.dpymgr`) | a second, direct view of the screen for assertions |
 | **Status and control** | resource manager (`resmgr_attach`, message passing) | the test can ask "is the target ready?" |
-| **Component versions on screen** (David, 2026-11-15): a small label in the launcher's bottom bar, next to the IP address and image ID, showing the running `vncserv` version and build (for example "vncserv 4.2.1 B115") and the agent's version; the same in the status text | a small visible window: `screen_create_window()`, `SCREEN_PROPERTY_POSITION`, `_SIZE`, `_ZORDER` above the launcher, text drawn into its buffer with a built-in bitmap font; the version read from the running binary (`/proc/<pid>/exefile`, its `use -i` record) | a swapped-in `vncserv` (4.2.0 B70 → 4.2.1 B115) is visible in every frame, the camera recording and the demo video. The label's rectangle is fixed, so tests exclude it from pixel comparisons |
+| **Component versions on screen** (David, 2026-11-15): a small label in the launcher's bottom bar, next to the IP address and image ID, showing the agent's version and a text set for the test run (David, later the same day: the label shows our own software only); the same in the status text | a small visible window: `screen_create_window()`, `SCREEN_PROPERTY_POSITION`, `_SIZE`, `_ZORDER` above the launcher, text drawn into its buffer with a built-in bitmap font | the agent's version and the run's name are visible in every frame, the camera recording and the demo video. The label's rectangle is fixed, so tests exclude it from pixel comparisons |
 | *Window list (stretch)*: id, owner pid, position, size, visibility | `SCREEN_WINDOW_MANAGER_CONTEXT`, `SCREEN_EVENT_CREATE`, `SCREEN_PROPERTY_ID_STRING`, `_OWNER_PID`, `_POSITION`, `_SIZE`, `_VISIBLE` | find an app's window without image matching. Unproven: a window manager is already running (spike S3) |
 
 Input injection is **not** in the agent: keys and pointer go in through `vncserv` (its usage text: "Events from the
@@ -68,16 +71,16 @@ keyboard and mouse are forwarded to Screen"; its `-use_touch` option turns mouse
 - `/dev/opticnerve` answers reads with a status text (frame counter, last update time, idle state, power mode,
   keep-awake on or off, agent version). Control goes through `devctl()` messages: keep-awake on or off, capture a
   region to a file, reset counters.
-- A small `on` command on the target wraps those messages (`on status`, `on keepawake on`, `on capture x y w h
-  file.png`, `on wait-update --timeout 2s`).
-- The host reaches it over SSH (`ssh qnxuser@pi on status`), so no new network service is opened. The Oculix suite
-  calls these through small host helpers.
+- A small `opticnerve` command on the target wraps those messages (`opticnerve status`, `opticnerve keepawake on`,
+  `opticnerve capture x y w h file.png`, `opticnerve wait -timeout=2`).
+- The host reaches it over SSH (`ssh qnxuser@pi opticnerve status`), so no new network service is opened. The Oculix
+  suite calls these through small host helpers.
 
 ## Privileges
 
 - The agent runs as **root**: `screen_read_display()` requires effective root, and the privileged contexts are
   gated by write access to `/dev/screen/.dpymgr`, `.winmgr` and the other nodes.
-- The `on` command runs as `qnxuser` and only sends messages; the resource manager decides what to allow.
+- The `opticnerve` command runs as `qnxuser` and only sends messages; the resource manager decides what to allow.
 - QNX security policies are not addressed in the hackathon build. Said so in the README.
 
 ## Scope for the demo
@@ -120,7 +123,7 @@ window and no window list in the agent.
 
 - Phase 2 "Capture" and phase 3 "Input" as first written assumed we build the VNC server. Instead:
   - Phase 2: spikes S1 to S6, then the agent's frame-freshness, idle and keep-awake features.
-  - Phase 3: region capture, the `on` command and the host helpers over SSH.
+  - Phase 3: region capture, the `opticnerve` command and the host helpers over SSH.
 - Phase 4: the resource manager is now part of phases 2 and 3, since it is the agent's core. Phase 4 becomes the
   window list (if S3 allows) and hardening.
 - Phases 5 and 6 unchanged.
