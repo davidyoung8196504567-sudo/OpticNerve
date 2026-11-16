@@ -168,7 +168,7 @@ public class DemoTest {
         Pattern plus = cut(160, 700, 420, 200, "plus"), reset = cut(750, 700, 420, 200, "reset"),
                 lampButton = cut(1340, 700, 420, 200, "lamp");
         Match m = s.exists(reset, 3);
-        check("find the RESET button by image", m != null, m == null ? "not found" : "score " + m.getScore());
+        check("find the RESET button by image", m != null, m == null ? "not found" : String.format("score %.4f", m.getScore()));
         s.click(reset);
         settle();
         caption("Checking the count shows 0, pixel by pixel");
