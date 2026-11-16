@@ -104,6 +104,102 @@ static const struct button BUTTONS[3] = {
 static int counter, lamp_red;
 static char line[25];
 
+static double now_s(void)
+{
+	struct timespec ts;
+	clock_gettime(CLOCK_MONOTONIC, &ts);
+	return ts.tv_sec + ts.tv_nsec / 1e9;
+}
+
+/*
+ * A pointer marker of our own, so that a viewer (on the monitor and in VNC frames, which carry no pointer image) can
+ * see where each move and click lands: a ring at the pointer, a fading trail, and a ripple where a button is pressed.
+ * All of it fades within about a second after the pointer stops, so a test that waits for a quiet screen sees the
+ * panel without it.
+ */
+#define TRAIL 16
+#define RIPPLES 8
+#define RING_SECS 1.0
+#define TRAIL_SECS 0.6
+#define RIPPLE_SECS 0.5
+static struct { int x, y; double t; } trail[TRAIL];
+static int trail_head;
+static struct { int x, y; double t; unsigned rgb; } ripples[RIPPLES];
+static int ptr_x = -1, ptr_y = -1;
+static double last_move = -100;
+
+static unsigned mix(unsigned a, unsigned b, double k) /* k = 0 gives a, k = 1 gives b */
+{
+	unsigned r = 0;
+	for (int s = 0; s <= 16; s += 8) {
+		double ca = (a >> s) & 0xff, cb = (b >> s) & 0xff;
+		r |= (unsigned)(ca + (cb - ca) * k) << s;
+	}
+	return r;
+}
+
+static void ring(int cx, int cy, int r, int th, unsigned rgb)
+{
+	int r2 = r * r, i2 = (r - th) * (r - th);
+	for (int y = cy - r; y <= cy + r; y++)
+		for (int x = cx - r; x <= cx + r; x++) {
+			int d2 = (x - cx) * (x - cx) + (y - cy) * (y - cy);
+			if (d2 <= r2 && d2 >= i2 && x >= 0 && y >= 0)
+				fill(x, y, 1, 1, rgb);
+		}
+}
+
+static void pointer_moved(int x, int y)
+{
+	ptr_x = x;
+	ptr_y = y;
+	last_move = now_s();
+	trail[trail_head].x = x;
+	trail[trail_head].y = y;
+	trail[trail_head].t = last_move;
+	trail_head = (trail_head + 1) % TRAIL;
+}
+
+static void pointer_pressed(int x, int y, unsigned rgb)
+{
+	int oldest = 0;
+	for (int i = 1; i < RIPPLES; i++)
+		if (ripples[i].t < ripples[oldest].t)
+			oldest = i;
+	ripples[oldest].x = x;
+	ripples[oldest].y = y;
+	ripples[oldest].t = now_s();
+	ripples[oldest].rgb = rgb;
+}
+
+/* Draws the marker over the panel. Returns 1 while something is still fading, so the caller keeps redrawing. */
+static int overlay(void)
+{
+	double t = now_s();
+	int busy = 0;
+	const unsigned bg = 0x1c2430, hot = 0xff2bd6;
+	for (int i = 0; i < TRAIL; i++) {
+		double age = t - trail[i].t;
+		if (age < TRAIL_SECS) {
+			ring(trail[i].x, trail[i].y, 12, 12, mix(hot, bg, age / TRAIL_SECS));
+			busy = 1;
+		}
+	}
+	for (int i = 0; i < RIPPLES; i++) {
+		double age = t - ripples[i].t;
+		if (age < RIPPLE_SECS) {
+			ring(ripples[i].x, ripples[i].y, 20 + (int)(age / RIPPLE_SECS * 70), 8, mix(ripples[i].rgb, bg, age / RIPPLE_SECS));
+			busy = 1;
+		}
+	}
+	if (ptr_x >= 0 && t - last_move < RING_SECS) {
+		ring(ptr_x, ptr_y, 34, 8, mix(hot, bg, (t - last_move) / RING_SECS));
+		ring(ptr_x, ptr_y, 5, 5, 0xffffff);
+		busy = 1;
+	}
+	return busy;
+}
+
 static void draw(void)
 {
 	char buf[64];
@@ -126,13 +222,6 @@ static void draw(void)
 		int tw = (int)strlen(b->label) * 7 * 10 - 20;
 		text(b->x + (b->w - tw) / 2, b->y + (b->h - 70) / 2, 10, b->label, 0xffffff);
 	}
-}
-
-static double now_s(void)
-{
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return ts.tv_sec + ts.tv_nsec / 1e9;
 }
 
 int main(int argc, char **argv)
@@ -177,16 +266,24 @@ int main(int argc, char **argv)
 	screen_event_t ev;
 	screen_create_event(&ev);
 	double t0 = now_s();
-	int pressed = -1;
+	int pressed = -1, animating = 0, last_buttons = 0;
 	while (!secs || now_s() - t0 < secs) {
-		if (screen_get_event(ctx, ev, 500000000ULL) != 0)
+		/* while the marker fades, wake every 30 ms to redraw it; otherwise wait for events */
+		if (screen_get_event(ctx, ev, animating ? 30000000ULL : 500000000ULL) != 0)
 			break;
-		int type = SCREEN_EVENT_NONE, changed = 0;
+		int type = SCREEN_EVENT_NONE, changed = animating;
 		screen_get_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
 		if (type == SCREEN_EVENT_POINTER) {
 			int p[2] = { 0, 0 }, buttons = 0;
 			screen_get_event_property_iv(ev, SCREEN_PROPERTY_SOURCE_POSITION, p);
 			screen_get_event_property_iv(ev, SCREEN_PROPERTY_BUTTONS, &buttons);
+			pointer_moved(p[0], p[1]);
+			int newly = buttons & ~last_buttons;
+			if (newly)
+				pointer_pressed(p[0], p[1], (newly & SCREEN_LEFT_MOUSE_BUTTON) ? 0xffd166
+							    : (newly & SCREEN_RIGHT_MOUSE_BUTTON) ? 0x4cc9f0 : 0xffffff);
+			last_buttons = buttons;
+			changed = 1;
 			int down = buttons & SCREEN_LEFT_MOUSE_BUTTON;
 			if (down && pressed < 0) {
 				for (int i = 0; i < 3; i++)
@@ -209,7 +306,7 @@ int main(int argc, char **argv)
 			screen_get_event_property_iv(ev, SCREEN_PROPERTY_SYM, &sym);
 			size_t n = strlen(line);
 			if (!(flags & KEY_DOWN))
-				continue;
+				goto redraw;
 			if (sym == KEYCODE_BACKSPACE && n)
 				line[n - 1] = 0;
 			else if (sym == KEYCODE_RETURN)
@@ -219,11 +316,13 @@ int main(int argc, char **argv)
 				line[n] = (char)sym;
 				line[n + 1] = 0;
 			} else
-				continue;
+				goto redraw;
 			changed = 1;
 		}
+	redraw:
 		if (changed) {
 			draw();
+			animating = overlay();
 			screen_post_window(win, buf, 1, dirty, 0);
 		}
 	}
