@@ -10,6 +10,8 @@
  *   inject_probe CTX [dev] move X Y      one pointer event, no button
  *   inject_probe CTX [dev] click X Y     left button down, then up, at X,Y
  *   inject_probe CTX [dev] key SYM [MOD] one key down and up; SYM and MOD as numbers (0x.. accepted)
+ *   inject_probe CTX [dev] touch X Y     a touch and its release at X,Y (SCREEN_EVENT_MTOUCH_TOUCH, _RELEASE)
+ *   inject_probe CTX [dev] alttab        Alt down, Tab down and up with KEYMOD_ALT set, Alt up
  *
  *   CTX  ip    input provider context
  *        ipdm  input provider and display manager in one context (what the agent will ask for)
@@ -114,6 +116,26 @@ static void press(const char *name, int sym, int cap, int mods)
 	key(what, sym, cap, mods, 0);
 }
 
+/* A touch screen's event: SCREEN_EVENT_MTOUCH_TOUCH, _MOVE or _RELEASE at X,Y, finger 0. */
+static void touch(const char *what, int type, int x, int y)
+{
+	screen_event_t ev;
+	int pos[2] = { x, y }, id = 0, seq = 1;
+	if (screen_create_event(&ev) != 0)
+		fail("screen_create_event");
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_POSITION, pos);
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SOURCE_POSITION, pos);
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_TOUCH_ID, &id);
+	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SEQUENCE_ID, &seq);
+	if (set_display)
+		report("  set DISPLAY", screen_set_event_property_pv(ev, SCREEN_PROPERTY_DISPLAY, (void **)&disp));
+	if (pflags >= 0)
+		report("  set FLAGS", screen_set_event_property_iv(ev, SCREEN_PROPERTY_FLAGS, &pflags));
+	inject(what, ev);
+	screen_destroy_event(ev);
+}
+
 static void click(int x, int y)
 {
 	pointer("pointer left button down", x, y, SCREEN_LEFT_MOUSE_BUTTON);
@@ -192,6 +214,15 @@ int main(int argc, char **argv)
 		pointer("pointer move", atoi(argv[a]), atoi(argv[a + 1]), 0);
 	} else if (strcmp(cmd, "click") == 0 && rest == 2) {
 		click(atoi(argv[a]), atoi(argv[a + 1]));
+	} else if (strcmp(cmd, "touch") == 0 && rest == 2) {
+		int x = atoi(argv[a]), y = atoi(argv[a + 1]);
+		touch("touch", SCREEN_EVENT_MTOUCH_TOUCH, x, y);
+		touch("touch release", SCREEN_EVENT_MTOUCH_RELEASE, x, y);
+	} else if (strcmp(cmd, "alttab") == 0 && rest == 0) {
+		/* Alt held, with KEYMOD_ALT set on the Tab events themselves (the agent sets no modifiers) */
+		key("key Alt down", KEYCODE_LEFT_ALT, KEYCODE_LEFT_ALT, KEYMOD_ALT, 1);
+		press("Tab", KEYCODE_TAB, KEYCODE_TAB, KEYMOD_ALT);
+		key("key Alt up", KEYCODE_LEFT_ALT, KEYCODE_LEFT_ALT, 0, 0);
 	} else if (strcmp(cmd, "key") == 0 && (rest == 1 || rest == 2)) {
 		int sym = (int)strtol(argv[a], NULL, 0);
 		press(argv[a], sym, sym, rest == 2 ? (int)strtol(argv[a + 1], NULL, 0) : 0);
