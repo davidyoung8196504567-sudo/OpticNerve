@@ -5,7 +5,8 @@
 # Needs: the agent installed on the target and stopped (host/tools/opticnerve_deploy.py install); demo_panel built
 # (agent/build/aarch64le/demo_panel); ON_LOGIN_PASSWORD, ON_VNC_PASSWORD, ON_TIGERVNC_JAR and ON_OCULIX_JAR set, and
 # optionally ON_HOST (default 10.30.1.116). Passwords come from the environment; nothing prints them. TAKE_LOGIN=1
-# adds the login sanity test (host/demo/LoginTest.java), which types the login password into the target's Terminal.
+# adds the login sanity test (host/demo/LoginTest.java), which types the login password into the target's Terminal;
+# TAKE_ONLY=login records that test on its own.
 cd "$(dirname "$0")/../../.." || exit 1
 T=${TAKE_DIR:?TAKE_DIR not set}
 H=${ON_HOST:-10.30.1.116}
@@ -15,6 +16,21 @@ clear
 tput civis 2>/dev/null   # no cursor on the blank screen while recording starts
 while [ ! -f "$T/take_go" ]; do sleep 0.2; done
 tput cnorm 2>/dev/null
+if [ "$TAKE_ONLY" = login ]; then   # the login sanity test on its own (it types the login password)
+    say "OpticNerve: a sanity test of a fresh QNX 8.0 quick-start image"
+    sleep 5
+    say "Start the OpticNerve agent on the target (Raspberry Pi 5, QNX 8.0)"
+    run "opticnerve_deploy.py start" "python host/tools/opticnerve_deploy.py start"
+    sleep 3
+    say "Log in on the target's Terminal and check the banner, the message of the day and the shell"
+    run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
+    sleep 6
+    say "Take the agent off the target again"
+    run "opticnerve_deploy.py undo" "python host/tools/opticnerve_deploy.py undo | grep -E 'removed|device gone'"
+    sleep 4
+    touch "$T/take_done"
+    exit 0
+fi
 say "OpticNerve: eyes and hands for test tools on a QNX 8.0 screen"
 sleep 8
 say "Start the OpticNerve agent on the target (Raspberry Pi 5, QNX 8.0)"
