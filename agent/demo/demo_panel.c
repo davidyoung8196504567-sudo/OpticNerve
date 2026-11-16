@@ -3,7 +3,7 @@
  * instrument panel, for a test tool to see and drive: three buttons, a counter, a status lamp and a line of typed
  * text. Everything is drawn by this program, with a 5x7 bitmap font of our own.
  *
- *   demo_panel [SECS]      runs until killed, or for SECS seconds
+ *   demo_panel [-nomarker] [SECS]      runs until killed, or for SECS seconds; -nomarker: no pointer marker
  *
  * Buttons: "+1" adds one to the counter, "RESET" sets it to 0, "LAMP" switches the lamp between green and red.
  * Keys: letters, digits and space are added to the text line; Backspace deletes; Return clears it.
@@ -122,6 +122,7 @@ static double now_s(void)
 #define RING_SECS 1.0
 #define TRAIL_SECS 0.6
 #define RIPPLE_SECS 0.5
+static int show_marker = 1; /* -nomarker: the panel only, for a test at full speed */
 static struct { int x, y; double t; } trail[TRAIL];
 static int trail_head;
 static struct { int x, y; double t; unsigned rgb; } ripples[RIPPLES];
@@ -226,7 +227,12 @@ static void draw(void)
 
 int main(int argc, char **argv)
 {
-	int secs = argc > 1 ? atoi(argv[1]) : 0;
+	int secs = 0;
+	for (int i = 1; i < argc; i++)
+		if (strcmp(argv[i], "-nomarker") == 0)
+			show_marker = 0;
+		else
+			secs = atoi(argv[i]);
 	screen_context_t ctx;
 	screen_window_t win;
 	if (screen_create_context(&ctx, SCREEN_APPLICATION_CONTEXT) != 0 || screen_create_window(&win, ctx) != 0) {
@@ -287,7 +293,7 @@ int main(int argc, char **argv)
 				pointer_pressed(p[0], p[1], (newly & SCREEN_LEFT_MOUSE_BUTTON) ? 0xffd166
 							    : (newly & SCREEN_RIGHT_MOUSE_BUTTON) ? 0x4cc9f0 : 0xffffff);
 			last_buttons = buttons;
-			changed = 1;
+			changed = show_marker; /* without the marker, a move changes nothing on the screen */
 			int down = buttons & SCREEN_LEFT_MOUSE_BUTTON;
 			if (down && pressed < 0) {
 				for (int i = 0; i < 3; i++)
@@ -328,7 +334,7 @@ int main(int argc, char **argv)
 			screen_get_buffer_property_pv(bufs[back], SCREEN_PROPERTY_POINTER, (void **)&fb);
 			screen_get_buffer_property_iv(bufs[back], SCREEN_PROPERTY_STRIDE, &stride);
 			draw();
-			animating = overlay();
+			animating = show_marker ? overlay() : 0;
 			screen_post_window(win, bufs[back], 1, dirty, 0);
 			back ^= 1;
 		}

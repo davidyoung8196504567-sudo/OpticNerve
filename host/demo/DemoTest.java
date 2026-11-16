@@ -2,7 +2,7 @@
 // the OpticNerve agent, and checks what the panel shows. Each step prints PASS or FAIL; the exit status is the
 // number of failures.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail] [-slow] [-cols=N]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail] [-slow] [-cols=N] [-brief] [-repeat=N]
 //
 // Needs the agent running on HOST (port 5901) and demo_panel showing. -fail adds one check that expects the wrong
 // count, to show what a caught failure looks like. Between steps the test asks the agent on the target, over SSH,
@@ -11,7 +11,8 @@
 //
 // Before each step the test prints a caption line ("==> ..."), for the video's captions. -slow paces the run for
 // recording: a pause after each caption, and slower pointer moves (OculiX Settings.MoveMouseDelay), so the demo
-// panel's pointer trail can be followed.
+// panel's pointer trail can be followed. -brief prints only the PASS and FAIL lines (normal test speed, no captions).
+// -repeat=N runs the checks N times on one connection. Every run ends with its number of checks and its time.
 import java.awt.Color;
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -26,7 +27,8 @@ public class DemoTest {
     static File out;
     static int fails, n;
 
-    static boolean slow;
+    static boolean slow, brief;
+    static int checks;
     static int cols; // -cols=N: wrap output at word boundaries to N columns (for a large font in the video); 0: no wrap
 
     // Prints text after a first-line prefix; continuation lines are indented to the prefix's width.
@@ -50,12 +52,14 @@ public class DemoTest {
     }
 
     static void caption(String text) throws Exception {
+        if (brief) return;
         System.out.println();
         say("==> ", text);
         if (slow) Thread.sleep(1500);
     }
 
     static void check(String name, boolean ok, String detail) {
+        checks++;
         if (!ok) fails++;
         if (cols > 0) {
             say(ok ? "PASS " : "FAIL ", name);
@@ -65,21 +69,43 @@ public class DemoTest {
         }
     }
 
-    // The agent on the target says when the screen has settled; without SSH, a fixed pause.
+    // The agent on the target says when the screen has settled; without SSH, a fixed pause. One SSH session (a shell
+    // on the target) serves the whole test, so a wait costs the wait and not an SSH login.
+    static String host;
+    static Process ssh;
+    static java.io.BufferedReader sshOut;
+    static java.io.Writer sshIn;
+
     static void settle() throws Exception {
         if (System.getenv("ON_LOGIN_PASSWORD") == null) {
             Thread.sleep(700);
             return;
         }
         long t0 = System.nanoTime();
-        Process p = new ProcessBuilder("bash", "host/tools/pi_ssh.sh",
-                "/data/opticnerve/bin/opticnerve wait -quiet=300 -timeout=3").redirectErrorStream(true).start();
-        String said = new String(p.getInputStream().readAllBytes()).trim();
-        p.waitFor();
-        System.out.printf("     opticnerve wait: %s (%.1f s)%n", said, (System.nanoTime() - t0) / 1e9);
+        if (ssh == null) {
+            String askpass = new File("host/tools/pi_askpass.sh").getAbsolutePath().replace('\\', '/');
+            // Git's ssh through bash (askpass is a shell script); no quotes inside the bash command, since Java on
+            // Windows does not pass embedded quotes through intact
+            String user = System.getenv().getOrDefault("ON_LOGIN_USER", "qnxuser");
+            ProcessBuilder pb = new ProcessBuilder("bash", "-c", "exec ssh $@", "ssh", "-q", "-o", "PubkeyAuthentication=no",
+                    "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new", user + "@" + host, "sh -s")
+                    .redirectErrorStream(true);
+            pb.environment().put("SSH_ASKPASS", askpass);
+            pb.environment().put("SSH_ASKPASS_REQUIRE", "force");
+            pb.environment().put("DISPLAY", "x");
+            ssh = pb.start();
+            sshOut = new java.io.BufferedReader(new java.io.InputStreamReader(ssh.getInputStream()));
+            sshIn = new java.io.OutputStreamWriter(ssh.getOutputStream());
+        }
+        sshIn.write("/data/opticnerve/bin/opticnerve wait -quiet=300 -timeout=3 2>&1; echo '#end'\n");
+        sshIn.flush();
+        StringBuilder said = new StringBuilder();
+        for (String l; (l = sshOut.readLine()) != null && !l.equals("#end"); ) said.append(l.trim());
+        if (!brief) System.out.printf("     opticnerve wait: %s (%.1f s)%n", said, (System.nanoTime() - t0) / 1e9);
     }
 
     static void shot(String name) throws Exception {
+        if (brief) return; // screenshots take time; a brief run is about speed
         ImageIO.write(s.capture().getImage(), "png", new File(out, String.format("%02d_%s.png", ++n, name)));
     }
 
@@ -139,6 +165,7 @@ public class DemoTest {
             code = fails + 1;
         }
         try {
+            if (ssh != null) ssh.destroy();
             if (s != null) s.stop();
         } catch (Throwable ignored) {
         }
@@ -148,9 +175,13 @@ public class DemoTest {
     }
 
     static void run(String[] a) throws Exception {
+        host = a[0];
         boolean showFailure = java.util.Arrays.asList(a).contains("-fail");
         record = java.util.Arrays.asList(a).contains("-record");
         slow = java.util.Arrays.asList(a).contains("-slow");
+        brief = java.util.Arrays.asList(a).contains("-brief");
+        int repeat = 1;
+        for (String x : a) if (x.startsWith("-repeat=")) repeat = Integer.parseInt(x.substring(8));
         for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
         out = new File(a.length > 2 && !a[2].startsWith("-") ? a[2] : "demo-out").getAbsoluteFile();
         out.mkdirs();
@@ -164,9 +195,31 @@ public class DemoTest {
         if (!framed) return;
         shot("start");
 
+        plus = cut(160, 700, 420, 200, "plus");
+        reset = cut(750, 700, 420, 200, "reset");
+        lampButton = cut(1340, 700, 420, 200, "lamp");
+        int allChecks = 0, allFails = 0;
+        double total = 0;
+        for (int i = 1; i <= repeat; i++) {
+            checks = 0;
+            int failsBefore = fails;
+            long t0 = System.nanoTime();
+            checks(showFailure);
+            double secs = (System.nanoTime() - t0) / 1e9;
+            total += secs;
+            allChecks += checks;
+            allFails += fails - failsBefore;
+            if (!brief) System.out.println();
+            System.out.printf("%s%d checks, %d failed, %.1f s%n", repeat > 1 ? "run " + i + ": " : "", checks, fails - failsBefore, secs);
+        }
+        if (repeat > 1)
+            System.out.printf("%n%d runs, %d checks, %d failed, %.1f s per run on average%n", repeat, allChecks, allFails, total / repeat);
+    }
+
+    static Pattern plus, reset, lampButton;
+
+    static void checks(boolean showFailure) throws Exception {
         caption("Finding the RESET button by image, and clicking it");
-        Pattern plus = cut(160, 700, 420, 200, "plus"), reset = cut(750, 700, 420, 200, "reset"),
-                lampButton = cut(1340, 700, 420, 200, "lamp");
         Match m = s.exists(reset, 3);
         check("find the RESET button by image", m != null, m == null ? "not found" : String.format("score %.4f", m.getScore()));
         s.click(reset);
