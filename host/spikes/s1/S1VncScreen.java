@@ -1,4 +1,4 @@
-// Spike S1 (docs/DESIGN.md): does OculiX's VNCScreen connect to QNX's vncserv, see the screen and click?
+// Spike S1: does OculiX's VNCScreen connect to QNX's vncserv, see the screen and click?
 //
 //   java -cp oculixapi-4.0.0-windows.jar host/spikes/s1/S1VncScreen.java HOST PASSWORD capture OUT.png
 //   java -cp oculixapi-4.0.0-windows.jar host/spikes/s1/S1VncScreen.java HOST PASSWORD find PATTERN.png OUTDIR [click]

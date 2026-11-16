@@ -1,4 +1,4 @@
-// Unboxing scenario (docs/PLAN.md): capture the Pi's screen through OculiX's VNCScreen and OCR it with OculiX's
+// Unboxing scenario: capture the Pi's screen through OculiX's VNCScreen and OCR it with OculiX's
 // bundled Tesseract.
 //
 //   java -cp oculixapi-4.0.0-windows.jar host/spikes/ocr/OcrScreen.java HOST PASSWORD OUT.png OUT.txt

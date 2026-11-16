@@ -1,7 +1,7 @@
 # Issues found by our testing
 
 Every defect our tests found in OculiX and in third-party VNC servers, with an internal ID for tracking.
-Started 2026-11-14. The evidence and measurements are in [OCULIX_VNC_MATRIX.md](OCULIX_VNC_MATRIX.md).
+Started 2026-11-14. Three entries have full write-ups in [upstream/](upstream/).
 
 How issues are reported:
 
@@ -12,11 +12,12 @@ How issues are reported:
 ## OculiX 4.0.0 (with its VNC client, tigervnc-java-oculix)
 
 "Who can fix it" (Oculix session, 2026-11-15): if OculiX puts the wrong bytes on the wire, no server can repair them;
-those are OculiX-only. Server-side entries are handled by our own VNC server for QNX (PLAN.md), which corrects only
+those are OculiX-only. Server-side entries are handled by our own VNC server for QNX, which corrects only
 what a server should do and does not compensate for OculiX bugs.
 
 "Draft" is the Oculix session's report number where one exists. Where a fix exists in a newer VNC client jar, the
-ON-VNC-1 configuration works around it (docs/HOW_WE_WORK.md).
+ON-VNC-1 configuration works around it (defined in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md), row "VNC client
+library override").
 
 | ID | Issue | Workaround in use | Draft | Who can fix it |
 |---|---|---|---|---|

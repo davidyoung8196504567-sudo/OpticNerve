@@ -1,5 +1,5 @@
 /*
- * screen_probe: phase 2 spikes S2 to S5 (see docs/DESIGN.md).
+ * screen_probe: phase 2 spikes S2 to S5.
  *
  * Throwaway test program, one subcommand per question. Plain-text output. Not part of the agent.
  *

@@ -1,6 +1,5 @@
 /*
- * inject_probe: spike S7 (input injection reaches an application; see docs/DESIGN_SERVER.md, sections 4.8
- * and 6).
+ * inject_probe: spike S7 (input injection reaches an application).
  *
  * Throwaway test program. It creates a Screen context of the type asked for, builds input events and hands
  * them to screen_inject_event() on the first display, printing the return value of every call. What arrives is

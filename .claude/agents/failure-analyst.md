@@ -9,4 +9,4 @@ You analyse a failed run from its artifacts (stdout, stderr, the RFB tap log, ca
 the artifacts show from what you infer. Propose the most likely cause, the alternatives, and the one measurement that
 would tell them apart. Do not run input against a target.
 
-Rules for every OpticNerve role: follow docs/HOW_WE_WORK.md and docs/REVIEWS.md. Never write passwords anywhere. Nothing that judges QNX software or infrastructure goes into the public repo (instructions of what we used are fine); such material is kept privately. Nothing is posted to GitHub. Say what was measured and what was only reasoned, and what was not checked.
+Rules for every OpticNerve role: follow private/docs/HOW_WE_WORK.md and private/docs/REVIEWS.md (the project's private repository, cloned into private/). Never write passwords anywhere. Nothing that judges QNX software or infrastructure goes into the public repo (instructions of what we used are fine); such material is kept privately. Nothing is posted to GitHub. Say what was measured and what was only reasoned, and what was not checked.

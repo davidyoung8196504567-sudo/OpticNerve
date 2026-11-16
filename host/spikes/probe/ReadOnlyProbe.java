@@ -1,7 +1,7 @@
 // Read-only OculiX VNC probe: sends no pointer or key events. Written by the ON-UBUNTU24 session (2026-11-14) and
-// run unchanged on both hosts, so the Windows and Ubuntu columns of docs/OCULIX_VNC_MATRIX.md are like for like.
+// run unchanged on both hosts, so the Windows and Ubuntu results are like for like.
 //   java -cp oculixapi-4.0.0-linux.jar ReadOnlyProbe.java HOST PASSWORD OUTDIR [PORT, default 5900]
-// On Linux, OCR needs LD_LIBRARY_PATH set to Legerix's folder (docs/PLAN.md, OculiX issues). The pattern rectangle
+// On Linux, OCR needs LD_LIBRARY_PATH set to Legerix's folder. The pattern rectangle
 // (470,75,360,35) and the colour points assume the terminal with the welcome message is on screen.
 import java.awt.image.BufferedImage;
 import java.io.File;

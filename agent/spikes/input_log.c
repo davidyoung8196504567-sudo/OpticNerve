@@ -1,11 +1,13 @@
 /*
  * input_log: the target test application in its first form, for spike S7 (input injection reaches an
- * application; see docs/DESIGN_SERVER.md, sections 4.8 and 6).
+ * application).
  *
  * Throwaway test program. It opens one window, fills it with one colour, and writes every Screen event the
  * window receives to standard output, one line per event. Not part of the agent.
  *
- *   input_log SECS [X Y W H]      window at X,Y with size WxH (default 200,150 800x500); runs SECS seconds
+ *   input_log SECS [X Y W H [NAME]]   window at X,Y with size WxH (default 200,150 800x500); runs SECS seconds.
+ *                                     NAME (default A) starts every line and picks the colour, so that two
+ *                                     copies can run side by side: S7 clicks on the one without input focus.
  *
  * Build (baseline SDP-BL-006):
  *   qcc -Vgcc_ntoaarch64le -std=c11 -Wall -Wextra -Werror -O2 -o input_log input_log.c -lscreen
@@ -19,6 +21,8 @@
 #include <unistd.h>
 #include <screen/screen.h>
 #include <sys/keycodes.h>
+
+static const char *tag = "A"; /* the window's name: starts every output line */
 
 static double now_s(void)
 {
@@ -52,25 +56,28 @@ static const char *event_name(int type)
 
 static void print_geometry(screen_window_t w, const char *when)
 {
-	int pos[2] = { -1, -1 }, size[2] = { -1, -1 }, vis = -1, z = 0;
+	int pos[2] = { -1, -1 }, size[2] = { -1, -1 }, vis = -1, z = 0, focus = -1;
+	screen_get_window_property_iv(w, SCREEN_PROPERTY_FOCUS, &focus);
 	screen_get_window_property_iv(w, SCREEN_PROPERTY_POSITION, pos);
 	screen_get_window_property_iv(w, SCREEN_PROPERTY_SIZE, size);
 	screen_get_window_property_iv(w, SCREEN_PROPERTY_VISIBLE, &vis);
 	screen_get_window_property_iv(w, SCREEN_PROPERTY_ZORDER, &z);
-	printf("window %s: pos %d,%d size %dx%d visible %d zorder %d\n", when, pos[0], pos[1], size[0], size[1], vis,
-	       z);
+	printf("%s: window %s: focus %d pos %d,%d size %dx%d visible %d zorder %d\n", tag, when, focus, pos[0], pos[1],
+	       size[0], size[1], vis, z);
 }
 
 int main(int argc, char **argv)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
-	if (argc != 2 && argc != 6) {
-		fprintf(stderr, "usage: input_log SECS [X Y W H]\n");
+	if (argc != 2 && argc != 6 && argc != 7) {
+		fprintf(stderr, "usage: input_log SECS [X Y W H [NAME]]\n");
 		return 2;
 	}
+	if (argc == 7)
+		tag = argv[6];
 	int secs = atoi(argv[1]);
 	int pos[2] = { 200, 150 }, size[2] = { 800, 500 };
-	if (argc == 6) {
+	if (argc >= 6) {
 		pos[0] = atoi(argv[2]);
 		pos[1] = atoi(argv[3]);
 		size[0] = atoi(argv[4]);
@@ -90,8 +97,9 @@ int main(int argc, char **argv)
 	screen_set_window_property_iv(w, SCREEN_PROPERTY_SIZE, size);
 	screen_set_window_property_iv(w, SCREEN_PROPERTY_BUFFER_SIZE, size);
 	screen_set_window_property_iv(w, SCREEN_PROPERTY_POSITION, pos);
-	screen_set_window_property_cv(w, SCREEN_PROPERTY_ID_STRING, (int)strlen("opticnerve-input-log"),
-				      "opticnerve-input-log");
+	char id[64];
+	snprintf(id, sizeof(id), "opticnerve-input-log-%s", tag);
+	screen_set_window_property_cv(w, SCREEN_PROPERTY_ID_STRING, (int)strlen(id), id);
 	if (screen_create_window_buffers(w, 1) != 0)
 		fail("screen_create_window_buffers");
 	screen_buffer_t buf;
@@ -104,21 +112,23 @@ int main(int argc, char **argv)
 	screen_get_buffer_property_iv(buf, SCREEN_PROPERTY_BUFFER_SIZE, bsize);
 	if (!p)
 		fail("buffer pointer");
-	/* One colour: bytes B, G, R, A = 0x40, 0x80, 0x20, 0xff (a green that 16 bits per pixel cannot hold). */
+	/* One colour for each name. Window A: bytes B, G, R, A = 0x40, 0x80, 0x20, 0xff, a green that 16 bits per
+	 * pixel cannot hold. Any other name swaps blue and red. */
+	int other = strcmp(tag, "A") != 0;
 	for (int y = 0; y < bsize[1]; y++) {
 		unsigned char *row = p + (size_t)y * stride;
 		for (int x = 0; x < bsize[0]; x++) {
-			row[4 * x] = 0x40;
+			row[4 * x] = other ? 0x20 : 0x40;
 			row[4 * x + 1] = 0x80;
-			row[4 * x + 2] = 0x20;
+			row[4 * x + 2] = other ? 0x40 : 0x20;
 			row[4 * x + 3] = 0xff;
 		}
 	}
 	int dirty[4] = { 0, 0, bsize[0], bsize[1] };
 	if (screen_post_window(w, buf, 1, dirty, 0) != 0)
 		fail("screen_post_window");
-	printf("input_log pid %d: asked for pos %d,%d size %dx%d; buffer %dx%d; listening %d s\n", (int)getpid(),
-	       pos[0], pos[1], size[0], size[1], bsize[0], bsize[1], secs);
+	printf("%s: input_log pid %d: asked for pos %d,%d size %dx%d; buffer %dx%d; listening %d s\n", tag,
+	       (int)getpid(), pos[0], pos[1], size[0], size[1], bsize[0], bsize[1], secs);
 	print_geometry(w, "after post");
 
 	screen_event_t ev;
@@ -134,7 +144,7 @@ int main(int argc, char **argv)
 		if (type == SCREEN_EVENT_NONE)
 			continue;
 		n++;
-		printf("t=%7.3f %s(%d)", now_s() - start, event_name(type), type);
+		printf("%s: t=%7.3f %s(%d)", tag, now_s() - start, event_name(type), type);
 		if (type == SCREEN_EVENT_POINTER) {
 			int wpos[2] = { -1, -1 }, spos[2] = { -1, -1 }, buttons = -1, wheel = 0, hwheel = 0;
 			screen_get_event_property_iv(ev, SCREEN_PROPERTY_POSITION, wpos);
@@ -177,7 +187,7 @@ int main(int argc, char **argv)
 		if (type == SCREEN_EVENT_PROPERTY)
 			print_geometry(w, "now");
 	}
-	printf("events %ld (pointer %ld, keyboard %ld) in %d s\n", n, pointers, keys, secs);
+	printf("%s: events %ld (pointer %ld, keyboard %ld) in %d s\n", tag, n, pointers, keys, secs);
 	screen_destroy_event(ev);
 	screen_destroy_window(w);
 	screen_destroy_context(ctx);

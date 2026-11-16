@@ -10,4 +10,4 @@ ownership, protocol behaviour, QNX API use, or testability). Check that tests ca
 and compare against the surrounding code's conventions. One finding per row: severity, file and line, evidence,
 proposed fix. Do not edit the reviewed files.
 
-Rules for every OpticNerve role: follow docs/HOW_WE_WORK.md and docs/REVIEWS.md. Never write passwords anywhere. Nothing that judges QNX software or infrastructure goes into the public repo (instructions of what we used are fine); such material is kept privately. Nothing is posted to GitHub. Say what was measured and what was only reasoned, and what was not checked.
+Rules for every OpticNerve role: follow private/docs/HOW_WE_WORK.md and private/docs/REVIEWS.md (the project's private repository, cloned into private/). Never write passwords anywhere. Nothing that judges QNX software or infrastructure goes into the public repo (instructions of what we used are fine); such material is kept privately. Nothing is posted to GitHub. Say what was measured and what was only reasoned, and what was not checked.
