@@ -11,7 +11,7 @@
 // name is ON_LOGIN_USER (default qnxuser); the password is typed into the login prompt, which does not echo it, and
 // is never printed. -nologin types the name and stops at the password prompt.
 import java.awt.image.BufferedImage;
-import java.util.regex.Pattern;
+
 import org.sikuli.vnc.VNCScreen;
 
 public class LoginTest {
@@ -70,8 +70,14 @@ public class LoginTest {
         return s.newRegion(x, y, w, h).text().replaceAll("[ \t]+", " ").trim();
     }
 
+    // Whether the screen text contains the line, comparing letters and digits only: OCR varies in punctuation and
+    // spacing (the first full run read the MOTD's "(You can use ALT-TAB to switch between windows.)" differently).
     static boolean has(String screen, String line) {
-        return Pattern.compile(Pattern.quote(line).replace(" ", "\\E\\s+\\Q"), Pattern.CASE_INSENSITIVE).matcher(screen).find();
+        return fold(screen).contains(fold(line));
+    }
+
+    static String fold(String s) {
+        return s.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
     // Reads the region until it contains want, for at most secs seconds; returns the last text read.

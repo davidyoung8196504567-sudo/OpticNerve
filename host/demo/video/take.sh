@@ -23,7 +23,7 @@ if [ "$TAKE_ONLY" = login ]; then   # the login sanity test on its own (it types
     run "opticnerve_deploy.py start" "python host/tools/opticnerve_deploy.py start"
     sleep 3
     say "Log in on the target's Terminal and check the banner, the message of the day and the shell"
-    run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
+    run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep -a --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
     sleep 6
     say "Take the agent off the target again"
     run "opticnerve_deploy.py undo" "python host/tools/opticnerve_deploy.py undo | grep -E 'removed|device gone'"
@@ -51,7 +51,7 @@ sleep 5
 if [ "$TAKE_LOGIN" = 1 ]; then   # set by whoever runs the take: the test types the login password
     bash host/tools/pi_ssh.sh 'slay -f demo_panel >/dev/null 2>&1' > /dev/null
     say "A sanity test of the image itself: log in on the target's Terminal and check the message of the day"
-    run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
+    run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep -a --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
     sleep 5
 fi
 say "Ask the agent on the target what it is doing"
