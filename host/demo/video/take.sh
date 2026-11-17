@@ -17,6 +17,7 @@ tput civis 2>/dev/null   # no cursor on the blank screen while recording starts
 while [ ! -f "$T/take_go" ]; do sleep 0.2; done
 tput cnorm 2>/dev/null
 if [ "$TAKE_ONLY" = login ]; then   # the login sanity test on its own (it types the login password)
+    say "QNX 8 Hackathon 2026"
     say "OpticNerve: a sanity test of a fresh QNX 8.0 quick-start image"
     sleep 5
     say "Start the OpticNerve agent on the target (Raspberry Pi 5, QNX 8.0)"
@@ -31,6 +32,7 @@ if [ "$TAKE_ONLY" = login ]; then   # the login sanity test on its own (it types
     touch "$T/take_done"
     exit 0
 fi
+say "QNX 8 Hackathon 2026"
 say "OpticNerve: eyes and hands for test tools on a QNX 8.0 screen"
 sleep 8
 say "Start the OpticNerve agent on the target (Raspberry Pi 5, QNX 8.0)"
@@ -62,6 +64,7 @@ bash host/tools/pi_ssh.sh 'cd /data/home/qnxuser; slay -f demo_panel; rm -f demo
 run "opticnerve_deploy.py undo" "python host/tools/opticnerve_deploy.py undo | grep -E 'removed|device gone'"
 sleep 4
 say "Source, build instructions and tests: github.com/ davidyoung8196504567-sudo/OpticNerve"
+say "QNX 8 Hackathon 2026"
 sleep 6
 rm -rf demo-out
 touch "$T/take_done"
