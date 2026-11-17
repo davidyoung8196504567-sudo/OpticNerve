@@ -152,6 +152,9 @@ Every request has a time limit: an agent that does not answer makes a command pr
 
 ## The demo
 
+Video: [OpticNerve demo on YouTube](https://www.youtube.com/watch?v=0gq-p9oGIgE) (no sound); the same recording is
+in [`demo-recording/`](demo-recording/).
+
 `agent/demo/demo_panel.c` is a small instrument panel for the target (three buttons, a counter, a lamp, a text line),
 and `host/demo/DemoTest.java` is the OculiX test that drives it through the agent:
 
