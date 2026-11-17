@@ -156,12 +156,19 @@ public class DemoTest {
         }
         // Pixel by pixel: the box is mostly flat background, which template matching scores poorly (tried: no match
         // even against a picture recorded from the same screen), and the agent's frames are exact.
-        BufferedImage want = ImageIO.read(ref), got = s.capture(160, 280, 700, 180).getImage();
-        int differ = 0;
-        for (int y = 0; y < want.getHeight(); y++)
-            for (int x = 0; x < want.getWidth(); x++)
-                if ((want.getRGB(x, y) & 0xffffff) != (got.getRGB(x, y) & 0xffffff)) differ++;
-        return differ == 0 ? "equals " + ref.getName() + " (0 pixels differ)" : null;
+        // For up to 1 s: at full speed the check can come before the panel's redraw (a take of 2026-11-17 failed so).
+        BufferedImage want = ImageIO.read(ref);
+        long end = System.nanoTime() + 1_000_000_000L;
+        do {
+            BufferedImage got = s.capture(160, 280, 700, 180).getImage();
+            int differ = 0;
+            for (int y = 0; y < want.getHeight(); y++)
+                for (int x = 0; x < want.getWidth(); x++)
+                    if ((want.getRGB(x, y) & 0xffffff) != (got.getRGB(x, y) & 0xffffff)) differ++;
+            if (differ == 0) return "equals " + ref.getName() + " (0 pixels differ)";
+            Thread.sleep(50);
+        } while (System.nanoTime() < end);
+        return null;
     }
 
     static String lamp() {
@@ -263,6 +270,10 @@ public class DemoTest {
         s.click(lampButton);
         settle();
         String after = lamp();
+        for (int i = 0; i < 20 && before.equals(after); i++) { // up to 1 s, as for the count
+            Thread.sleep(50);
+            after = lamp();
+        }
         check("LAMP switches the lamp's colour", !before.equals(after), before + " -> " + after);
         shot("lamp");
 
@@ -272,6 +283,8 @@ public class DemoTest {
         s.type("hello pi 5");
         settle();
         String typed = read(400, 505, 1360, 80);
+        for (long end = System.nanoTime() + 1_000_000_000L; !typed.equals("HELLO PI 5") && System.nanoTime() < end; )
+            typed = read(400, 505, 1360, 80); // up to 1 s, as for the count
         check("typed text appears on the panel", typed.equals("HELLO PI 5"), "OCR read \"" + typed + "\"");
         shot("typed");
 
