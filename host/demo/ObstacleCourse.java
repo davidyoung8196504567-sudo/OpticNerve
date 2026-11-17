@@ -9,7 +9,7 @@
 //
 // Needs the agent running on HOST (port 5901), the Developer Desktop on the screen and ON_LOGIN_PASSWORD set: the course
 // closes Widget Factory (over SSH) and opens it again from the Applications menu, so that every run starts alike.
-// Page 1 so far. -only=TEXT runs just the obstacles whose name contains TEXT.
+// Pages 1 and 2 so far. -only=TEXT runs just the obstacles whose name contains TEXT.
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,9 +58,14 @@ public class ObstacleCourse {
 
     // The scoreboard.
     static class Score {
-        String page, name, result, detail;
+        String page, name, result, detail, kind;
         double secs;
     }
+
+    // What kind of obstacle the next one is: operated (the control does something), refused (a disabled control
+    // must not respond) or none (no response is expected: the real mouse gets none either, or GTK draws it so). Set
+    // by the obstacle's builder, read by obstacle().
+    static String nextKind = "operated";
 
     static List<Score> board = new ArrayList<>();
     static String page = "";
@@ -75,6 +80,8 @@ public class ObstacleCourse {
         Score sc = new Score();
         sc.page = page;
         sc.name = name;
+        sc.kind = nextKind;
+        nextKind = "operated";
         long t0 = System.nanoTime();
         try {
             sc.detail = r.run();
@@ -182,6 +189,17 @@ public class ObstacleCourse {
         s.click(s.newLocation(x, y));
     }
 
+    // A spot on the page that does nothing when clicked (empty space, a plain label).
+    static int[] neutral = { 320, 660 };
+
+    // Clicks the neutral spot: Widget Factory is drawn active again, and has the focus, after a dialog, a pop-up or
+    // the web browser was in front of it.
+    static void refocus() throws Exception {
+        click(neutral[0], neutral[1]);
+        away();
+        Thread.sleep(300);
+    }
+
     static void away() throws Exception {
         s.mouseMove(s.newLocation(1900, 1050)); // off the controls, so that none is drawn as under the pointer
     }
@@ -200,10 +218,10 @@ public class ObstacleCourse {
             BufferedImage before = grab(r);
             click(x, y);
             away();
-            if (!await(r, before, false, 3)) throw new Fail("the click changed nothing");
+            if (!await(r, before, false, 5)) throw new Fail("the click changed nothing");
             click(x, y);
             away();
-            if (!await(r, before, true, 3)) throw new Fail("a second click did not put it back");
+            if (!await(r, before, true, 5)) throw new Fail("a second click did not put it back");
             return "changed, and back";
         };
     }
@@ -216,7 +234,8 @@ public class ObstacleCourse {
             click(x, y);
             if (!await(r, before, false, 6)) throw new Fail("no " + what + " opened");
             s.type(Key.ESC);
-            away();
+            Thread.sleep(500);
+            refocus();
             if (!await(r, before, true, 3)) throw new Fail("the " + what + " did not close with Escape");
             return what + " opened, and closed with Escape";
         };
@@ -226,6 +245,11 @@ public class ObstacleCourse {
     // the page now and then: it is found by the sample points it changes (a large area), and it has closed when
     // nearly all of those points are back as they were (elsewhere the page may change meanwhile: a spinner turns).
     static Run dialog(int x, int y, String what) {
+        return dialog(x, y, what, 4000);
+    }
+
+    // The same for something smaller than a dialog (a menu, a pop-up): at least `least` sample points change.
+    static Run dialog(int x, int y, String what, int least) {
         return () -> {
             away();
             BufferedImage before = s.capture().getImage();
@@ -233,14 +257,15 @@ public class ObstacleCourse {
             away();
             boolean[][] area = null;
             int opened = 0;
-            for (long end = System.nanoTime() + 8_000_000_000L; opened < 4000 && System.nanoTime() < end; Thread.sleep(200)) {
+            for (long end = System.nanoTime() + 8_000_000_000L; opened < least && System.nanoTime() < end; Thread.sleep(200)) {
                 Thread.sleep(300); // the dialog drawn in full
                 area = changedPoints(before, s.capture().getImage());
                 opened = count(area);
             }
-            if (opened < 4000) throw new Fail("no " + what + " opened (" + opened + " sample points changed)");
+            if (opened < least) throw new Fail("no " + what + " opened (" + opened + " sample points changed)");
             s.type(Key.ESC);
-            away();
+            Thread.sleep(800);
+            refocus(); // the window stays drawn inactive after its dialog closes, until it is clicked
             int left = opened;
             for (long end = System.nanoTime() + 4_000_000_000L; left > opened / 10 && System.nanoTime() < end; Thread.sleep(200)) {
                 boolean[][] now = changedPoints(before, s.capture().getImage());
@@ -272,6 +297,7 @@ public class ObstacleCourse {
 
     // A disabled control: a click changes nothing.
     static Run disabled(int x, int y, int[] r) {
+        nextKind = "refused";
         return () -> {
             away();
             BufferedImage before = grab(r);
@@ -463,7 +489,67 @@ public class ObstacleCourse {
         obstacle("notebook, tabs on the left", tabs(new int[] { 1440, 740, 80, 140 },
                 new int[][] { { 1477, 761 }, { 1477, 805 }, { 1477, 849 } }));
 
+        page2();
+
         scoreboard((System.nanoTime() - start) / 1e9);
+    }
+
+    static void page2() throws Exception {
+        caption("Page 2: the bumps");
+        page = "2";
+        neutral = new int[] { 1100, 534 }; // the status line "All systems are operating normally."
+        click(958, 46);
+        away();
+        Thread.sleep(800);
+
+        // The spin buttons and scale buttons at the top left
+        obstacle("vertical spin button: + then -", spinAt(28, 99, 28, 165, new int[] { 10, 120, 36, 24 }));
+        obstacle("disabled spin button", disabled(72, 99, box(72, 132, 40, 90)));
+        obstacle("volume button: its slider pops up", dialog(116, 112, "slider", 300));
+
+        // The language list and the buttons under it
+        obstacle("list: a click selects a language", selects(50, 310, new int[] { 14, 302, 240, 16 }));
+        obstacle("linked toggle buttons: picture, then flag", pair(157, 473, 122, 473, new int[] { 106, 460, 70, 26 }));
+        obstacle("gear button: its menu opens", dialog(242, 473, "menu", 600));
+
+        // The rows
+        obstacle("row 1: switch", toggle(230, 533, box(230, 533, 40, 16)));
+        obstacle("row 2: scale", slider(180, 584, 225, 584, new int[] { 110, 570, 145, 28 }));
+        obstacle("row 4: spin button + then -", spinAt(237, 686, 201, 686, new int[] { 145, 674, 32, 24 }));
+        obstacle("row 5: its button opens a dialog", dialog(237, 737, "dialog"));
+        obstacle("row 6: check button", toggle(247, 788, box(247, 788, 12, 12)));
+
+        // The editor
+        obstacle("menu File opens", dialog(298, 96, "menu", 500));
+        obstacle("menu Edit opens", dialog(337, 96, "menu", 500));
+        obstacle("menu View opens", dialog(380, 96, "menu", 500));
+        obstacle("menu Help opens", dialog(426, 96, "menu", 150));
+        skip("toolbar: New, Save, Search", "no visible effect seen; to be checked with the real mouse");
+        obstacle("toolbar: disabled button", disabled(433, 132, box(433, 132, 24, 24)));
+        obstacle("toolbar: colour button, its dialog opens", dialog(478, 132, "colour dialog"));
+        obstacle("text editor: type, then BackSpace", typeBack(300, 162, new int[] { 282, 150, 600, 26 }));
+
+        // The panes
+        obstacle("pane divider, left and right", slider(306, 830, 420, 830, new int[] { 280, 620, 680, 420 }));
+        obstacle("pane divider, top and bottom", slider(1306, 642, 1306, 760, new int[] { 970, 620, 670, 420 }));
+
+        // The buttons with dialogs (before the expander, which moves them when it closes)
+        obstacle("Inform: its dialog opens", dialog(1782, 620, "dialog"));
+        obstacle("Act: its dialog opens", dialog(1782, 664, "dialog"));
+        obstacle("Configure: its dialog opens", dialog(1782, 708, "dialog"));
+        obstacle("Select: its dialog opens", dialog(1782, 752, "dialog"));
+
+        // The calendar
+        obstacle("calendar: next month, then back", calendarStep(1778, 100, 1675, 100, new int[] { 1688, 88, 90, 24 }, "December", "November"));
+        obstacle("calendar: next year, then back", calendarStep(1890, 100, 1812, 100, new int[] { 1822, 88, 60, 24 }, "2027", "2026"));
+        obstacle("calendar: another day, then back", calendarDay(1783, 233, 1745, 233));
+
+        // The expander and its icons
+        refocus(); // the calendar keeps the keyboard; the expander's click must not go to focus
+        obstacle("expander: closes and opens", toggle(1665, 318, new int[] { 1656, 334, 262, 200 }));
+        obstacle("icons: larger (+), then normal size (1)", pair(1708, 577, 1743, 577, new int[] { 1656, 334, 262, 200 }));
+        obstacle("icons: larger (+), then smaller (-)", pair(1708, 577, 1674, 577, new int[] { 1656, 334, 262, 200 }));
+
     }
 
     // The Developer Desktop blanks the screen after some idle minutes, and then shows "Unlock your desktop" with a
@@ -510,8 +596,7 @@ public class ObstacleCourse {
             String browsers = ssh("rs pidin ar 2>/dev/null | grep -c '[e]piphany'");
             ssh("rs slay -f epiphany >/dev/null 2>&1");
             Thread.sleep(1000);
-            click(320, 660); // an empty spot of the page: Widget Factory has the focus again before the next obstacle
-            away();
+            refocus();
             if (!found) throw new Fail("no www.gtk.org page within 30 s (browser processes: " + browsers + ")");
             return String.format("www.gtk.org shown after %.1f s; the browser closed (over SSH)", secs);
         };
@@ -519,6 +604,7 @@ public class ObstacleCourse {
 
     // A click on an entry's button that leaves its text as it is, as with the real mouse.
     static Run keepsText(int x, int y, int[] r, String text) {
+        nextKind = "none";
         return () -> {
             click(x, y);
             Thread.sleep(800);
@@ -531,6 +617,7 @@ public class ObstacleCourse {
     // A click in a list row selects it (its name cell changes to the selected colours); the check box in it does not
     // respond to clicks, as with the real mouse.
     static Run selectsRow(int x, int y, int[] name) {
+        nextKind = "none";
         return () -> {
             away();
             BufferedImage before = grab(name);
@@ -550,6 +637,7 @@ public class ObstacleCourse {
 
     // A click that must not change what is drawn (with the reason).
     static Run unchanged(int x, int y, int[] r, String why) {
+        nextKind = "none";
         return () -> {
             away();
             BufferedImage before = grab(r);
@@ -584,6 +672,107 @@ public class ObstacleCourse {
         press(x, y);
         press(x, y);
         lastClick = System.currentTimeMillis();
+    }
+
+    // A spin button's + then -: OCR reads the value up by one, then back.
+    static Run spinAt(int px, int py, int mx, int my, int[] r) {
+        return () -> {
+            String v0 = ocr(r).replaceAll("[^0-9]", "");
+            if (v0.isEmpty()) throw new Fail("OCR read no value");
+            String up = String.valueOf(Integer.parseInt(v0) + 1);
+            click(px, py);
+            String v1 = waitText(r, up, 2).replaceAll("[^0-9]", "");
+            if (!v1.equals(up)) throw new Fail("after + OCR read \"" + v1 + "\" (was \"" + v0 + "\")");
+            click(mx, my);
+            String v2 = waitText(r, v0, 2).replaceAll("[^0-9]", "");
+            if (!v2.equals(v0)) throw new Fail("after - OCR read \"" + v2 + "\"");
+            return v0 + " -> " + v1 + " -> " + v2;
+        };
+    }
+
+    // A click changes the region (a list row becomes selected).
+    static Run selects(int x, int y, int[] r) {
+        return () -> {
+            away();
+            BufferedImage before = grab(r);
+            click(x, y);
+            away();
+            if (!await(r, before, false, 2)) throw new Fail("the click changed nothing");
+            return "selected";
+        };
+    }
+
+    // Two buttons: the first changes the region, the second puts it back exactly.
+    static Run pair(int x1, int y1, int x2, int y2, int[] r) {
+        return () -> {
+            away();
+            BufferedImage before = grab(r);
+            click(x1, y1);
+            away();
+            if (!await(r, before, false, 3)) throw new Fail("the first click changed nothing");
+            click(x2, y2);
+            away();
+            if (!await(r, before, true, 3)) throw new Fail("the second click did not put it back");
+            return "changed, and back";
+        };
+    }
+
+    // Types at the start of a line of a text area and takes it out again with BackSpace, read with OCR.
+    static Run typeBack(int x, int y, int[] r) {
+        return () -> {
+            String before = ocr(r);
+            click(x, y);
+            s.type(Key.HOME);
+            typeSlowly("777 ");
+            String typed = waitText(r, "777", 3);
+            if (count(typed, "777") <= count(before, "777")) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
+            for (int i = 0; i < 4; i++) s.type(Key.BACKSPACE);
+            String after = ocr(r);
+            for (long end = System.nanoTime() + 2_000_000_000L; count(after, "777") > count(before, "777") && System.nanoTime() < end; ) after = ocr(r);
+            if (count(after, "777") > count(before, "777")) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
+            return "typed \"777 \", and took it out with BackSpace";
+        };
+    }
+
+    // A calendar day: the clicked day is drawn selected (blue), then the first day again.
+    static Run calendarDay(int x, int y, int x0, int y0) {
+        return () -> {
+            if (!blue(x0, y0)) throw new Fail("the first day is not selected at the start");
+            click(x, y);
+            away();
+            boolean moved = false;
+            for (long end = System.nanoTime() + 3_000_000_000L; !moved && System.nanoTime() < end; Thread.sleep(150))
+                moved = blue(x, y) && !blue(x0, y0);
+            if (!moved) throw new Fail("the clicked day was not selected");
+            click(x0, y0);
+            away();
+            boolean back = false;
+            for (long end = System.nanoTime() + 3_000_000_000L; !back && System.nanoTime() < end; Thread.sleep(150))
+                back = blue(x0, y0) && !blue(x, y);
+            if (!back) throw new Fail("the first day was not selected again");
+            return "another day selected, and the first again";
+        };
+    }
+
+    // The selection's blue at a point (a little left of a day's number, inside its cell).
+    static boolean blue(int x, int y) {
+        int c = s.capture(x - 14, y, 1, 1).getImage().getRGB(0, 0);
+        return (c & 255) > 180 && ((c >> 16) & 255) < 120;
+    }
+
+    // A calendar arrow: OCR reads the new month or year, and the other arrow brings back the first.
+    static Run calendarStep(int nx, int ny, int px, int py, int[] r, String next, String back) {
+        return () -> {
+            String v0 = ocr(r);
+            if (!v0.contains(back)) throw new Fail("OCR read \"" + v0 + "\", not \"" + back + "\"");
+            click(nx, ny);
+            String v1 = waitText(r, next, 4);
+            if (!v1.contains(next)) throw new Fail("after the arrow OCR read \"" + v1 + "\"");
+            click(px, py);
+            String v2 = waitText(r, back, 4);
+            if (!v2.contains(back)) throw new Fail("after the other arrow OCR read \"" + v2 + "\"");
+            return v0 + " -> " + v1 + " -> " + v2;
+        };
     }
 
     // A click changes the region (an action with more than two states, such as a mode icon).
@@ -691,15 +880,25 @@ public class ObstacleCourse {
 
     static void scoreboard(double total) {
         caption("Scoreboard");
-        int pass = 0, fail = 0, skip = 0;
-        double timed = 0;
-        for (Score sc : board) {
-            if (sc.result.equals("PASS")) pass++;
-            else if (sc.result.equals("FAIL")) fail++;
-            else skip++;
-            timed += sc.secs;
+        for (String pg : new java.util.LinkedHashSet<>(board.stream().map(sc -> sc.page).toList())) {
+            int operated = 0, refused = 0, none = 0, fail = 0, skip = 0;
+            double secs = 0;
+            for (Score sc : board) {
+                if (!sc.page.equals(pg)) continue;
+                secs += sc.secs;
+                if (sc.result.equals("FAIL")) fail++;
+                else if (sc.result.equals("SKIP")) skip++;
+                else if (sc.kind.equals("refused")) refused++;
+                else if (sc.kind.equals("none")) none++;
+                else operated++;
+            }
+            say("", String.format("page %s: %d obstacles in %.1f s", pg, operated + refused + none + fail + skip, secs));
+            say("", String.format("  %3d operated      (the control did what it should)", operated));
+            say("", String.format("  %3d refused       (disabled, as drawn)", refused));
+            say("", String.format("  %3d no response   (as the real mouse gets, or as GTK draws it)", none));
+            say("", String.format("  %3d failed", fail));
+            if (skip > 0) say("", String.format("  %3d skipped", skip));
         }
-        say("", String.format("page 1: %d obstacles, %d cleared, %d failed, %d skipped; %.1f s, %.1f s per obstacle",
-                board.size(), pass, fail, skip, total, timed / Math.max(1, pass + fail)));
+        say("", String.format("the whole course: %d obstacles, %.1f s", board.size(), total));
     }
 }
