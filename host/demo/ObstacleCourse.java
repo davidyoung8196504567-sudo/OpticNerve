@@ -7,8 +7,9 @@
 //
 //   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/ObstacleCourse.java HOST VNCPASSWORD [-cols=N]
 //
-// Needs the agent running on HOST (port 5901) and Widget Factory (GTK+ 4) open and maximized on the Developer Desktop
-// (Applications, Development, Widget Factory (GTK+ 4)). Page 1 so far.
+// Needs the agent running on HOST (port 5901), the Developer Desktop on the screen and ON_LOGIN_PASSWORD set: the course
+// closes Widget Factory (over SSH) and opens it again from the Applications menu, so that every run starts alike.
+// Page 1 so far. -only=TEXT runs just the obstacles whose name contains TEXT.
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,7 +65,13 @@ public class ObstacleCourse {
     static List<Score> board = new ArrayList<>();
     static String page = "";
 
+    static String only; // -only=TEXT: just the obstacles whose name contains TEXT
+
+    // Behaviour the real mouse shows too (David checked these on 2026-11-17).
+    static final String REAL = "no visible change, as with the real mouse";
+
     static void obstacle(String name, Run r) {
+        if (only != null && !name.contains(only)) return;
         Score sc = new Score();
         sc.page = page;
         sc.name = name;
@@ -97,6 +104,7 @@ public class ObstacleCourse {
     }
 
     static void skip(String name, String why) {
+        if (only != null && !name.contains(only)) return;
         Score sc = new Score();
         sc.page = page;
         sc.name = name;
@@ -166,8 +174,11 @@ public class ObstacleCourse {
         lastClick = System.currentTimeMillis();
     }
 
-    // OculiX's click (its mouseDown and mouseUp, with a pause between, produced no clicks here, 2026-11-17).
+    // OculiX's click, holding the button 50 ms as a hand does (ClickDelay; OculiX resets it after each click): a GTK
+    // switch missed clicks whose press and release came together (2026-11-17). OculiX's mouseDown and mouseUp with
+    // a pause between produced no clicks here.
     static void press(int x, int y) throws Exception {
+        org.sikuli.basics.Settings.ClickDelay = 0.05;
         s.click(s.newLocation(x, y));
     }
 
@@ -211,21 +222,52 @@ public class ObstacleCourse {
         };
     }
 
-    // A click opens a dialog, found by its title anywhere on the screen (a dialog does not always open in the same
-    // place); Escape closes it.
-    static Run dialog(int x, int y, String title) {
+    // A click opens a dialog. A dialog does not always open in the same place, and OCR missed its small title over
+    // the page now and then: it is found by the sample points it changes (a large area), and it has closed when
+    // nearly all of those points are back as they were (elsewhere the page may change meanwhile: a spinner turns).
+    static Run dialog(int x, int y, String what) {
         return () -> {
-            int[] all = { 0, 20, 1920, 1040 };
+            away();
+            BufferedImage before = s.capture().getImage();
             click(x, y);
-            String t = waitText(all, title, 8);
-            if (!t.contains(title)) throw new Fail("no dialog \"" + title + "\" on the screen");
+            away();
+            boolean[][] area = null;
+            int opened = 0;
+            for (long end = System.nanoTime() + 8_000_000_000L; opened < 4000 && System.nanoTime() < end; Thread.sleep(200)) {
+                Thread.sleep(300); // the dialog drawn in full
+                area = changedPoints(before, s.capture().getImage());
+                opened = count(area);
+            }
+            if (opened < 4000) throw new Fail("no " + what + " opened (" + opened + " sample points changed)");
             s.type(Key.ESC);
             away();
-            String after = ocr(all);
-            for (long end = System.nanoTime() + 4_000_000_000L; after.contains(title) && System.nanoTime() < end; ) after = ocr(all);
-            if (after.contains(title)) throw new Fail("the dialog \"" + title + "\" did not close with Escape");
-            return "\"" + title + "\" opened, and closed with Escape";
+            int left = opened;
+            for (long end = System.nanoTime() + 4_000_000_000L; left > opened / 10 && System.nanoTime() < end; Thread.sleep(200)) {
+                boolean[][] now = changedPoints(before, s.capture().getImage());
+                left = 0;
+                for (int i = 0; i < now.length; i++)
+                    for (int j = 0; j < now[i].length; j++)
+                        if (now[i][j] && area[i][j]) left++;
+            }
+            if (left > opened / 10) throw new Fail("the " + what + " did not close with Escape (" + left + " of its " + opened + " sample points still changed)");
+            return what + " opened (" + opened + " sample points), and closed with Escape";
         };
+    }
+
+    // Sample points (every 4th pixel each way, below the desktop's top panel) that differ between two screens.
+    static boolean[][] changedPoints(BufferedImage a, BufferedImage b) {
+        boolean[][] m = new boolean[(1040 - 30) / 4][a.getWidth() / 4];
+        for (int i = 0; i < m.length; i++)
+            for (int j = 0; j < m[i].length; j++)
+                m[i][j] = a.getRGB(j * 4, 30 + i * 4) != b.getRGB(j * 4, 30 + i * 4);
+        return m;
+    }
+
+    static int count(boolean[][] m) {
+        int n = 0;
+        for (boolean[] row : m)
+            for (boolean b : row) if (b) n++;
+        return n;
     }
 
     // A disabled control: a click changes nothing.
@@ -320,6 +362,7 @@ public class ObstacleCourse {
 
     static void run(String[] a) throws Exception {
         for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
+        for (String x : a) if (x.startsWith("-only=")) only = x.substring(6);
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
         org.sikuli.basics.Settings.MoveMouseDelay = 0.1f;
@@ -328,8 +371,35 @@ public class ObstacleCourse {
         s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
         if (s == null || s.capture() == null) throw new IllegalStateException("no frame from " + a[0] + ":5901");
         wake();
-        String tabs = ocr(new int[] { 760, 30, 400, 34 });
-        if (!tabs.contains("Page 1")) throw new IllegalStateException("Widget Factory is not on the screen: OCR read \"" + tabs + "\"");
+        caption("A fresh Widget Factory: closed, then opened from the Applications menu and maximized");
+        ssh("rs slay -f gtk4-widget-factory >/dev/null 2>&1; sleep 1");
+        click(55, 12); // Applications
+        Thread.sleep(1200);
+        s.mouseMove(s.newLocation(70, 202)); // Development
+        Thread.sleep(1200);
+        s.mouseMove(s.newLocation(200, 202));
+        s.mouseMove(s.newLocation(266, 202));
+        s.mouseMove(s.newLocation(266, 486)); // Widget Factory (GTK+ 4)
+        Thread.sleep(500);
+        click(266, 486);
+        // It opens maximized if it was when it closed, otherwise somewhere in the middle: found by its tab strip
+        // (host/demo/ref/wf_tabs.png); its maximize button is 595 pixels right of the strip's middle.
+        org.sikuli.script.Match strip = s.exists(new org.sikuli.script.Pattern(
+                new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8), 20);
+        if (strip == null) throw new IllegalStateException("Widget Factory did not open: its tab strip is not on the screen");
+        for (int attempt = 0; attempt < 3 && strip != null && strip.getCenter().y > 80; attempt++) { // not maximized
+            Thread.sleep(1000); // the window drawn in full before its button is clicked
+            click(strip.getCenter().x + 595, strip.getCenter().y);
+            away();
+            Thread.sleep(1000);
+            strip = s.exists(new org.sikuli.script.Pattern(
+                    new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8), 5);
+        }
+        Thread.sleep(1500);
+        org.sikuli.script.Match top = s.exists(new org.sikuli.script.Pattern(
+                new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8), 10);
+        if (top == null || top.getCenter().y > 80)
+            throw new IllegalStateException("Widget Factory is not maximized: its tab strip is " + (top == null ? "not found" : "at y=" + top.getCenter().y));
         long start = System.nanoTime();
 
         caption("Page 1: the jumps");
@@ -342,26 +412,27 @@ public class ObstacleCourse {
         obstacle("combo box entry: type and read back", entry(260, 98, box(260, 98, 480, 30), "jump one", null));
         obstacle("combo box entry: its list opens", opens(538, 98, new int[] { 0, 112, 700, 300 }, "list"));
         obstacle("disabled combo box entry", disabled(260, 143, box(270, 143, 540, 30)));
-        obstacle("entry: its icon changes the mode", toggleOnce(540, 187, box(280, 187, 560, 32)));
+        obstacle("entry: its mode icon (no visible change)", unchanged(540, 187, box(280, 187, 560, 32), REAL));
         obstacle("disabled entry", disabled(260, 231, box(280, 231, 540, 30)));
-        obstacle("entry: type, read back, clear with its button", entry(260, 275, box(260, 275, 480, 30), "bump two", new int[] { 538, 275 }));
+        obstacle("entry: type and read back", entry(260, 275, box(260, 275, 480, 30), "bump two", null));
+        obstacle("entry: its clear button (the text stays)", keepsText(538, 275, box(260, 275, 480, 30), "bump two"));
         obstacle("password entry: hidden, then shown by its eye", password());
 
         // Buttons in the right-hand column
         obstacle("toggle button", toggle(628, 98, box(628, 98, 96, 20)));
-        obstacle("disabled toggle button", disabled(628, 143, box(628, 143, 120, 34)));
+        obstacle("disabled toggle button", disabled(628, 143, box(628, 143, 96, 20)));
         obstacle("toggle button, pressed at the start", toggle(628, 187, box(628, 187, 96, 20)));
         obstacle("drop-down (Andrea): its list opens", opens(628, 275, new int[] { 560, 290, 300, 250 }, "list"));
         obstacle("disabled drop-down (Otto)", disabled(628, 319, box(628, 319, 120, 34)));
-        obstacle("font button: its dialog opens", dialog(628, 363, "Pick a Font"));
-        obstacle("colour button: its dialog opens", dialog(628, 407, "Pick a Color"));
+        obstacle("font button: its dialog opens", dialog(628, 363, "font dialog"));
+        obstacle("colour button: its dialog opens", dialog(628, 407, "colour dialog"));
         skip("link button", "it opens a web page");
         obstacle("switch", toggle(628, 492, box(628, 492, 40, 16)));
-        obstacle("second switch", toggle(628, 527, box(628, 527, 40, 16)));
+        obstacle("disabled switch", disabled(628, 527, box(628, 527, 40, 16)));
 
         // Drop-downs, spin button
         obstacle("drop-down (Left): its list opens", opens(95, 363, new int[] { 0, 382, 190, 110 }, "list"));
-        obstacle("drop-down (Middle): its list opens", opens(280, 363, new int[] { 185, 382, 190, 110 }, "list"));
+        obstacle("drop-down (Middle): its list opens", opens(280, 363, new int[] { 282, 382, 93, 110 }, "list"));
         obstacle("drop-down (Right): its list opens", opens(465, 363, new int[] { 370, 382, 190, 110 }, "list"));
         obstacle("spin button: + then -", spin());
 
@@ -379,8 +450,7 @@ public class ObstacleCourse {
         obstacle("vertical scale: its value follows", vscale());
 
         // The list and the text view
-        obstacle("list: Cool check box (Andrea)", flipTwice(1578, 118, box(1578, 118, 18, 18)));
-        obstacle("list: Cool check box (Otto)", flipTwice(1578, 140, box(1578, 140, 18, 18)));
+        obstacle("list: a click on a Cool check box selects its row (the box stays)", selectsRow(1578, 162, new int[] { 1630, 152, 120, 20 }));
         obstacle("text view: type, then undo", textView());
 
         // Notebooks
@@ -408,6 +478,45 @@ public class ObstacleCourse {
             click(958, 550);
             Thread.sleep(1500);
         }
+    }
+
+    // Runs commands on the target over SSH (host/tools/pi_ssh.sh, which reads ON_LOGIN_PASSWORD); returns the output.
+    static String ssh(String commands) throws Exception {
+        Process p = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes()).trim();
+        p.waitFor();
+        return out;
+    }
+
+    // A click on an entry's button that leaves its text as it is, as with the real mouse.
+    static Run keepsText(int x, int y, int[] r, String text) {
+        return () -> {
+            click(x, y);
+            Thread.sleep(800);
+            String t = ocr(r);
+            if (!t.contains(text)) throw new Fail("the text changed: OCR read \"" + t + "\"");
+            return "\"" + text + "\" stays, as with the real mouse";
+        };
+    }
+
+    // A click in a list row selects it (its name cell changes to the selected colours); the check box in it does not
+    // respond to clicks, as with the real mouse.
+    static Run selectsRow(int x, int y, int[] name) {
+        return () -> {
+            away();
+            BufferedImage before = grab(name);
+            click(x, y);
+            away();
+            if (!await(name, before, false, 2) && !isSelected(name))
+                throw new Fail("the row was not selected");
+            return "row selected; the check box does not respond to clicks, as with the real mouse";
+        };
+    }
+
+    // The row's name cell has the selection's blue behind it.
+    static boolean isSelected(int[] r) {
+        int c = s.capture(r[0] + r[2] - 4, r[1] + r[3] / 2, 1, 1).getImage().getRGB(0, 0);
+        return (c & 255) > 180 && ((c >> 16) & 255) < 120;
     }
 
     // A click that must not change what is drawn (with the reason).
