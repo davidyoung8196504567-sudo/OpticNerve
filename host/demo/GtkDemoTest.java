@@ -1,7 +1,8 @@
 // GTK Demo Page Sanity Test: crawls the sidebar of the QNX 8.0 quick-start image's GTK Demo (gtk4-demo), driven by
-// OculiX through the OpticNerve agent, with the mouse only. Clicks each item on the screen in turn: a folder's
-// triangle is clicked twice (the folder closes, then opens again; the triangle must turn each time), any other item's
-// label is clicked once and the Run button must become enabled. When the items on the screen are done, the mouse
+// OculiX through the OpticNerve agent, with the mouse only. Opens the GTK Demo from the launcher (its tile found by
+// image), then clicks each item on the screen in turn: a folder's label is clicked and the Run button must be
+// disabled, then its triangle twice (the folder closes, then opens again; the triangle must turn each time); any
+// other item's label is clicked once and the Run button must become enabled. When the items on the screen are done, the mouse
 // wheel scrolls about a page and the test finds the last item it did, by its pixels, and carries on below it. Prints
 // the tree it found, with PASS or FAIL per item; the exit status is the number of failures. It does not press Run.
 // At the end the tree is compared with host/demo/ref/gtk_demo_tree.txt. A few items have a step time (STEP_MS):
@@ -9,8 +10,8 @@
 //
 //   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/GtkDemoTest.java HOST VNCPASSWORD [-record] [-step=NAME:MS] [-nostep] [-cols=N]
 //
-// Needs the agent running on HOST (port 5901) and the GTK Demo open full screen on the target (the launcher's GTK
-// tile). The tree it found is also written to demo-out/gtk_demo_tree.txt; -record saves it as the reference.
+// Needs the agent running on HOST (port 5901) and ON_LOGIN_PASSWORD set (SSH closes a GTK Demo left running before
+// the test, and the test's own at the end). The tree it found is also written to demo-out/gtk_demo_tree.txt; -record saves it as the reference.
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.PrintWriter;
@@ -18,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.sikuli.script.Button;
+import org.sikuli.script.Match;
+import org.sikuli.script.Pattern;
 import org.sikuli.vnc.VNCScreen;
 
 public class GtkDemoTest {
@@ -40,6 +43,14 @@ public class GtkDemoTest {
     static boolean noStep;
     // The tree as found on the quick-start image (recorded with -record and checked by eye).
     static final File REF = new File("host/demo/ref/gtk_demo_tree.txt");
+    // The launcher's GTK Demo tile (the cube), cut from a capture of the launcher.
+    static final File TILE = new File("host/demo/ref/gtk_tile.png");
+    // The launcher's environment, for starting the GTK Demo as the launcher does (as in LoginTest.java).
+    static final String LAUNCHER_ENV = "PATH=/proc/boot:/system/bin ALSA_CONFIG_PATH=/usr/etc/alsa/alsa.conf"
+            + " PCI_BKWD_COMPAT_MODULE=/proc/boot/pci_bkwd_compat.so LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll"
+            + " FONTCONFIG_PATH=/etc/fonts TZDIR=/usr/share/zoneinfo PCI_SLOG_MODULE=pci_slog2.so HOME=/data/home/root"
+            + " TERMINFO=/usr/share/terminfo TERM=xterm-256color PCI_CAP_MODULE_DIR=/proc/boot MM_INIT=/usr/lib/dll/mmedia"
+            + " OMXIL_COMPONENT_PATH=/usr/lib/dll/omxil PCI_HW_CONFIG_FILE=/proc/boot/pci_hw.cfg VIMRUNTIME=/usr/share/vim/vim91";
 
     static void say(String prefix, String text) {
         if (cols <= prefix.length() + 10) {
@@ -290,6 +301,14 @@ public class GtkDemoTest {
         return still(3);
     }
 
+    // Runs commands on the target over SSH (host/tools/pi_ssh.sh, which reads ON_LOGIN_PASSWORD); returns the output.
+    static String ssh(String commands) throws Exception {
+        Process p = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true).start();
+        String out = new String(p.getInputStream().readAllBytes()).trim();
+        p.waitFor();
+        return out;
+    }
+
     static String first(List<String> lines) {
         List<String> names = new ArrayList<>();
         for (String l : lines.subList(0, Math.min(5, lines.size()))) names.add(l.replaceAll("^\\s*\\[[a-z ]+\\]\\s*", ""));
@@ -304,6 +323,10 @@ public class GtkDemoTest {
         } catch (Throwable e) {
             say("FAIL ", "the test stopped on an error: " + e);
             code = fails + 1;
+        }
+        try {
+            ssh("rs slay -f gtk4-demo >/dev/null 2>&1"); // close the GTK Demo; the launcher comes back
+        } catch (Throwable ignored) {
         }
         try {
             if (s != null) s.stop();
@@ -335,10 +358,35 @@ public class GtkDemoTest {
         check("connect to the OpticNerve agent", framed, a[0] + ":5901");
         if (!framed) return;
 
+        caption("Opening the GTK Demo from the launcher: finding its tile by image and clicking it");
+        ssh("rs slay -f gtk4-demo >/dev/null 2>&1; sleep 3"); // start at the launcher, whatever ran before
+        Match tile = s.exists(new Pattern(TILE.getAbsolutePath()).similar(0.8), 10);
+        check("find the GTK Demo tile on the launcher", tile != null,
+                tile == null ? "no match with " + TILE.getName() : String.format("score %.4f at %d,%d", tile.getScore(), tile.getCenter().x, tile.getCenter().y));
+        if (tile == null) return;
+        BufferedImage shown = null;
+        for (int attempt = 1; attempt <= 2 && shown == null; attempt++) {
+            s.click(tile);
+            pointerAway();
+            shown = await(now -> onScreen(), 10);
+            say("     ", "click " + attempt + " on the tile: " + (shown != null ? "the GTK Demo is shown"
+                    : "not shown after 10 s; gtk4-demo processes: " + ssh("rs pidin ar 2>/dev/null | grep -c '[g]tk4-demo'")));
+        }
+        check("the GTK Demo opens from its tile", shown != null, shown != null ? "" : "two clicks on the tile, no GTK Demo");
+        if (shown == null) { // the rest of the test still runs: start it as the launcher does
+            say("     ", "starting the GTK Demo over SSH, as the launcher does (/usr/bin/startGTK4Demo.sh)");
+            ssh("cd /; rs env -i " + LAUNCHER_ENV + " sh -c 'nohup /usr/bin/startGTK4Demo.sh >/dev/null 2>&1 </dev/null &'");
+            shown = await(now -> onScreen(), 20);
+        }
+        String runText = "";
+        for (long end = System.nanoTime() + 10_000_000_000L; shown != null && !runText.contains("Run") && System.nanoTime() < end; ) {
+            Thread.sleep(300); // the window draws its header bar after the sidebar
+            runText = s.newRegion(RUN_X - 2, RUN_Y - 2, RUN_W + 4, RUN_H + 4).text().trim();
+        }
+        check("the GTK Demo is on the screen", shown != null && runText.contains("Run"), "OCR read \"" + runText + "\" on the Run button");
+        if (shown == null || !runText.contains("Run")) return;
+
         caption("Scrolling the GTK Demo's sidebar to the top");
-        String runText = s.newRegion(RUN_X - 2, RUN_Y - 2, RUN_W + 4, RUN_H + 4).text().trim();
-        check("the GTK Demo is on the screen", runText.contains("Run"), "OCR read \"" + runText + "\" on the Run button");
-        if (!runText.contains("Run")) return;
         BufferedImage img = wheel(-60);
 
         caption("Clicking each item; a folder's triangle twice (closed, then open again)");
@@ -372,6 +420,13 @@ public class GtkDemoTest {
                 items++;
                 if (tri != null) {
                     folders++;
+                    // Select the folder by its label: Run must be disabled (a folder runs nothing).
+                    lastClick = System.currentTimeMillis();
+                    s.click(s.newLocation(x + 40, y));
+                    BufferedImage disabled = await(now -> !runEnabled(now), 1.5);
+                    check(pad + name + " (folder) is not runnable", disabled != null,
+                            disabled != null ? "" : "the Run button is enabled");
+                    if (disabled != null) img = disabled;
                     String how = "opened";
                     if (tri[0] > tri[1]) { // open (the GTK Demo starts with its folders open): close it first
                         BufferedImage got = toggle(x, y, tri, false);
