@@ -503,12 +503,12 @@ public class ObstacleCourse {
         Thread.sleep(800);
 
         // The spin buttons and scale buttons at the top left
-        obstacle("vertical spin button: + then -", spinAt(28, 99, 28, 165, new int[] { 10, 120, 36, 24 }));
+        obstacle("vertical spin button: + to a multiple of 3, its message, Reset, close", multipleOf3());
         obstacle("disabled spin button", disabled(72, 99, box(72, 132, 40, 90)));
         obstacle("volume button: its slider pops up", dialog(116, 112, "slider", 300));
 
         // The language list and the buttons under it
-        obstacle("list: a click selects a language", selects(50, 310, new int[] { 14, 302, 240, 16 }));
+        obstacle("text list: a double click selects a line, a click clears it", lineSelect(50, 310, 120, 400));
         obstacle("linked toggle buttons: picture, then flag", pair(157, 473, 122, 473, new int[] { 106, 460, 70, 26 }));
         obstacle("gear button: its menu opens", dialog(242, 473, "menu", 600));
 
@@ -524,7 +524,9 @@ public class ObstacleCourse {
         obstacle("menu Edit opens", dialog(337, 96, "menu", 500));
         obstacle("menu View opens", dialog(380, 96, "menu", 500));
         obstacle("menu Help opens", dialog(426, 96, "menu", 150));
-        skip("toolbar: New, Save, Search", "no visible effect seen; to be checked with the real mouse");
+        obstacle("toolbar: New (no visible change)", unchanged(302, 132, new int[] { 280, 150, 1360, 400 }, REAL));
+        obstacle("toolbar: Save (no visible change)", unchanged(344, 132, new int[] { 280, 150, 1360, 400 }, REAL));
+        obstacle("toolbar: Search, its bar: type, erase, close", search());
         obstacle("toolbar: disabled button", disabled(433, 132, box(433, 132, 24, 24)));
         obstacle("toolbar: colour button, its dialog opens", dialog(478, 132, "colour dialog"));
         obstacle("text editor: type, then BackSpace", typeBack(300, 162, new int[] { 282, 150, 600, 26 }));
@@ -731,6 +733,95 @@ public class ObstacleCourse {
             for (long end = System.nanoTime() + 2_000_000_000L; count(after, "777") > count(before, "777") && System.nanoTime() < end; ) after = ocr(r);
             if (count(after, "777") > count(before, "777")) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
             return "typed \"777 \", and took it out with BackSpace";
+        };
+    }
+
+    // The vertical spin button: + until its value is a multiple of 3; the page then shows "N is a multiple of 3" with
+    // Reset and a close button (David, 2026-11-17). Reset sets the value back to 50; the close button closes the message.
+    static Run multipleOf3() {
+        return () -> {
+            int[] value = { 10, 120, 36, 24 }, message = { 790, 80, 340, 80 };
+            String v = ocr(value).replaceAll("[^0-9]", "");
+            if (v.isEmpty()) throw new Fail("OCR read no value");
+            int n = Integer.parseInt(v), clicks = 0;
+            while (n % 3 != 0 && clicks < 3) {
+                click(28, 99);
+                n++;
+                clicks++;
+                String want = String.valueOf(n);
+                String got = waitText(value, want, 2).replaceAll("[^0-9]", "");
+                if (!got.equals(want)) throw new Fail("after + OCR read \"" + got + "\", not " + want);
+            }
+            String msg = waitText(message, "multiple", 3);
+            if (!msg.contains("multiple")) throw new Fail("at " + n + " no message: OCR read \"" + msg + "\"");
+            click(1004, 120); // Reset
+            String back = waitText(value, "50", 2).replaceAll("[^0-9]", "");
+            if (!back.equals("50")) throw new Fail("Reset left \"" + back + "\"");
+            String still = ocr(message);
+            if (still.contains("multiple")) {
+                click(1077, 120); // close
+                for (long end = System.nanoTime() + 2_000_000_000L; still.contains("multiple") && System.nanoTime() < end; ) still = ocr(message);
+                if (still.contains("multiple")) throw new Fail("the close button did not close the message");
+            }
+            away();
+            return v + " -> " + n + ": \"" + msg + "\"; Reset -> 50; closed";
+        };
+    }
+
+    // A text area of lines: a double click selects a line (the selection's blue behind it), a click elsewhere clears it.
+    static Run lineSelect(int x, int y, int cx, int cy) {
+        return () -> {
+            click(x, y);
+            s.doubleClick(s.newLocation(x, y));
+            lastClick = System.currentTimeMillis();
+            away();
+            boolean sel = false;
+            for (long end = System.nanoTime() + 2_000_000_000L; !sel && System.nanoTime() < end; Thread.sleep(150))
+                sel = blueIn(new int[] { 14, y - 8, 240, 16 });
+            if (!sel) throw new Fail("the double click selected nothing");
+            click(cx, cy);
+            away();
+            boolean gone = false;
+            for (long end = System.nanoTime() + 2_000_000_000L; !gone && System.nanoTime() < end; Thread.sleep(150))
+                gone = !blueIn(new int[] { 14, y - 8, 240, 16 });
+            if (!gone) throw new Fail("a click did not clear the selection");
+            return "line selected, and cleared";
+        };
+    }
+
+    // Whether a region has the selection's blue in it.
+    static boolean blueIn(int[] r) {
+        BufferedImage img = grab(r);
+        for (int y = 0; y < img.getHeight(); y++)
+            for (int x = 0; x < img.getWidth(); x++) {
+                int c = img.getRGB(x, y);
+                if ((c & 255) > 180 && ((c >> 16) & 255) < 140 && ((c >> 8) & 255) < 200) return true;
+            }
+        return false;
+    }
+
+    // The editor's Search button shows a search bar; typed text appears in its field; the field's erase button
+    // clears it; Search again hides the bar. (Enter does not search, as with the real mouse.)
+    static Run search() {
+        return () -> {
+            int[] bar = { 800, 158, 340, 36 };
+            away();
+            BufferedImage before = grab(bar);
+            click(391, 132);
+            away();
+            if (!await(bar, before, false, 3)) throw new Fail("no search bar");
+            click(960, 176);
+            typeSlowly("777");
+            String typed = waitText(bar, "777", 3);
+            if (!typed.contains("777")) throw new Fail("OCR read \"" + typed + "\" in the search field");
+            click(1052, 176); // the field's erase button
+            String after = ocr(bar);
+            for (long end = System.nanoTime() + 2_000_000_000L; after.contains("777") && System.nanoTime() < end; ) after = ocr(bar);
+            if (after.contains("777")) throw new Fail("the erase button left \"" + after + "\"");
+            click(391, 132);
+            away();
+            if (!await(bar, before, true, 3)) throw new Fail("Search again did not hide the bar");
+            return "bar shown, \"777\" typed and erased, bar hidden";
         };
     }
 
