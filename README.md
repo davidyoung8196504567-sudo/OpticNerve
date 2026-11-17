@@ -222,6 +222,22 @@ libraries). Word positions are what both the redaction layer's OCR rules and our
 `LoginTest.java` compares whole-screen text). Octachorix is GPL-3.0 and OpticNerve is MIT, which matters if it is
 ever bundled; using it from a test is the simpler path.
 
+### Regression suites for the quick-start image
+
+Sanity tests that could run after every fresh install of the QNX 8.0 quick-start image, driven by OculiX through the
+agent with the mouse and keyboard only:
+
+| Suite | What it checks |
+|---|---|
+| GTK Demo menu crawl | every item of the GTK Demo's sidebar is present (against a recorded tree), folders open and close, every demo enables Run and every folder does not. A first version is `host/demo/GtkDemoTest.java`: 111 items, about 6 minutes, with step times for items that need longer. |
+| GTK Demo run | runs each demo from the sidebar, checks that its window opens and shows what the demo is about, and closes it. |
+| Developer Desktop menu crawl | every item of the Xfce Applications menu and its submenus (Settings, Accessories, Development, Graphics, Internet, System) is present and can be opened. |
+| Developer Desktop application run | starts each application from the menu, checks that its window opens, and closes it with the window's own close button. |
+| Widget Factory Obstacle Course | GTK 4's Widget Factory has three pages with about 185 controls of every kind: entries, toggles, check and radio buttons, switches, sliders, spin buttons, drop-downs, notebooks, a calendar, menus, dialogs, panes, trees and a colour chooser. The course operates every control and checks its new state, timing each one. The score (controls cleared, failed, skipped; time per page) could serve as a benchmark for GUI test tools on embedded targets. |
+
+Each suite starts its application the way the launcher does (over SSH, see Settings and limits) and needs nothing else
+from the target than the VNC port once the application is on the screen.
+
 ### Input below Screen
 
 The agent's input reaches application windows only (see Settings and limits). Driving the launcher and
