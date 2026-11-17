@@ -426,7 +426,7 @@ public class ObstacleCourse {
         obstacle("disabled drop-down (Otto)", disabled(628, 319, box(628, 319, 120, 34)));
         obstacle("font button: its dialog opens", dialog(628, 363, "font dialog"));
         obstacle("colour button: its dialog opens", dialog(628, 407, "colour dialog"));
-        skip("link button", "it opens a web page");
+        obstacle("link button: the browser shows www.gtk.org", link(628, 451));
         obstacle("switch", toggle(628, 492, box(628, 492, 40, 16)));
         obstacle("disabled switch", disabled(628, 527, box(628, 527, 40, 16)));
 
@@ -486,6 +486,35 @@ public class ObstacleCourse {
         String out = new String(p.getInputStream().readAllBytes()).trim();
         p.waitFor();
         return out;
+    }
+
+    // The link button opens www.gtk.org in a new web browser, which takes about 10 s to come up (David, 2026-11-17).
+    // One click, then up to 30 s for the page: OCR finds "gtk.org" or the site's text on the screen. Then the browser
+    // is closed over SSH (cleanup; its window opens in different places and Ctrl from OculiX does not reach it).
+    static Run link(int x, int y) {
+        return () -> {
+            ssh("rs slay -f epiphany >/dev/null 2>&1"); // no browser left from before
+            click(x, y);
+            away();
+            int[] all = { 0, 20, 1920, 1040 };
+            long t0 = System.nanoTime();
+            String seen = "";
+            boolean found = false;
+            while (!found && System.nanoTime() - t0 < 30_000_000_000L) {
+                Thread.sleep(1000);
+                seen = ocr(all);
+                String low = seen.toLowerCase();
+                found = low.contains("gtk.org") || low.contains("create interfaces") || low.contains("gtk.org/");
+            }
+            double secs = (System.nanoTime() - t0) / 1e9;
+            String browsers = ssh("rs pidin ar 2>/dev/null | grep -c '[e]piphany'");
+            ssh("rs slay -f epiphany >/dev/null 2>&1");
+            Thread.sleep(1000);
+            click(320, 660); // an empty spot of the page: Widget Factory has the focus again before the next obstacle
+            away();
+            if (!found) throw new Fail("no www.gtk.org page within 30 s (browser processes: " + browsers + ")");
+            return String.format("www.gtk.org shown after %.1f s; the browser closed (over SSH)", secs);
+        };
     }
 
     // A click on an entry's button that leaves its text as it is, as with the real mouse.
