@@ -1,0 +1,111 @@
+[no run] GTK Demo
+[run]    Assistant
+[folder] Benchmark
+  [run]    Fishbowl
+  [run]    Frames
+  [run]    Scrolling
+  [run]    Themes
+[run]    Builder
+[run]    Combo Boxes
+[folder] Constraints
+  [run]    Simple Constraints
+  [run]    Interactive Constraints
+  [run]    VFL
+  [run]    Builder
+[run]    Dialogs
+[run]    Drawing Area
+[folder] Entry
+  [run]    Completion
+  [run]    Undo and Redo
+  [run]    Password Entry
+  [run]    Search Entry
+  [run]    Type to Search
+  [run]    Tagged Entry
+[run]    Error States
+[run]    Expander
+[run]    Fixed Layout
+[run]    Flow Box
+[run]    Gestures
+[run]    Header Bar
+[folder] Icon View
+  [run]    Icon View Basics
+[run]    Images
+[run]    Info Bars
+[folder] Layout Manager
+  [run]    Transition
+  [run]    Transformation
+[folder] List Box
+  [run]    Complex
+  [run]    Controls
+[folder] Lists
+  [run]    Application launcher
+  [run]    Clocks
+  [run]    Colors
+  [run]    File browser
+  [run]    Minesweeper
+  [run]    Selections
+  [run]    Settings
+  [run]    Alternative Settings
+  [run]    Characters
+  [run]    Weather
+  [run]    Words
+[run]    Masking
+[folder] OpenGL
+  [run]    Gears
+  [run]    OpenGL Area
+  [run]    Transitions and Effects
+[folder] Overlay
+  [run]    Interactive Overlay
+  [run]    Decorative Overlay
+  [run]    Transparency
+[run]    Paint
+[folder] Paintable
+  [run]    Simple Paintable
+  [run]    Animated Paintable
+  [run]    Emblems
+  [run]    Media Stream
+  [run]    Symbolic Paintable
+[run]    Paned Widgets
+[folder] Pango
+  [run]    Font Rendering
+  [run]    Rotated Text
+  [run]    Text Mask
+  [run]    Font Explorer
+[folder] Path
+  [run]    Fill and Stroke
+  [run]    Maze
+  [run]    Spinner
+  [run]    Walk
+  [run]    Text
+[run]    Pickers and Launchers
+[run]    Read More
+[run]    Revealer
+[run]    Scales
+[run]    Shortcuts
+[run]    Shortcuts Window
+[run]    Size Groups
+[run]    Sliding Puzzle
+[run]    Spin Buttons
+[run]    Spinner
+[run]    Stack
+[run]    Stack Sidebar
+[folder] Text View
+  [run]    Hypertext
+  [run]    Markup
+  [run]    Tabs
+  [run]    Undo and Redo
+  [run]    Multiple Views
+  [run]    Automatic Scrolling
+[folder] Theming
+  [run]    CSS Accordion
+  [run]    CSS Basics
+  [run]    CSS Blend Modes
+  [run]    Multiple Backgrounds
+  [run]    Animated Backgrounds
+  [run]    Shadows
+  [run]    Style Classes
+[folder] Tree View
+  [run]    Editable Cells
+  [run]    Filter Model
+  [run]    List Store
+  [run]    Tree Store

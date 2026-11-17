@@ -1,0 +1,491 @@
+// GTK Demo Page Sanity Test: crawls the sidebar of the QNX 8.0 quick-start image's GTK Demo (gtk4-demo), driven by
+// OculiX through the OpticNerve agent, with the mouse only. Clicks each item on the screen in turn: a folder's
+// triangle is clicked twice (the folder closes, then opens again; the triangle must turn each time), any other item's
+// label is clicked once and the Run button must become enabled. When the items on the screen are done, the mouse
+// wheel scrolls about a page and the test finds the last item it did, by its pixels, and carries on below it. Prints
+// the tree it found, with PASS or FAIL per item; the exit status is the number of failures. It does not press Run.
+// At the end the tree is compared with host/demo/ref/gtk_demo_tree.txt. A few items have a step time (STEP_MS):
+// the test stays on them that long before the next one.
+//
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/GtkDemoTest.java HOST VNCPASSWORD [-record] [-step=NAME:MS] [-nostep] [-cols=N]
+//
+// Needs the agent running on HOST (port 5901) and the GTK Demo open full screen on the target (the launcher's GTK
+// tile). The tree it found is also written to demo-out/gtk_demo_tree.txt; -record saves it as the reference.
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.sikuli.script.Button;
+import org.sikuli.vnc.VNCScreen;
+
+public class GtkDemoTest {
+    static VNCScreen s;
+    static int fails, cols;
+    static boolean record;
+
+    // The sidebar on the 1920x1080 screen: its rows are 38 pixels high between y=TOP and y=BOTTOM; at the top level a
+    // label starts at x=39 and a folder's triangle at x=30, 12 pixels further in for each level. The Run button's
+    // label is dark when it is enabled and light grey when not; the window's title names the selected demo.
+    static final int TOP = 62, BOTTOM = 1058, SIDE_X = 24, SIDE_W = 240, INDENT = 12, LEAF_X = 39, TRIANGLE_X = 30;
+    static final int ROW = 38;
+    static final int RUN_X = 22, RUN_Y = 22, RUN_W = 56, RUN_H = 26;
+    static final int TITLE_X = 640, TITLE_Y = 18, TITLE_W = 640, TITLE_H = 34;
+    static final String INTRO = "GTK Demo";
+    // Step times: how long to stay on an item before the next one, for the few items whose page needs it; the rest of
+    // the list goes at the speed of the screen. Images: 3 s (2026-11-17). -step=NAME:MS adds or changes one;
+    // -nostep runs without them.
+    static final java.util.Map<String, Integer> STEP_MS = new java.util.HashMap<>(java.util.Map.of("Images", 3000));
+    static boolean noStep;
+    // The tree as found on the quick-start image (recorded with -record and checked by eye).
+    static final File REF = new File("host/demo/ref/gtk_demo_tree.txt");
+
+    static void say(String prefix, String text) {
+        if (cols <= prefix.length() + 10) {
+            System.out.println(prefix + text);
+            return;
+        }
+        String indent = " ".repeat(prefix.length());
+        StringBuilder line = new StringBuilder(prefix);
+        for (String w : text.split(" ")) {
+            if (line.length() > prefix.length() && line.length() + 1 + w.length() > cols) {
+                System.out.println(line);
+                line = new StringBuilder(indent);
+            }
+            if (line.length() > prefix.length() && line.charAt(line.length() - 1) != ' ') line.append(' ');
+            line.append(w);
+        }
+        System.out.println(line);
+    }
+
+    static void caption(String text) {
+        System.out.println();
+        say("==> ", text);
+    }
+
+    static void check(String name, boolean ok, String detail) {
+        if (!ok) fails++;
+        say(ok ? "PASS " : "FAIL ", name);
+        if (!detail.isEmpty()) say("     ", detail);
+    }
+
+    static boolean dark(BufferedImage img, int x, int y) {
+        int c = img.getRGB(x, y);
+        return ((c >> 16) & 255) + ((c >> 8) & 255) + (c & 255) < 300;
+    }
+
+    static boolean darkLine(BufferedImage img, int y) {
+        for (int x = SIDE_X; x < SIDE_W; x++)
+            if (dark(img, x, y)) return true;
+        return false;
+    }
+
+    // The middles of the rows wholly on the screen: each row's text is a band of lines with dark pixels.
+    static List<Integer> rows(BufferedImage img) {
+        List<Integer> out = new ArrayList<>();
+        int y = TOP;
+        while (y < BOTTOM) {
+            if (!darkLine(img, y)) {
+                y++;
+                continue;
+            }
+            int start = y;
+            while (y < BOTTOM && darkLine(img, y)) y++;
+            int mid = (start + y) / 2;
+            if (start > TOP + 2 && y < BOTTOM - 2 && mid - ROW / 2 >= TOP - 4 && mid + ROW / 2 <= BOTTOM + 4) out.add(mid);
+        }
+        return out;
+    }
+
+    // The leftmost dark pixel of a row, or -1.
+    static int leftmost(BufferedImage img, int y) {
+        for (int x = SIDE_X; x < SIDE_W; x++)
+            for (int dy = -9; dy <= 9; dy++)
+                if (dark(img, x, y + dy)) return x;
+        return -1;
+    }
+
+    // A folder's triangle at x: {width, height}, or null. A triangle is 5x10 (closed, pointing right) or 10x5 (open,
+    // pointing down) and stands where a triangle goes at some level; a capital letter can be as small, but starts
+    // where a label goes.
+    static int[] triangle(BufferedImage img, int x0, int y) {
+        int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+        for (int x = x0; x < x0 + 12; x++)
+            for (int dy = -9; dy <= 9; dy++)
+                if (dark(img, x, y + dy)) {
+                    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y + dy); maxY = Math.max(maxY, y + dy);
+                }
+        if (maxX < 0) return null;
+        int w = maxX - minX + 1, h = maxY - minY + 1;
+        boolean shape = (Math.abs(w - 5) <= 1 && Math.abs(h - 10) <= 1) || (Math.abs(w - 10) <= 1 && Math.abs(h - 5) <= 1);
+        int off = Math.floorMod(minX - TRIANGLE_X + (w > h ? 0 : -2), INDENT); // the closed one starts 2 pixels in
+        if (!shape || (off > 1 && off < INDENT - 1)) return null;
+        for (int x = maxX + 1; x < maxX + 4; x++) // a gap before the label
+            for (int dy = -9; dy <= 9; dy++)
+                if (dark(img, x, y + dy)) return null;
+        return new int[] { w, h };
+    }
+
+    static boolean runEnabled(BufferedImage img) {
+        for (int y = RUN_Y; y < RUN_Y + RUN_H; y++)
+            for (int x = RUN_X; x < RUN_X + RUN_W; x++)
+                if (dark(img, x, y)) return true;
+        return false;
+    }
+
+    // The GTK Demo's window is on the screen: the sidebar's light background shows right of the labels.
+    static boolean onScreen() {
+        BufferedImage now = s.capture().getImage();
+        for (int y : new int[] { 300, 700, 1000 }) {
+            int c = now.getRGB(244, y);
+            if (((c >> 16) & 255) < 200 || ((c >> 8) & 255) < 200 || (c & 255) < 200) return false;
+        }
+        return true;
+    }
+
+    static String label(int x, int y) {
+        return s.newRegion(x, y - 15, SIDE_W - x + 10, 30).text().replaceAll("\\s+", " ").trim();
+    }
+
+    // The dark pixels of a row's text, as offsets from its middle: what the row looks like whether or not it is
+    // selected or under the pointer.
+    static boolean[][] mask(BufferedImage img, int y) {
+        return mask(img, y, SIDE_X);
+    }
+
+    // From x0 on: a folder's label without its triangle, which turns.
+    static boolean[][] mask(BufferedImage img, int y, int x0) {
+        boolean[][] m = new boolean[ROW][SIDE_W - SIDE_X];
+        for (int dy = 0; dy < ROW; dy++) {
+            int yy = y - ROW / 2 + dy;
+            if (yy < 0 || yy >= img.getHeight()) continue;
+            int bg = sum(img.getRGB(SIDE_W - 4, yy)); // the row's background, right of the labels
+            for (int x = x0; x < SIDE_W - 4; x++)
+                m[dy][x - SIDE_X] = bg - sum(img.getRGB(x, yy)) > 400;
+        }
+        return m;
+    }
+
+    // Text against the row's own background: the row's background changes when it is selected or under the pointer,
+    // and a letter's smoothed edges with it, so a fixed darkness does not find the same pixels.
+    static int sum(int c) {
+        return ((c >> 16) & 255) + ((c >> 8) & 255) + (c & 255);
+    }
+
+    // Whether the row at y has the same text as the mask, allowing the text to sit up to 2 pixels higher or lower and
+    // 2% of its pixels to differ (the row's middle is measured from its text, after a scroll it can move a pixel).
+    static boolean sameRow(boolean[][] want, BufferedImage img, int y) {
+        return sameRow(want, img, y, SIDE_X);
+    }
+
+    static boolean sameRow(boolean[][] want, BufferedImage img, int y, int x0) {
+        int count = 0;
+        for (boolean[] line : want)
+            for (boolean b : line) if (b) count++;
+        for (int dy = -2; dy <= 2; dy++) {
+            boolean[][] got = mask(img, y + dy, x0);
+            int differ = 0;
+            for (int i = 0; i < want.length; i++)
+                for (int j = 0; j < want[i].length; j++)
+                    if (want[i][j] != got[i][j]) differ++;
+            if (count > 0 && differ <= Math.max(3, count / 5)) return true; // the same text: 7 to 14%; another: 80%
+        }
+        return false;
+    }
+
+    // Captures until the condition holds on two captures 200 ms apart (the redraw has finished), for at most secs
+    // seconds; returns the last capture, or null.
+    static BufferedImage await(java.util.function.Predicate<BufferedImage> ok, double secs) throws Exception {
+        long end = System.nanoTime() + (long) (secs * 1e9);
+        do {
+            BufferedImage now = s.capture().getImage();
+            if (ok.test(now)) {
+                Thread.sleep(200);
+                BufferedImage again = s.capture().getImage();
+                if (ok.test(again)) return again;
+            }
+            Thread.sleep(100);
+        } while (System.nanoTime() < end);
+        return null;
+    }
+
+    // Captures until two captures 300 ms apart are the same, for at most secs seconds.
+    static BufferedImage still(double secs) throws Exception {
+        long end = System.nanoTime() + (long) (secs * 1e9);
+        BufferedImage a = s.capture().getImage();
+        do {
+            Thread.sleep(300);
+            BufferedImage b = s.capture().getImage();
+            if (same(a, b, 0, TOP, SIDE_W + 10, BOTTOM - TOP)) return b;
+            a = b;
+        } while (System.nanoTime() < end);
+        return a;
+    }
+
+    static boolean same(BufferedImage a, BufferedImage b, int x0, int y0, int w, int h) {
+        for (int y = y0; y < y0 + h; y++)
+            for (int x = x0; x < x0 + w; x++)
+                if (a.getRGB(x, y) != b.getRGB(x, y)) return false;
+        return true;
+    }
+
+    // Clicks a folder's triangle; returns the screen once the triangle points down (open) or right (closed), or null
+    // if it does not within 3 s.
+    static BufferedImage toggle(int x, int y, int[] tri, boolean open) throws Exception {
+        // Two clicks on a row within the double-click time run that demo (it happened in runs of 2026-11-17): wait
+        // longer than that after the last click.
+        long wait = lastClick + 800 - System.currentTimeMillis();
+        if (wait > 0) Thread.sleep(wait);
+        lastClick = System.currentTimeMillis();
+        BufferedImage before = s.capture().getImage();
+        boolean[][] name = mask(before, y, x + 14);
+        s.click(s.newLocation(x + tri[0] / 2, y));
+        // Near the end of the list, closing a folder makes the list shorter and the rows move down: find the folder
+        // again by its label.
+        BufferedImage r = awaitFolder(name, x, open);
+        if (r == null) { // what the screen showed, and how each row compared, for the failure
+            BufferedImage now = s.capture().getImage();
+            javax.imageio.ImageIO.write(before, "png", new File("demo-out", "gtk_folder_before.png"));
+            javax.imageio.ImageIO.write(now, "png", new File("demo-out", "gtk_folder_after.png"));
+            StringBuilder sb = new StringBuilder("y=" + y + " x=" + x + " rows:");
+            for (int ry : rows(now)) {
+                int[] t = triangle(now, x, ry);
+                sb.append(" ").append(ry).append(sameRow(name, now, ry, x + 14) ? "=" : "").append(t == null ? "" : "t" + t[0] + "x" + t[1]);
+            }
+            say("     ", sb.toString());
+        }
+        return r;
+    }
+
+    static BufferedImage awaitFolder(boolean[][] name, int x, boolean open) throws Exception {
+        return await(now -> {
+            for (int ry : rows(now)) {
+                if (!sameRow(name, now, ry, x + 14)) continue;
+                int[] t = triangle(now, x, ry);
+                if (t != null && (open ? t[0] > t[1] : t[0] < t[1])) {
+                    toggledY = ry;
+                    return true;
+                }
+            }
+            return false;
+        }, 3);
+    }
+
+    static int toggledY;
+
+    // Moves the pointer off the sidebar's rows (to the page on the right), so that no row is drawn as under it.
+    static void pointerAway() throws Exception {
+        s.mouseMove(s.newLocation(1500, 600));
+    }
+
+    // Scrolls the sidebar by `notches` of the mouse wheel, towards the end of the list when positive (the pointer over
+    // the sidebar while it turns). In the GTK Demo on this image the wheel turned up (away from the user) moves the
+    // list towards its end, with the real mouse as well (2026-11-17); the agent sends the values the real mouse does.
+    static BufferedImage wheel(int notches) throws Exception {
+        s.mouseMove(s.newLocation(SIDE_W - 60, (TOP + BOTTOM) / 2));
+        s.wheel(notches > 0 ? Button.WHEEL_UP : Button.WHEEL_DOWN, Math.abs(notches));
+        pointerAway();
+        return still(3);
+    }
+
+    static String first(List<String> lines) {
+        List<String> names = new ArrayList<>();
+        for (String l : lines.subList(0, Math.min(5, lines.size()))) names.add(l.replaceAll("^\\s*\\[[a-z ]+\\]\\s*", ""));
+        return lines.isEmpty() ? "none" : String.join(", ", names) + (lines.size() > 5 ? " and " + (lines.size() - 5) + " more" : "");
+    }
+
+    public static void main(String[] a) {
+        int code;
+        try {
+            run(a);
+            code = fails;
+        } catch (Throwable e) {
+            say("FAIL ", "the test stopped on an error: " + e);
+            code = fails + 1;
+        }
+        try {
+            if (s != null) s.stop();
+        } catch (Throwable ignored) {
+        }
+        System.out.println();
+        System.out.println(code == 0 ? "ALL PASSED" : code + " FAILED");
+        System.exit(code);
+    }
+
+    static long lastClick;
+    static List<String> tree = new ArrayList<>();
+    static int items, folders, runnable, notRunnable;
+
+    static void run(String[] a) throws Exception {
+        for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
+        record = java.util.Arrays.asList(a).contains("-record");
+        noStep = java.util.Arrays.asList(a).contains("-nostep");
+        for (String x : a)
+            if (x.startsWith("-step=") && x.lastIndexOf(':') > 6)
+                STEP_MS.put(x.substring(6, x.lastIndexOf(':')), Integer.parseInt(x.substring(x.lastIndexOf(':') + 1)));
+        Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
+        p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
+        org.sikuli.basics.Settings.MoveMouseDelay = 0.2f;
+
+        caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
+        s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
+        boolean framed = s != null && s.capture() != null;
+        check("connect to the OpticNerve agent", framed, a[0] + ":5901");
+        if (!framed) return;
+
+        caption("Scrolling the GTK Demo's sidebar to the top");
+        String runText = s.newRegion(RUN_X - 2, RUN_Y - 2, RUN_W + 4, RUN_H + 4).text().trim();
+        check("the GTK Demo is on the screen", runText.contains("Run"), "OCR read \"" + runText + "\" on the Run button");
+        if (!runText.contains("Run")) return;
+        BufferedImage img = wheel(-60);
+
+        caption("Clicking each item; a folder's triangle twice (closed, then open again)");
+        File shots = new File("demo-out");
+        shots.mkdirs();
+        int notchPx = 0; // how far one notch scrolls, measured on the first scroll
+        int start = 0; // the first row on the screen not yet done
+        String openedFolder = null;
+        int openedDepth = 0;
+        for (int page = 0; page < 40; page++) {
+            List<Integer> rs = rows(img);
+            int lastY = -1;
+            for (int i = start; i < rs.size(); i++) {
+                int y = rs.get(i);
+                if (!onScreen()) {
+                    check("the GTK Demo stays on the screen", false, "it is no longer shown, before item " + (items + 1));
+                    report();
+                    return;
+                }
+                int x = leftmost(img, y);
+                if (x < 0) continue;
+                int[] tri = triangle(img, x, y);
+                int depth = Math.max(0, Math.round((x - (tri != null ? TRIANGLE_X : LEAF_X)) / (float) INDENT));
+                String name = label(tri != null ? x + 14 : x - 2, y);
+                String pad = "  ".repeat(depth);
+                if (openedFolder != null) { // the item after a folder is its first item, a level further in
+                    check(openedFolder + " (folder) shows its items", depth == openedDepth + 1,
+                            depth == openedDepth + 1 ? "first item: " + name : "the next item is not inside it: " + name);
+                    openedFolder = null;
+                }
+                items++;
+                if (tri != null) {
+                    folders++;
+                    String how = "opened";
+                    if (tri[0] > tri[1]) { // open (the GTK Demo starts with its folders open): close it first
+                        BufferedImage got = toggle(x, y, tri, false);
+                        check(pad + name + " (folder) closes when its triangle is clicked", got != null,
+                                got != null ? "the triangle turned to point right" : "the triangle did not turn");
+                        if (got == null) {
+                            report();
+                            return;
+                        }
+                        img = got;
+                        y = toggledY;
+                        tri = triangle(img, x, y);
+                        how = "closed and opened again";
+                    }
+                    BufferedImage got = toggle(x, y, tri, true);
+                    check(pad + name + " (folder) opens when its triangle is clicked", got != null,
+                            got != null ? "the triangle turned to point down" : "the triangle did not turn");
+                    if (got == null) {
+                        report();
+                        return;
+                    }
+                    img = got;
+                    y = toggledY;
+                    rs = rows(img); // its items are on the screen below it now
+                    i = rs.indexOf(y) >= 0 ? rs.indexOf(y) : i;
+                    openedFolder = pad + name;
+                    openedDepth = depth;
+                    tree.add(pad + "[folder] " + name + " (" + how + ")");
+                } else {
+                    // Click the label; the window's title changes to the demo's name, then the Run button follows.
+                    BufferedImage before = img;
+                    lastClick = System.currentTimeMillis();
+                    s.click(s.newLocation(x + 30, y));
+                    BufferedImage got = await(now -> !same(before, now, TITLE_X, TITLE_Y, TITLE_W, TITLE_H), 1.5);
+                    img = await(GtkDemoTest::runEnabled, got == null ? 0.3 : 1);
+                    boolean ok = img != null;
+                    if (img == null) img = s.capture().getImage();
+                    if (ok) runnable++;
+                    else notRunnable++;
+                    if (items == 1 && name.equals(INTRO)) // the introduction page has nothing to run
+                        check(name + " (the introduction) is not runnable", !ok, ok ? "the Run button is enabled" : "");
+                    else
+                        check(pad + name + " is runnable", ok, ok ? "" : "the Run button is disabled");
+                    tree.add(pad + (ok ? "[run]    " : "[no run] ") + name);
+                    Integer step = noStep ? null : STEP_MS.get(name);
+                    if (step != null) {
+                        say("     ", "step time: " + step + " ms on " + name);
+                        Thread.sleep(step);
+                    }
+                }
+                lastY = y;
+            }
+            if (lastY < 0) break;
+
+            // The next page: scroll, then find the last row done (its text's pixels) and start below it.
+            pointerAway();
+            img = still(2);
+            boolean[][] last = mask(img, lastY);
+            int notches = notchPx == 0 ? 1 : Math.max(1, (int) ((lastY - TOP - ROW) / (double) notchPx));
+            BufferedImage moved = wheel(notches);
+            if (same(img, moved, 0, TOP, SIDE_W, BOTTOM - TOP)) break; // the end of the list: nothing moved
+            int found = -1;
+            for (int back = 0; back < 3 && found < 0; back++) {
+                List<Integer> now = rows(moved);
+                for (int i = 0; i < now.size() && found < 0; i++)
+                    if (sameRow(last, moved, now.get(i))) found = i;
+                if (found < 0) moved = wheel(-1); // too far: back a notch
+            }
+            if (found < 0) {
+                javax.imageio.ImageIO.write(moved, "png", new File(shots, "gtk_lost.png"));
+                javax.imageio.ImageIO.write(img, "png", new File(shots, "gtk_before.png"));
+                say("     ", "last row at y=" + lastY + ", " + notches + " notches of " + notchPx + " px; rows now " + rows(moved));
+                check("the last item done is found again after scrolling", false,
+                        "not on the screen; the screen is in demo-out" + File.separator + "gtk_lost.png");
+                break;
+            }
+            int newY = rows(moved).get(found);
+            if (notchPx == 0) notchPx = Math.max(1, lastY - newY);
+            img = moved;
+            start = found + 1;
+            if (start >= rows(img).size()) break; // the last item was already the last one on the list
+        }
+        report();
+    }
+
+    static void report() throws Exception {
+        caption("The GTK Demo's sidebar");
+        File out = new File("demo-out", "gtk_demo_tree.txt");
+        out.getParentFile().mkdirs();
+        try (PrintWriter w = new PrintWriter(out, "UTF-8")) {
+            for (String line : tree) {
+                say("  | ", line);
+                w.println(line);
+            }
+        }
+        say("", items + " items: " + folders + " folders, " + runnable + " runnable, " + notRunnable + " not runnable"
+                + " (" + out.getPath() + ")");
+
+        // The tree without the notes on how each folder was found, against the reference.
+        List<String> found = new ArrayList<>();
+        for (String line : tree) found.add(line.replaceAll(" \\(.*\\)$", "").stripTrailing());
+        caption("Comparing the sidebar with " + REF.getPath());
+        if (record) {
+            java.nio.file.Files.write(REF.toPath(), found);
+            say("", "recorded " + found.size() + " lines");
+            return;
+        }
+        List<String> want = java.nio.file.Files.readAllLines(REF.toPath());
+        List<String> missing = new ArrayList<>(want), extra = new ArrayList<>(found);
+        missing.removeAll(found);
+        extra.removeAll(want);
+        boolean same = want.equals(found);
+        check("the sidebar is as recorded", same, same ? want.size() + " items, in the same order"
+                : found.size() + " items, " + want.size() + " recorded; missing " + first(missing) + "; new " + first(extra)
+                        + (missing.isEmpty() && extra.isEmpty() ? "; the order differs" : ""));
+    }
+}
