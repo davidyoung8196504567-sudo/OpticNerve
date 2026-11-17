@@ -1,4 +1,4 @@
-[no run] GTK Demo
+[intro]  GTK Demo
 [run]    Assistant
 [folder] Benchmark
   [run]    Fishbowl

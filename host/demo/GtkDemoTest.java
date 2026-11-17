@@ -464,13 +464,16 @@ public class GtkDemoTest {
                     img = await(GtkDemoTest::runEnabled, got == null ? 0.3 : 1);
                     boolean ok = img != null;
                     if (img == null) img = s.capture().getImage();
-                    if (ok) runnable++;
-                    else notRunnable++;
-                    if (items == 1 && name.equals(INTRO)) // the introduction page has nothing to run
+                    // The first item is the GTK Demo's introduction: neither a folder nor a demo, nothing to run.
+                    boolean intro = items == 1 && name.equals(INTRO);
+                    if (intro) {
                         check(name + " (the introduction) is not runnable", !ok, ok ? "the Run button is enabled" : "");
-                    else
+                    } else {
+                        if (ok) runnable++;
+                        else notRunnable++;
                         check(pad + name + " is runnable", ok, ok ? "" : "the Run button is disabled");
-                    tree.add(pad + (ok ? "[run]    " : "[no run] ") + name);
+                    }
+                    tree.add(pad + (intro && !ok ? "[intro]  " : ok ? "[run]    " : "[no run] ") + name);
                     Integer step = noStep ? null : STEP_MS.get(name);
                     if (step != null) {
                         say("     ", "step time: " + step + " ms on " + name);
@@ -522,7 +525,7 @@ public class GtkDemoTest {
                 w.println(line);
             }
         }
-        say("", items + " items: " + folders + " folders, " + runnable + " runnable, " + notRunnable + " not runnable"
+        say("", items + " items: 1 introduction, " + folders + " folders, " + runnable + " runnable, " + notRunnable + " not runnable"
                 + " (" + out.getPath() + ")");
 
         // The tree without the notes on how each folder was found, against the reference.
