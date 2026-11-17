@@ -6,7 +6,8 @@
 # (agent/build/aarch64le/demo_panel); ON_LOGIN_PASSWORD, ON_VNC_PASSWORD, ON_TIGERVNC_JAR and ON_OCULIX_JAR set, and
 # optionally ON_HOST (default 10.30.1.116). Passwords come from the environment; nothing prints them. TAKE_LOGIN=1
 # adds the login sanity test (host/demo/LoginTest.java), which types the login password into the target's Terminal;
-# TAKE_ONLY=login records that test on its own.
+# TAKE_ONLY=login records that test on its own. The Developer Desktop test (host/demo/DesktopTest.java) needs the
+# target online, to load the project's page from GitHub.
 cd "$(dirname "$0")/../../.." || exit 1
 T=${TAKE_DIR:?TAKE_DIR not set}
 H=${ON_HOST:-10.30.1.116}
@@ -56,6 +57,10 @@ if [ "$TAKE_LOGIN" = 1 ]; then   # set by whoever runs the take: the test types 
     run "java LoginTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/LoginTest.java $H \"\$ON_VNC_PASSWORD\" -cols=50 2>&1 | grep -a --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    |  \\| )'"
     sleep 5
 fi
+bash host/tools/pi_ssh.sh 'slay -f demo_panel >/dev/null 2>&1' > /dev/null
+say "The Developer Desktop: open the web browser and go to the OpticNerve project on GitHub"
+run "java DesktopTest $H" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/DesktopTest.java $H \"\$ON_VNC_PASSWORD\" -hold=6 -cols=50 2>&1 | grep -a --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    )'"
+sleep 5
 say "Ask the agent on the target what it is doing"
 run "ssh target opticnerve status" "bash host/tools/pi_ssh.sh '/data/opticnerve/bin/opticnerve status | head -9'"
 sleep 6
