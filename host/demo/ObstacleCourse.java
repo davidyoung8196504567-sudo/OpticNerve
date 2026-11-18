@@ -432,23 +432,26 @@ public class ObstacleCourse {
         s.mouseMove(s.newLocation(266, 486)); // Widget Factory (GTK+ 4)
         Thread.sleep(500);
         click(266, 486);
-        // It opens maximized if it was when it closed, otherwise somewhere in the middle: found by its tab strip
-        // (host/demo/ref/wf_tabs.png); its maximize button is 595 pixels right of the strip's middle.
-        org.sikuli.script.Match strip = s.exists(new org.sikuli.script.Pattern(
-                new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8), 20);
+        // It opens maximized if it was when it closed, otherwise somewhere else, in different sizes: found by its tab
+        // strip (host/demo/ref/wf_tabs.png), at the very top when maximized; otherwise its title-bar buttons (minimize,
+        // maximize, close: host/demo/ref/wf_window_buttons.png) are found and the middle one clicked.
+        org.sikuli.script.Pattern tabStrip = new org.sikuli.script.Pattern(new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8);
+        org.sikuli.script.Pattern buttons = new org.sikuli.script.Pattern(new java.io.File("host/demo/ref/wf_window_buttons.png").getAbsolutePath()).similar(0.8);
+        org.sikuli.script.Match strip = s.exists(tabStrip, 20);
         if (strip == null) throw new IllegalStateException("Widget Factory did not open: its tab strip is not on the screen");
-        for (int attempt = 0; attempt < 3 && strip != null && strip.getCenter().y > 80; attempt++) { // not maximized
+        for (int attempt = 0; attempt < 3 && strip != null && strip.getCenter().y > 60; attempt++) { // not maximized
             Thread.sleep(1000); // the window drawn in full before its button is clicked
-            click(strip.getCenter().x + 595, strip.getCenter().y);
+            org.sikuli.script.Match b = s.exists(buttons, 5);
+            if (b == null) throw new IllegalStateException("Widget Factory's window buttons are not on the screen");
+            click(b.getCenter().x, b.getCenter().y);
             away();
             Thread.sleep(1000);
-            strip = s.exists(new org.sikuli.script.Pattern(
-                    new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8), 5);
+            strip = s.exists(tabStrip, 5);
         }
         Thread.sleep(1500);
         org.sikuli.script.Match top = s.exists(new org.sikuli.script.Pattern(
                 new java.io.File("host/demo/ref/wf_tabs.png").getAbsolutePath()).similar(0.8), 10);
-        if (top == null || top.getCenter().y > 80)
+        if (top == null || top.getCenter().y > 60)
             throw new IllegalStateException("Widget Factory is not maximized: its tab strip is " + (top == null ? "not found" : "at y=" + top.getCenter().y));
         long start = System.nanoTime();
 
@@ -585,7 +588,7 @@ public class ObstacleCourse {
         // The calendar
         obstacle("calendar: next month, then back", calendarStep(1778, 100, 1675, 100, new int[] { 1688, 88, 90, 24 }, "December", "November"));
         obstacle("calendar: next year, then back", calendarStep(1890, 100, 1812, 100, new int[] { 1822, 88, 60, 24 }, "2027", "2026"));
-        obstacle("calendar: another day, then back", calendarDay(1783, 233, 1745, 233));
+        obstacle("calendar: another day, then back", calendarDay());
 
         // The expander and its icons
         refocus(); // the calendar keeps the keyboard; the expander's click must not go to focus
@@ -865,7 +868,7 @@ public class ObstacleCourse {
             String after = ocr(field);
             for (long end = System.nanoTime() + 2_000_000_000L; after.contains("777") && System.nanoTime() < end; ) after = ocr(field);
             if (after.contains("777")) throw new Fail("the erase button left \"" + after + "\"");
-            click(960, 176); // Escape in the field closes a search bar (a second click on Search did not, 2026-11-17)
+            click(960, 176); // Escape in the field closes the bar (so does its close button; Search again does nothing, as with the real mouse)
             s.type(Key.ESC);
             away();
             if (!await(bar, before, true, 3)) throw new Fail("Escape did not hide the bar");
@@ -904,10 +907,15 @@ public class ObstacleCourse {
         return ((c >> 16) & 255) + ((c >> 8) & 255) + (c & 255);
     }
 
-    // A calendar day: the clicked day is drawn selected (blue), then the first day again.
-    static Run calendarDay(int x, int y, int x0, int y0) {
+    // A calendar day: the calendar opens on today, drawn selected (blue). The day a row above (or below) is clicked
+    // and must be drawn selected, then today again.
+    static Run calendarDay() {
         return () -> {
-            if (!blue(x0, y0)) throw new Fail("the first day is not selected at the start");
+            int[] grid = { 1655, 108, 260, 130 }, today = null;
+            for (long end = System.nanoTime() + 3_000_000_000L; today == null && System.nanoTime() < end; Thread.sleep(150))
+                today = blueCentre(grid);
+            if (today == null) throw new Fail("no day is drawn selected");
+            int x0 = today[0], y0 = today[1], x = x0, y = y0 > 150 ? y0 - 26 : y0 + 26;
             click(x, y);
             away();
             boolean moved = false;
@@ -919,9 +927,24 @@ public class ObstacleCourse {
             boolean back = false;
             for (long end = System.nanoTime() + 3_000_000_000L; !back && System.nanoTime() < end; Thread.sleep(150))
                 back = blue(x0, y0) && !blue(x, y);
-            if (!back) throw new Fail("the first day was not selected again");
-            return "another day selected, and the first again";
+            if (!back) throw new Fail("today was not selected again");
+            return "another day selected, and today again";
         };
+    }
+
+    // The middle of the strong blue (a selected cell) in a region, or null.
+    static int[] blueCentre(int[] r) {
+        BufferedImage img = grab(r);
+        int minX = 9999, maxX = -1, minY = 9999, maxY = -1;
+        for (int y = 0; y < img.getHeight(); y++)
+            for (int x = 0; x < img.getWidth(); x++) {
+                int c = img.getRGB(x, y);
+                if ((c & 255) > 180 && ((c >> 16) & 255) < 120) {
+                    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                }
+            }
+        return maxX < 0 ? null : new int[] { r[0] + (minX + maxX) / 2, r[1] + (minY + maxY) / 2 };
     }
 
     // The selection's blue at a point (a little left of a day's number, inside its cell).
