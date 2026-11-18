@@ -621,6 +621,10 @@ public class ObstacleCourse {
         // (the triangle's click selects its row too: the rows under it are checked)
         obstacle("tree: a branch closes by its triangle, and opens again", expander(75, 185, new int[] { 12, 198, 430, 180 }));
         obstacle("tree: a click selects a row", selects(109, 251, new int[] { 12, 242, 430, 18 }));
+        int[] treeRows = { 12, 108, 430, 270 };
+        obstacle("tree: the Name header (no sorting)", unchanged(37, 95, treeRows, REAL));
+        obstacle("tree: the Birth header (no sorting)", unchanged(264, 95, treeRows, REAL));
+        obstacle("tree: the Death header (no sorting)", unchanged(345, 95, treeRows, REAL));
         obstacle("tree: the wheel scrolls it, and back", scroll(230, 250, new int[] { 12, 108, 430, 270 }, new int[] { 28, 110, 110, 20 }, "Charle"));
         obstacle("Wikipedia link: the browser shows Wikipedia", link(101, 394, "wikipedia.org", "free encyclopedia")); // the page's own "Wikipedia" is not enough
 
@@ -630,6 +634,7 @@ public class ObstacleCourse {
         obstacle("linked toggle buttons: list, then grid", pair(714, 99, 680, 99, new int[] { 664, 86, 70, 28 }));
         obstacle("gear button: its Settings dialog opens", dialog(756, 99, "Settings dialog", 1500));
         obstacle("Lock: the toolbar locked, and unlocked", toggle(1121, 99, new int[] { 476, 86, 690, 28 }));
+        obstacle("menu button (three dots): its menu opens, a second click closes it", menuButton(1189, 99, "menu", 1000));
 
         // The stack and its sidebar, the entries
         obstacle("stack sidebar: Birthdate, Address, Pages, Identity", tabs(new int[] { 580, 135, 620, 160 },
@@ -646,12 +651,19 @@ public class ObstacleCourse {
         obstacle("text view: the second button inserts its icon", selects(491, 362, firstLine));
         obstacle("text view: the full-screen button inserts its icon", selects(491, 395, firstLine));
         obstacle("text view: the star button inserts its icon", selects(491, 428, firstLine));
+        obstacle("text view: disabled Cut", disabled(1189, 329, box(1189, 329, 22, 22)));
+        obstacle("text view: disabled Copy", disabled(1189, 362, box(1189, 362, 22, 22)));
+        obstacle("text view: disabled Paste", disabled(1189, 395, box(1189, 395, 22, 22)));
+        obstacle("text view: disabled Clear", disabled(1189, 429, box(1189, 429, 22, 22)));
         obstacle("text view: type on a new line, then BackSpace", typeLine(800, 380, new int[] { 512, 334, 300, 24 }, "bump"));
 
         // The notebooks, judged by the line under the selected tab: after typing, the tab clicked last has a focus
         // ring, and Page 1 of the first holds a video whose controls come and go with the pointer.
         obstacle("notebook with closable tabs: Page 2, then Page 1", tabs(new int[] { 476, 486, 236, 8 },
                 new int[][] { { 513, 474 }, { 609, 474 } }));
+        int[] strip = { 476, 462, 200, 24 };
+        obstacle("closable tab Page 2: its x closes it, it comes back", closeTab(646, 474, strip, "Page2"));
+        obstacle("closable tab Page 1: its x closes it, it comes back", closeTab(548, 474, strip, "Page1"));
         obstacle("notebook (Page 1 to 5)", tabs(new int[] { 1220, 158, 650, 8 },
                 new int[][] { { 1257, 146 }, { 1331, 146 }, { 1406, 146 }, { 1481, 146 }, { 1556, 146 } }));
 
@@ -665,6 +677,59 @@ public class ObstacleCourse {
         obstacle("colour editor: the hue slider", slider(1407, 600, 1407, 450, new int[] { 1430, 344, 296, 296 }));
         obstacle("colour editor: the colour plane", slider(1500, 420, 1650, 560, preview));
         obstacle("colour editor: the alpha slider", slider(1718, 664, 1560, 664, preview));
+    }
+
+    // A menu button: a click opens its menu (at least `least` sample points change), a second click on the button
+    // closes it, as with the real mouse (Escape did not close it).
+    static Run menuButton(int x, int y, String what, int least) {
+        return () -> {
+            away();
+            BufferedImage before = s.capture().getImage();
+            click(x, y);
+            away();
+            boolean[][] area = null;
+            int opened = 0;
+            for (long end = System.nanoTime() + 6_000_000_000L; opened < least && System.nanoTime() < end; Thread.sleep(200)) {
+                Thread.sleep(300);
+                area = changedPoints(before, s.capture().getImage());
+                opened = count(area);
+            }
+            if (opened < least) throw new Fail("no " + what + " opened (" + opened + " sample points changed)");
+            click(x, y);
+            away();
+            int left = opened;
+            for (long end = System.nanoTime() + 4_000_000_000L; left > opened / 10 && System.nanoTime() < end; Thread.sleep(200)) {
+                boolean[][] now = changedPoints(before, s.capture().getImage());
+                left = 0;
+                for (int i = 0; i < now.length; i++)
+                    for (int j = 0; j < now[i].length; j++)
+                        if (now[i][j] && area[i][j]) left++;
+            }
+            if (left > opened / 10) throw new Fail("a second click did not close the " + what + " (" + left + " of its " + opened + " sample points still changed)");
+            return what + " opened (" + opened + " sample points), and closed by a second click";
+        };
+    }
+
+    // A closable tab: its x closes it (OCR no longer finds its label), and Widget Factory puts it back after about
+    // 5 s (David, 2026-11-18).
+    static Run closeTab(int x, int y, int[] strip, String label) {
+        return () -> {
+            String t = tabText(strip);
+            if (!t.contains(label)) throw new Fail("OCR does not find \"" + label + "\" in the tabs: \"" + t + "\"");
+            click(x, y);
+            away();
+            long t0 = System.nanoTime();
+            for (long end = t0 + 3_000_000_000L; t.contains(label) && System.nanoTime() < end; Thread.sleep(150)) t = tabText(strip);
+            if (t.contains(label)) throw new Fail("its x did not close it");
+            for (long end = t0 + 12_000_000_000L; !t.contains(label) && System.nanoTime() < end; Thread.sleep(300)) t = tabText(strip);
+            if (!t.contains(label)) throw new Fail("it did not come back within 12 s: OCR read \"" + t + "\"");
+            return String.format("closed, and back after %.1f s", (System.nanoTime() - t0) / 1e9);
+        };
+    }
+
+    // The tab labels as OCR reads them, made comparable: it read "Page 1 x Page 2 x" as "Pagel x Page2 x".
+    static String tabText(int[] strip) {
+        return ocr(strip).replace(" ", "").replace("Pagel", "Page1");
     }
 
     // A tree's expander triangle. After OculiX's quick move (MoveMouseDelay 0.1 s) the click only selected the row
