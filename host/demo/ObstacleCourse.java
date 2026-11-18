@@ -9,7 +9,8 @@
 //
 // Needs the agent running on HOST (port 5901), the Developer Desktop on the screen and ON_LOGIN_PASSWORD set: the course
 // closes Widget Factory (over SSH) and opens it again from the Applications menu, so that every run starts alike.
-// Pages 1 and 2 so far. -only=TEXT runs just the obstacles whose name contains TEXT.
+// All three pages. -only=A|B runs just the obstacles whose name contains A or B; -page=N just that page; -repeat=N
+// each obstacle N times; -move=S OculiX's MoveMouseDelay (default 0.1 s).
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -416,6 +417,7 @@ public class ObstacleCourse {
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
         org.sikuli.basics.Settings.MoveMouseDelay = 0.1f;
+        for (String x : a) if (x.startsWith("-move=")) org.sikuli.basics.Settings.MoveMouseDelay = Float.parseFloat(x.substring(6));
 
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
         s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
@@ -457,6 +459,7 @@ public class ObstacleCourse {
 
         if (onlyPage != null && !onlyPage.equals("1")) {
             if (onlyPage.equals("2")) page2();
+            if (onlyPage.equals("3")) page3();
             scoreboard((System.nanoTime() - start) / 1e9);
             return;
         }
@@ -527,7 +530,10 @@ public class ObstacleCourse {
         obstacle("notebook, tabs on the left", tabs(new int[] { 1440, 740, 80, 140 },
                 new int[][] { { 1477, 761 }, { 1477, 805 }, { 1477, 849 } }));
 
-        if (onlyPage == null) page2();
+        if (onlyPage == null) {
+            page2();
+            page3();
+        }
 
         scoreboard((System.nanoTime() - start) / 1e9);
     }
@@ -598,6 +604,172 @@ public class ObstacleCourse {
 
     }
 
+    static void page3() throws Exception {
+        caption("Page 3: the thumps");
+        page = "3";
+        neutral = new int[] { 1300, 46 };
+        String landmark = ""; // the tree's first row, "Charlemagne"
+        for (int i = 0; i < 3 && !landmark.contains("Charle"); i++) {
+            click(1091, 46);
+            away();
+            Thread.sleep(800);
+            landmark = ocr(new int[] { 28, 110, 110, 20 });
+        }
+        if (!landmark.contains("Charle")) throw new IllegalStateException("page 3 is not shown: OCR read \"" + landmark + "\"");
+
+        // The family tree
+        // (the triangle's click selects its row too: the rows under it are checked)
+        obstacle("tree: a branch closes by its triangle, and opens again", expander(75, 185, new int[] { 12, 198, 430, 180 }));
+        obstacle("tree: a click selects a row", selects(109, 251, new int[] { 12, 242, 430, 18 }));
+        obstacle("tree: the wheel scrolls it, and back", scroll(230, 250, new int[] { 12, 108, 430, 270 }, new int[] { 28, 110, 110, 20 }, "Charle"));
+        obstacle("Wikipedia link: the browser shows Wikipedia", link(101, 394, "wikipedia.org", "free encyclopedia")); // the page's own "Wikipedia" is not enough
+
+        // The toolbar
+        obstacle("Open: its menu opens", dialog(510, 99, "menu", 1000));
+        obstacle("Record: a toggle button", toggle(605, 99, new int[] { 565, 91, 80, 16 }));
+        obstacle("linked toggle buttons: list, then grid", pair(714, 99, 680, 99, new int[] { 664, 86, 70, 28 }));
+        obstacle("gear button: its Settings dialog opens", dialog(756, 99, "Settings dialog", 1500));
+        obstacle("Lock: the toolbar locked, and unlocked", toggle(1121, 99, new int[] { 476, 86, 690, 28 }));
+
+        // The stack and its sidebar, the entries
+        obstacle("stack sidebar: Birthdate, Address, Pages, Identity", tabs(new int[] { 580, 135, 620, 160 },
+                new int[][] { { 517, 150 }, { 521, 188 }, { 518, 226 }, { 512, 264 } }));
+        // (lower case: typed capitals arrived as lower case, as other Shift characters did not arrive as typed)
+        obstacle("entry First Name: type and read back", entry(675, 191, box(675, 191, 160, 30), "ann", null));
+        obstacle("entry Last Name: type and read back", entry(675, 235, box(675, 235, 160, 30), "smith", null));
+        obstacle("entry Name: type and read back", entry(1380, 99, box(1380, 99, 320, 30), "otto", null));
+        obstacle("entry Age: type and read back", entry(1700, 99, box(1680, 99, 240, 30), "42", null));
+
+        // The text view and the buttons at its left, each of which inserts its icon
+        int[] firstLine = { 510, 312, 300, 24 };
+        obstacle("text view: the open button inserts its icon", selects(491, 329, firstLine));
+        obstacle("text view: the second button inserts its icon", selects(491, 362, firstLine));
+        obstacle("text view: the full-screen button inserts its icon", selects(491, 395, firstLine));
+        obstacle("text view: the star button inserts its icon", selects(491, 428, firstLine));
+        obstacle("text view: type on a new line, then BackSpace", typeLine(800, 380, new int[] { 512, 334, 300, 24 }, "bump"));
+
+        // The notebooks, judged by the line under the selected tab: after typing, the tab clicked last has a focus
+        // ring, and Page 1 of the first holds a video whose controls come and go with the pointer.
+        obstacle("notebook with closable tabs: Page 2, then Page 1", tabs(new int[] { 476, 486, 236, 8 },
+                new int[][] { { 513, 474 }, { 609, 474 } }));
+        obstacle("notebook (Page 1 to 5)", tabs(new int[] { 1220, 158, 650, 8 },
+                new int[][] { { 1257, 146 }, { 1331, 146 }, { 1406, 146 }, { 1481, 146 }, { 1556, 146 } }));
+
+        // The colour list at the left, and the colour editor. (The swatches first: after a colour was typed in the
+        // editor and its sliders dragged, a swatch's row was selected but the editor did not take its colour.)
+        obstacle("colour list: two swatches select their rows, the editor takes their colours", swatch(430, 509, "C98286", 430, 469, "C8828C"));
+        obstacle("colour list: the wheel scrolls it, and back", scroll(230, 720, new int[] { 12, 420, 430, 610 }, new int[] { 14, 424, 80, 20 }, "Red"));
+        // (a name, not #9141AC: "#" and the capitals need Shift, which did not arrive as typed: "#91$1ac")
+        obstacle("colour editor: a colour typed in its entry", hexEntry("purple", 0x800080));
+        int[] preview = { 1432, 298, 150, 28 };
+        obstacle("colour editor: the hue slider", slider(1407, 600, 1407, 450, new int[] { 1430, 344, 296, 296 }));
+        obstacle("colour editor: the colour plane", slider(1500, 420, 1650, 560, preview));
+        obstacle("colour editor: the alpha slider", slider(1718, 664, 1560, 664, preview));
+    }
+
+    // A tree's expander triangle. After OculiX's quick move (MoveMouseDelay 0.1 s) the click only selected the row
+    // (11 of 11, also with a 300 ms rest on the triangle before the click); after its default move (0.5 s) it closed
+    // and opened the branch (3 of 3).
+    static Run expander(int x, int y, int[] r) {
+        return () -> {
+            away();
+            BufferedImage before = grab(r);
+            for (int i = 0; i < 2; i++) {
+                float quick = org.sikuli.basics.Settings.MoveMouseDelay;
+                org.sikuli.basics.Settings.MoveMouseDelay = 0.5f;
+                s.mouseMove(s.newLocation(x, y));
+                org.sikuli.basics.Settings.MoveMouseDelay = quick;
+                Thread.sleep(300);
+                click(x, y);
+                away();
+                if (!await(r, before, i == 1, 5)) throw new Fail(i == 0 ? "the click did not close the branch" : "a second click did not open it again");
+            }
+            return "closed, and opened again";
+        };
+    }
+
+    // The mouse wheel: three notches one way change the region, three the other way bring back its first line (OCR
+    // finds `top` in it: the pixels did not always come back exactly).
+    static Run scroll(int x, int y, int[] r, int[] first, String top) {
+        return () -> {
+            s.mouseMove(s.newLocation(x, y));
+            Thread.sleep(300);
+            BufferedImage before = grab(r);
+            s.wheel(org.sikuli.script.Button.WHEEL_DOWN, 3);
+            away();
+            if (!await(r, before, false, 3)) throw new Fail("the wheel did not scroll it");
+            String gone = ocr(first);
+            if (gone.contains(top)) throw new Fail("the first line is still there: OCR read \"" + gone + "\"");
+            s.mouseMove(s.newLocation(x, y));
+            s.wheel(org.sikuli.script.Button.WHEEL_UP, 3);
+            away();
+            String back = waitText(first, top, 4);
+            if (!back.contains(top)) throw new Fail("the wheel back did not bring back the first line: OCR read \"" + back + "\"");
+            return "scrolled 3 notches, and back to \"" + back + "\"";
+        };
+    }
+
+    // A text view: a new line after the text (End, Enter), a word typed on it and read with OCR; BackSpace takes the word
+    // and the line out again. (On the first line, beside the icons the buttons inserted, OCR read 777 as TTT and bump
+    // as oUMp.)
+    static Run typeLine(int x, int y, int[] line2, String word) {
+        return () -> {
+            click(x, y);
+            s.type(Key.END);
+            s.type("\r");
+            typeSlowly("  " + word); // indented: at the very edge, OCR read the first letter wrong ("oump")
+            String typed = waitText(line2, word, 3);
+            if (!typed.contains(word)) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
+            for (int i = 0; i <= word.length() + 2; i++) s.type(Key.BACKSPACE);
+            String after = ocr(line2);
+            for (long end = System.nanoTime() + 2_000_000_000L; after.contains(word) && System.nanoTime() < end; ) after = ocr(line2);
+            if (after.contains(word)) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
+            return "typed \"" + word + "\" on a new line, and took it out with BackSpace";
+        };
+    }
+
+    // The colour editor's entry: a colour typed (and Enter) is drawn in its preview.
+    static Run hexEntry(String name, int want) {
+        return () -> {
+            selectAll(1664, 312);
+            typeSlowly(name);
+            s.type("\r");
+            away();
+            String hex = String.format("%06X", want);
+            int got = -1;
+            for (long end = System.nanoTime() + 3_000_000_000L; System.nanoTime() < end; Thread.sleep(150)) {
+                got = s.capture(1507, 312, 1, 1).getImage().getRGB(0, 0) & 0xffffff;
+                if (near(got, want)) break;
+            }
+            if (!near(got, want)) throw new Fail(String.format("the preview is #%06X, not #%s", got, hex));
+            return String.format("typed %s, the preview is #%06X", name, got);
+        };
+    }
+
+    static boolean near(int a, int b) {
+        for (int sh = 0; sh <= 16; sh += 8)
+            if (Math.abs(((a >> sh) & 255) - ((b >> sh) & 255)) > 6) return false;
+        return true;
+    }
+
+    // Two swatches in the colour list: each one's row is selected and the colour editor's entry shows its colour. (The
+    // colour chooser keeps its colour in GTK's settings from one run to the next: so the colours are checked, not a
+    // change.)
+    static Run swatch(int x1, int y1, String hex1, int x2, int y2, String hex2) {
+        return () -> {
+            int[] field = { 1602, 300, 124, 24 };
+            click(x1, y1);
+            away();
+            String got = waitText(field, hex1, 5);
+            if (!got.contains(hex1)) throw new Fail("after the first swatch the editor's entry reads \"" + got + "\", not #" + hex1);
+            click(x2, y2);
+            away();
+            got = waitText(field, hex2, 5);
+            if (!got.contains(hex2)) throw new Fail("after the second swatch the editor's entry reads \"" + got + "\", not #" + hex2);
+            return "the editor showed #" + hex1 + ", then #" + hex2;
+        };
+    }
+
     // The Developer Desktop blanks the screen after some idle minutes, and then shows "Unlock your desktop" with a
     // green circle to click (no password). Moves the pointer to wake it, and clicks the circle if it is there.
     static void wake() throws Exception {
@@ -624,6 +796,11 @@ public class ObstacleCourse {
     // One click, then up to 30 s for the page: OCR finds "gtk.org" or the site's text on the screen. Then the browser
     // is closed over SSH (cleanup; its window opens in different places and Ctrl from OculiX does not reach it).
     static Run link(int x, int y) {
+        return link(x, y, "gtk.org", "create interfaces");
+    }
+
+    // The same for a link to another site: the page is there when OCR finds one of `words` on the screen.
+    static Run link(int x, int y, String... words) {
         return () -> {
             ssh("rs slay -f epiphany >/dev/null 2>&1"); // no browser left from before
             click(x, y);
@@ -636,15 +813,15 @@ public class ObstacleCourse {
                 Thread.sleep(1000);
                 seen = ocr(all);
                 String low = seen.toLowerCase();
-                found = low.contains("gtk.org") || low.contains("create interfaces") || low.contains("gtk.org/");
+                for (String w : words) found |= low.contains(w);
             }
             double secs = (System.nanoTime() - t0) / 1e9;
             String browsers = ssh("rs pidin ar 2>/dev/null | grep -c '[e]piphany'");
             ssh("rs slay -f epiphany >/dev/null 2>&1");
             Thread.sleep(1000);
             refocus();
-            if (!found) throw new Fail("no www.gtk.org page within 30 s (browser processes: " + browsers + ")");
-            return String.format("www.gtk.org shown after %.1f s; the browser closed (over SSH)", secs);
+            if (!found) throw new Fail("no " + words[0] + " page within 30 s (browser processes: " + browsers + ")");
+            return String.format("%s shown after %.1f s; the browser closed (over SSH)", words[0], secs);
         };
     }
 
@@ -765,18 +942,22 @@ public class ObstacleCourse {
 
     // Types at the start of a line of a text area and takes it out again with BackSpace, read with OCR.
     static Run typeBack(int x, int y, int[] r) {
+        return typeBack(x, y, r, "777");
+    }
+
+    static Run typeBack(int x, int y, int[] r, String word) {
         return () -> {
             String before = ocr(r);
             click(x, y);
             s.type(Key.HOME);
-            typeSlowly("777 ");
-            String typed = waitText(r, "777", 3);
-            if (count(typed, "777") <= count(before, "777")) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
-            for (int i = 0; i < 4; i++) s.type(Key.BACKSPACE);
+            typeSlowly(word + " ");
+            String typed = waitText(r, word, 3);
+            if (count(typed, word) <= count(before, word)) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
+            for (int i = 0; i <= word.length(); i++) s.type(Key.BACKSPACE);
             String after = ocr(r);
-            for (long end = System.nanoTime() + 2_000_000_000L; count(after, "777") > count(before, "777") && System.nanoTime() < end; ) after = ocr(r);
-            if (count(after, "777") > count(before, "777")) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
-            return "typed \"777 \", and took it out with BackSpace";
+            for (long end = System.nanoTime() + 2_000_000_000L; count(after, word) > count(before, word) && System.nanoTime() < end; ) after = ocr(r);
+            if (count(after, word) > count(before, word)) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
+            return "typed \"" + word + " \", and took it out with BackSpace";
         };
     }
 
