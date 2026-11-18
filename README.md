@@ -179,11 +179,11 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 - **Who can do what on the target:** the agent runs as root. Any user who can log in to the target can read its
   status and capture the screen through `/dev/opticnerve` without the VNC password; input needs a VNC connection and
   the password. Stopping the agent and setting its password are root only. This fits a single-user test target.
-- **Input reaches application windows only:** the agent injects input through Screen, which delivers it to the
-  focused application (the demo panel, a Terminal). The quick-start image's launcher and window-manager shortcuts
-  (Alt+Tab) take input from the input devices themselves, so a test starts applications over SSH instead
-  (`host/demo/LoginTest.java` starts the launcher's Terminal as the launcher does). Injected keys carry the same key
-  symbol and USB scan code as a real keyboard's.
+- **Input:** the agent injects input through Screen. It reaches application windows (the demo panel, a Terminal,
+  the GTK apps) and the quick-start image's launcher: a click on a launcher tile opens its application
+  (`host/demo/GtkDemoTest.java`), and Alt+Tab switches from the Developer Desktop to the launcher (both checked on
+  2026-11-18). Tests can also start applications over SSH as the launcher does (`host/demo/LoginTest.java`), which
+  works whatever is on the screen. Injected keys carry the same key symbol and USB scan code as a real keyboard's.
 - **Not addressed:** QNX security policies; encryption (VNC authentication is not meant for untrusted networks).
 - **Not included:** boot images (the agent is deployed onto the quick-start image as it is shipped); start at boot.
 
@@ -235,14 +235,8 @@ agent with the mouse and keyboard only:
 | Developer Desktop application run | starts each application from the menu, checks that its window opens, and closes it with the window's own close button. |
 | Widget Factory Obstacle Course | GTK 4's Widget Factory has three pages with about 185 controls of every kind: entries, toggles, check and radio buttons, switches, sliders, spin buttons, drop-downs, notebooks, a calendar, menus, dialogs, panes, trees and a colour chooser. The course operates every control and checks its new state, timing each one. The score (controls cleared, failed, skipped; time per page) could serve as a benchmark for GUI test tools on embedded targets. |
 
-Each suite starts its application the way the launcher does (over SSH, see Settings and limits) and needs nothing else
+Each suite starts its application from its launcher tile or over SSH (see Settings and limits) and needs nothing else
 from the target than the VNC port once the application is on the screen.
-
-### Input below Screen
-
-The agent's input reaches application windows only (see Settings and limits). Driving the launcher and
-window-manager shortcuts would need input from a virtual input device at the driver level, which looks to the system
-like a real keyboard and mouse. Not tried yet.
 
 ## Licence
 
