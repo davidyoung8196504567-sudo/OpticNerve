@@ -75,8 +75,29 @@ public class ObstacleCourse {
     // Behaviour the real mouse shows too (David checked these on 2026-11-17).
     static final String REAL = "no visible change, as with the real mouse";
 
+    static int repeat = 1; // -repeat=N: each obstacle N times in a row
+    static String onlyPage; // -page=N: just that page
+
+    static boolean selected(String name) {
+        if (only == null) return true;
+        for (String o : only.split("\\|"))
+            if (name.contains(o)) return true;
+        return false;
+    }
+
     static void obstacle(String name, Run r) {
-        if (only != null && !name.contains(only)) return;
+        String kind = nextKind;
+        if (!selected(name)) {
+            nextKind = "operated";
+            return;
+        }
+        for (int i = 0; i < repeat; i++) {
+            nextKind = kind;
+            obstacleOnce(name, r);
+        }
+    }
+
+    static void obstacleOnce(String name, Run r) {
         Score sc = new Score();
         sc.page = page;
         sc.name = name;
@@ -111,7 +132,7 @@ public class ObstacleCourse {
     }
 
     static void skip(String name, String why) {
-        if (only != null && !name.contains(only)) return;
+        if (!selected(name)) return;
         Score sc = new Score();
         sc.page = page;
         sc.name = name;
@@ -189,8 +210,9 @@ public class ObstacleCourse {
         s.click(s.newLocation(x, y));
     }
 
-    // A spot on the page that does nothing when clicked (empty space, a plain label).
-    static int[] neutral = { 320, 660 };
+    // A spot that does nothing when clicked but makes the window active: the header bar, beside the page tabs. (A
+    // click on the page itself, on a label or empty space, did not always bring the window back from inactive.)
+    static int[] neutral = { 1300, 46 };
 
     // Clicks the neutral spot: Widget Factory is drawn active again, and has the focus, after a dialog, a pop-up or
     // the web browser was in front of it.
@@ -389,6 +411,8 @@ public class ObstacleCourse {
     static void run(String[] a) throws Exception {
         for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
         for (String x : a) if (x.startsWith("-only=")) only = x.substring(6);
+        for (String x : a) if (x.startsWith("-repeat=")) repeat = Integer.parseInt(x.substring(8));
+        for (String x : a) if (x.startsWith("-page=")) onlyPage = x.substring(6);
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
         org.sikuli.basics.Settings.MoveMouseDelay = 0.1f;
@@ -428,11 +452,22 @@ public class ObstacleCourse {
             throw new IllegalStateException("Widget Factory is not maximized: its tab strip is " + (top == null ? "not found" : "at y=" + top.getCenter().y));
         long start = System.nanoTime();
 
+        if (onlyPage != null && !onlyPage.equals("1")) {
+            if (onlyPage.equals("2")) page2();
+            scoreboard((System.nanoTime() - start) / 1e9);
+            return;
+        }
         caption("Page 1: the jumps");
         page = "1";
-        click(826, 46);
-        away();
-        Thread.sleep(500);
+        // As for page 2: check that page 1 is shown (its first toggle button), the tab's click can be lost.
+        String first = "";
+        for (int i = 0; i < 3 && !first.contains("toggle"); i++) {
+            click(826, 46);
+            away();
+            Thread.sleep(800);
+            first = ocr(new int[] { 568, 86, 120, 24 });
+        }
+        if (!first.contains("toggle")) throw new IllegalStateException("page 1 is not shown: OCR read \"" + first + "\"");
 
         // Entries
         obstacle("combo box entry: type and read back", entry(260, 98, box(260, 98, 480, 30), "jump one", null));
@@ -453,7 +488,7 @@ public class ObstacleCourse {
         obstacle("font button: its dialog opens", dialog(628, 363, "font dialog"));
         obstacle("colour button: its dialog opens", dialog(628, 407, "colour dialog"));
         obstacle("link button: the browser shows www.gtk.org", link(628, 451));
-        obstacle("switch", toggle(628, 492, box(628, 492, 40, 16)));
+        obstacle("switch", sw(628, 492));
         obstacle("disabled switch", disabled(628, 527, box(628, 527, 40, 16)));
 
         // Drop-downs, spin button
@@ -489,7 +524,7 @@ public class ObstacleCourse {
         obstacle("notebook, tabs on the left", tabs(new int[] { 1440, 740, 80, 140 },
                 new int[][] { { 1477, 761 }, { 1477, 805 }, { 1477, 849 } }));
 
-        page2();
+        if (onlyPage == null) page2();
 
         scoreboard((System.nanoTime() - start) / 1e9);
     }
@@ -497,10 +532,16 @@ public class ObstacleCourse {
     static void page2() throws Exception {
         caption("Page 2: the bumps");
         page = "2";
-        neutral = new int[] { 1100, 534 }; // the status line "All systems are operating normally."
-        click(958, 46);
-        away();
-        Thread.sleep(800);
+        // The tab's click can be lost (the first click after the window was maximized): check that page 2 is shown
+        // (its "Row 1"), or a later obstacle could act on page 1 and pass by chance.
+        String landmark = "";
+        for (int i = 0; i < 3 && !landmark.contains("Row"); i++) {
+            click(958, 46);
+            away();
+            Thread.sleep(800);
+            landmark = ocr(new int[] { 14, 520, 90, 26 });
+        }
+        if (!landmark.contains("Row")) throw new IllegalStateException("page 2 is not shown: OCR read \"" + landmark + "\"");
 
         // The spin buttons and scale buttons at the top left
         obstacle("vertical spin button: + to a multiple of 3, its message, Reset, close", multipleOf3());
@@ -508,12 +549,12 @@ public class ObstacleCourse {
         obstacle("volume button: its slider pops up", dialog(116, 112, "slider", 300));
 
         // The language list and the buttons under it
-        obstacle("text list: a double click selects a line, a click clears it", lineSelect(50, 310, 120, 400));
+        obstacle("text list: a double click selects a line, a click clears it", lineSelect(50, 310, 60, 232));
         obstacle("linked toggle buttons: picture, then flag", pair(157, 473, 122, 473, new int[] { 106, 460, 70, 26 }));
         obstacle("gear button: its menu opens", dialog(242, 473, "menu", 600));
 
         // The rows
-        obstacle("row 1: switch", toggle(230, 533, box(230, 533, 40, 16)));
+        obstacle("row 1: switch", sw(230, 533));
         obstacle("row 2: scale", slider(180, 584, 225, 584, new int[] { 110, 570, 145, 28 }));
         obstacle("row 4: spin button + then -", spinAt(237, 686, 201, 686, new int[] { 145, 674, 32, 24 }));
         obstacle("row 5: its button opens a dialog", dialog(237, 737, "dialog"));
@@ -795,13 +836,14 @@ public class ObstacleCourse {
         for (int y = 0; y < img.getHeight(); y++)
             for (int x = 0; x < img.getWidth(); x++) {
                 int c = img.getRGB(x, y);
-                if ((c & 255) > 180 && ((c >> 16) & 255) < 140 && ((c >> 8) & 255) < 200) return true;
+                int blu = c & 255, red = (c >> 16) & 255;
+                if (blu > 180 && blu > red + 25) return true; // the selection's blue, strong or pale (window inactive)
             }
         return false;
     }
 
     // The editor's Search button shows a search bar; typed text appears in its field; the field's erase button
-    // clears it; Search again hides the bar. (Enter does not search, as with the real mouse.)
+    // clears it; Escape in the field hides the bar. (Enter does not search, as with the real mouse.)
     static Run search() {
         return () -> {
             int[] bar = { 800, 158, 340, 36 };
@@ -809,20 +851,57 @@ public class ObstacleCourse {
             BufferedImage before = grab(bar);
             click(391, 132);
             away();
-            if (!await(bar, before, false, 3)) throw new Fail("no search bar");
+            boolean shown = false; // its field gets a blinking cursor, so the region never settles: any change will do
+            for (long end = System.nanoTime() + 3_000_000_000L; !shown && System.nanoTime() < end; Thread.sleep(150))
+                shown = !same(before, grab(bar));
+            if (!shown) throw new Fail("no search bar");
+            Thread.sleep(500);
             click(960, 176);
             typeSlowly("777");
-            String typed = waitText(bar, "777", 3);
+            int[] field = { 872, 164, 140, 26 }; // the field's text (OCR read nothing in the whole bar)
+            String typed = waitText(field, "777", 3);
             if (!typed.contains("777")) throw new Fail("OCR read \"" + typed + "\" in the search field");
             click(1052, 176); // the field's erase button
-            String after = ocr(bar);
-            for (long end = System.nanoTime() + 2_000_000_000L; after.contains("777") && System.nanoTime() < end; ) after = ocr(bar);
+            String after = ocr(field);
+            for (long end = System.nanoTime() + 2_000_000_000L; after.contains("777") && System.nanoTime() < end; ) after = ocr(field);
             if (after.contains("777")) throw new Fail("the erase button left \"" + after + "\"");
-            click(391, 132);
+            click(960, 176); // Escape in the field closes a search bar (a second click on Search did not, 2026-11-17)
+            s.type(Key.ESC);
             away();
-            if (!await(bar, before, true, 3)) throw new Fail("Search again did not hide the bar");
-            return "bar shown, \"777\" typed and erased, bar hidden";
+            if (!await(bar, before, true, 3)) throw new Fail("Escape did not hide the bar");
+            return "bar shown, \"777\" typed and erased, bar hidden with Escape";
         };
+    }
+
+    // A switch: a click moves its knob to the other end, a second click back. Judged by where the knob is (its white
+    // disc left or right), not by every pixel: the switch's exact pixels did not always come back (2026-11-17).
+    static Run sw(int x, int y) {
+        return () -> {
+            boolean on0 = knobRight(x, y);
+            click(x, y);
+            away();
+            boolean moved = false;
+            for (long end = System.nanoTime() + 3_000_000_000L; !moved && System.nanoTime() < end; Thread.sleep(150))
+                moved = knobRight(x, y) != on0;
+            if (!moved) throw new Fail("the click did not move the knob");
+            click(x, y);
+            away();
+            boolean back = false;
+            for (long end = System.nanoTime() + 3_000_000_000L; !back && System.nanoTime() < end; Thread.sleep(150))
+                back = knobRight(x, y) == on0;
+            if (!back) throw new Fail("a second click did not move the knob back");
+            return (on0 ? "on" : "off") + " -> " + (on0 ? "off" : "on") + " -> " + (on0 ? "on" : "off");
+        };
+    }
+
+    // Whether a switch's knob (a near-white disc) is at its right end: the right end is brighter than the left.
+    static boolean knobRight(int x, int y) {
+        BufferedImage img = s.capture(x - 22, y, 45, 1).getImage();
+        return sum(img.getRGB(44, 0)) > sum(img.getRGB(0, 0)) + 30 || (sum(img.getRGB(44, 0)) > 720 && sum(img.getRGB(0, 0)) < 600);
+    }
+
+    static int sum(int c) {
+        return ((c >> 16) & 255) + ((c >> 8) & 255) + (c & 255);
     }
 
     // A calendar day: the clicked day is drawn selected (blue), then the first day again.
