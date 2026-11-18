@@ -111,6 +111,20 @@ public class ObstacleCourse {
         } catch (Fail f) {
             sc.result = "FAIL";
             sc.detail = f.getMessage();
+        } catch (NumberFormatException e) { // OCR read something that is not a number: a failed check
+            sc.result = "FAIL";
+            sc.detail = "OCR read no number: " + e.getMessage();
+        } catch (InterruptedException | RuntimeException | Error e) {
+            // Not a check that failed but something broken (a NullPointerException in OculiX or here, ...): the course
+            // stops, so that the cause is looked at before later obstacles fail because of it.
+            sc.result = "FAIL";
+            sc.detail = "error: " + e;
+            board.add(sc);
+            say("FAIL  ", name);
+            say("            ", sc.detail);
+            for (StackTraceElement st : java.util.Arrays.copyOf(e.getStackTrace(), Math.min(8, e.getStackTrace().length)))
+                say("              at ", st.toString());
+            throw new IllegalStateException("stopped on an unexpected " + e.getClass().getSimpleName() + " in \"" + name + "\"", e);
         } catch (Throwable e) {
             sc.result = "FAIL";
             sc.detail = "error: " + e;
