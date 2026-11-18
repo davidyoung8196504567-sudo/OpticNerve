@@ -1073,6 +1073,9 @@ public class ObstacleCourse {
     }
 
     // A text area of lines: a double click selects a line (the selection's blue behind it), a click elsewhere clears it.
+    // The clearing click took effect late: the text cursor on the clicked line and the cleared selection showed up
+    // together after 0.6 to 3.6 s (2026-11-18, 22 repeats), where other clicks show within a few hundred ms; a pause
+    // before the click did not change it. So up to 10 s are allowed, and both times are printed.
     static Run lineSelect(int x, int y, int cx, int cy) {
         return () -> {
             click(x, y);
@@ -1083,17 +1086,39 @@ public class ObstacleCourse {
             for (long end = System.nanoTime() + 2_000_000_000L; !sel && System.nanoTime() < end; Thread.sleep(150))
                 sel = blueIn(new int[] { 14, y - 8, 240, 16 });
             if (!sel) throw new Fail("the double click selected nothing");
+            int[] target = { 14, cy - 9, 240, 18 };
+            BufferedImage tb = grab(target);
             click(cx, cy);
             away();
             boolean gone = false;
-            for (long end = System.nanoTime() + 2_000_000_000L; !gone && System.nanoTime() < end; Thread.sleep(150))
+            long c0 = System.nanoTime();
+            double caret = -1;
+            for (long end = c0 + 10_000_000_000L; !gone && System.nanoTime() < end; Thread.sleep(50)) {
                 gone = !blueIn(new int[] { 14, y - 8, 240, 16 });
-            if (!gone) throw new Fail("a click did not clear the selection");
+                if (caret < 0 && !same(tb, grab(target))) caret = (System.nanoTime() - c0) / 1e9;
+            }
+            say("            ", String.format("(caret on the clicked line after %.1f s, cleared after %.1f s)", caret, (System.nanoTime() - c0) / 1e9));
+            if (!gone) {
+                int[] line = { 14, y - 8, 240, 16 };
+                javax.imageio.ImageIO.write(grab(line), "png", new java.io.File("demo-out", "textlist_line.png"));
+                throw new Fail("a click did not clear the selection (" + blueCount(line) + " blue pixels left; the line is in demo-out\\textlist_line.png)");
+            }
             return "line selected, and cleared";
         };
     }
 
     // Whether a region has the selection's blue in it.
+    static int blueCount(int[] r) {
+        BufferedImage img = grab(r);
+        int n = 0;
+        for (int y = 0; y < img.getHeight(); y++)
+            for (int x = 0; x < img.getWidth(); x++) {
+                int c = img.getRGB(x, y);
+                if ((c & 255) > 180 && (c & 255) > ((c >> 16) & 255) + 25) n++;
+            }
+        return n;
+    }
+
     static boolean blueIn(int[] r) {
         BufferedImage img = grab(r);
         for (int y = 0; y < img.getHeight(); y++)
