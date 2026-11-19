@@ -265,7 +265,7 @@ public class DemoTest {
         check("after three clicks on +1 the count shows 3", r3 != null, r3 == null ? "no match with count_3.png" : r3);
         shot("count3");
 
-        caption("Clicking LAMP and checking the lamp changes colour");
+        caption("Clicking LAMP and checking the lamp turns from green (as RESET left it) to red");
         String before = lamp();
         s.click(lampButton);
         settle();
@@ -274,7 +274,7 @@ public class DemoTest {
             Thread.sleep(50);
             after = lamp();
         }
-        check("LAMP switches the lamp's colour", !before.equals(after), before + " -> " + after);
+        check("LAMP switches the lamp from green to red", before.equals("GREEN") && after.equals("RED"), before + " -> " + after);
         shot("lamp");
 
         caption("Typing on the target's keyboard input, and reading the text back with OCR");

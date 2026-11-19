@@ -5,7 +5,7 @@
  *
  *   demo_panel [-nomarker] [SECS]      runs until killed, or for SECS seconds; -nomarker: no pointer marker
  *
- * Buttons: "+1" adds one to the counter, "RESET" sets it to 0 and clears the text line, "LAMP" switches the lamp between green and red.
+ * Buttons: "+1" adds one to the counter, "RESET" sets it to 0, clears the text line and turns the lamp green, "LAMP" switches the lamp between green and red.
  * Keys: letters, digits and space are added to the text line; Backspace deletes; Return clears it.
  *
  * Build (baseline SDP-BL-006): qcc -Vgcc_ntoaarch64le -std=c11 -Wall -Wextra -Werror -O2 -o demo_panel demo_panel.c
@@ -306,6 +306,7 @@ int main(int argc, char **argv)
 				else if (pressed == 1) {
 					counter = 0;
 					line[0] = 0; /* each test run starts from a clean panel */
+					lamp_red = 0;
 				} else
 					lamp_red = !lamp_red;
 				pressed = -1;

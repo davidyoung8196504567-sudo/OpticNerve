@@ -162,6 +162,12 @@ and `host/demo/DemoTest.java` is the OculiX test that drives it through the agen
 java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out [-slow] [-fail] [-brief] [-repeat=N] [-cols=N]
 ```
 
+`host/demo/DemoTest.sikuli` is the same test as an OculiX IDE script, checked only by pictures and OCR as a test made
+in the IDE is. Open it in the OculiX 4.0.0 IDE, started with the TigerVNC jar first (`java -cp
+"tigervnc-java-oculix-2.0.4.jar;oculixide-4.0.0-windows.jar" org.sikuli.ide.Sikulix`), with `ON_HOST` and
+`ON_VNC_PASSWORD` set; or set `ON_LOCAL_SCREEN=N` to run it on monitor N, where a VNC viewer shows the Pi full screen
+at 100 % (checked with TigerVNC 1.16.2's viewer, 2026-11-19).
+
 The demo video was recorded with `host/demo/video/record_take.py`, which runs the shots of `host/demo/video/take.sh`
 in a full-screen terminal while OBS records (Windows with Git for Windows and OBS Studio; the OBS scene and the webcam
 settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` runs the shots without OBS.
