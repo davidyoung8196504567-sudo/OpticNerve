@@ -45,7 +45,7 @@ static int fds[ON_SLOTS], want_write[ON_SLOTS];
 static timer_t timer;
 static screen_context_t sctx;
 static screen_display_t disp;
-static screen_device_t kbd;
+static screen_device_t kbd, ptr;
 static screen_pixmap_t pixmap;
 static screen_buffer_t pbuf;
 static int dsize[2], ptr_x, ptr_y, verbose;
@@ -97,6 +97,15 @@ static void screen_setup(int display_no)
 	} else {
 		kbd = NULL;
 		fprintf(stderr, "opticnerve: no keyboard device of our own (%s): keys go without modifiers\n", strerror(errno));
+	}
+	/* A pointer device of our own, as for the keyboard: pointer events name it, as a real mouse's do. (It did not
+	 * bring back the launcher's clicks after an app had closed, 2026-11-19; the events reached Screen without it.) */
+	if (screen_create_device_type(&ptr, sctx, SCREEN_EVENT_POINTER) == 0) {
+		screen_set_device_property_cv(ptr, SCREEN_PROPERTY_ID_STRING, (int)strlen("opticnerve-ptr"), "opticnerve-ptr");
+		screen_flush_context(sctx, 0);
+	} else {
+		ptr = NULL;
+		fprintf(stderr, "opticnerve: no pointer device of our own (%s): pointer events name no device\n", strerror(errno));
 	}
 
 	int usage = SCREEN_USAGE_NATIVE | SCREEN_USAGE_READ, format = SCREEN_FORMAT_RGBA8888;
@@ -251,6 +260,8 @@ static void inject_pointer(int x, int y, int mask)
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_POSITION, pos);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_SOURCE_POSITION, pos);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_BUTTONS, &buttons);
+	if (ptr)
+		screen_set_event_property_pv(ev, SCREEN_PROPERTY_DEVICE, (void **)&ptr);
 	if (wheel)
 		screen_set_event_property_iv(ev, SCREEN_PROPERTY_MOUSE_WHEEL, &wheel);
 	int rc = screen_inject_event(disp, ev);
@@ -579,6 +590,8 @@ int serve_main(int argc, char **argv)
 	screen_destroy_pixmap(pixmap);
 	if (kbd)
 		screen_destroy_device(kbd);
+	if (ptr)
+		screen_destroy_device(ptr);
 	screen_destroy_context(sctx);
 	on_core_free(core);
 	return 0;
