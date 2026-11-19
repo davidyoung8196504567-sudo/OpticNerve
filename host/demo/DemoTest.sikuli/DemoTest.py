@@ -35,6 +35,12 @@ ox, oy = 0, 0
 def area(x, y, w, h):
     return Region(ox + x, oy + y, w, h) if vnc is None else vnc.newRegion(x, y, w, h)
 
+# A click that holds the button 50 ms, as a hand does. OculiX's default is 0, so the press and the release go out
+# together, and some applications miss such clicks. OculiX resets ClickDelay after each click, so it is set every time.
+def click_on(image):
+    Settings.ClickDelay = 0.05
+    scr.click(image)
+
 failed = []
 def check(name, ok, detail):
     print("%s %s (%s)" % ("PASS" if ok else "FAIL", name, detail))
@@ -57,19 +63,19 @@ try:
             print("the panel's corner is at %d,%d on this computer's screens" % (ox, oy))
     count_box = area(160, 280, 700, 180)
     lamp_box = area(1080, 260, 540, 220)
-    scr.click("reset.png")
+    click_on("reset.png")
     m = count_box.exists(Pattern("count_0.png").similar(0.95), 2)
     check("after RESET the count shows 0", m is not None, "score %.4f" % m.getScore() if m else "not found")
     ok, detail = shows(lamp_box, "lamp_green.png", "lamp_red.png", 2)
     check("after RESET the lamp is green", ok, detail)
 
     for i in range(3):
-        scr.click("plus.png")
+        click_on("plus.png")
         sleep(0.5)
     m = count_box.exists(Pattern("count_3.png").similar(0.95), 2)
     check("after three clicks on +1 the count shows 3", m is not None, "score %.4f" % m.getScore() if m else "not found")
 
-    scr.click("lamp.png")
+    click_on("lamp.png")
     ok, detail = shows(lamp_box, "lamp_red.png", "lamp_green.png", 2)
     check("after LAMP the lamp is red", ok, detail)
 
@@ -81,7 +87,7 @@ try:
     check("typed text appears on the panel", text == "HELLO PI 5", 'OCR read "%s"' % text)
 
     # A run leaves the panel as it found it, so runs can follow one another
-    scr.click("reset.png")
+    click_on("reset.png")
     count0 = count_box.exists(Pattern("count_0.png").similar(0.95), 2)
     green, detail = shows(lamp_box, "lamp_green.png", "lamp_red.png", 2)
     left = " ".join(area(400, 505, 1360, 80).text().split())

@@ -188,8 +188,8 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 - **Input:** the agent injects input through Screen. It reaches application windows (the demo panel, a Terminal,
   the GTK apps) and the quick-start image's launcher: a click on a launcher tile opens its application
   (`host/demo/GtkDemoTest.java`), and Alt+Tab switches from the Developer Desktop to the launcher (both checked on
-  2026-11-18). Tests can also start applications over SSH as the launcher does (`host/demo/LoginTest.java`), which
-  works whatever is on the screen. Injected keys carry the same key symbol and USB scan code as a real keyboard's.
+  2026-11-18). Our tests start applications over SSH as the launcher does (`host/demo/LoginTest.java`, the fallback
+  in `host/demo/GtkDemoTest.java`), which works whatever is on the screen and whatever ran before. Injected keys carry the same key symbol and USB scan code as a real keyboard's.
 - **Not addressed:** QNX security policies; encryption (VNC authentication is not meant for untrusted networks).
 - **Not included:** boot images (the agent is deployed onto the quick-start image as it is shipped); start at boot.
 

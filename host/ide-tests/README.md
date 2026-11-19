@@ -17,8 +17,9 @@ tigervnc-java-oculix 2.0.4 inside. With the OculiX 4.0.0 release, put the TigerV
 
 To see the Pi while capturing images, run a VNC viewer full screen on a monitor at 100 % scale, **view-only**: the
 agent takes input from one client at a time, the first one that sends any, until it disconnects. We use TigerVNC
-1.16.2: `vncviewer64-1.16.2.exe ViewOnly=1 FullColor=1 AutoSelect=0 <Pi address>::5901`. Images captured from it
-match the Pi exactly.
+1.16.2: `vncviewer64-1.16.2.exe ViewOnly=1 AlwaysCursor=1 CursorType=System FullColor=1 AutoSelect=0 <Pi address>::5901`.
+Images captured from it match the Pi exactly. `AlwaysCursor=1 CursorType=System` shows this computer's pointer in the
+viewer, because the agent sends none (ON-AG-001 in [docs/ISSUES.md](../../docs/ISSUES.md)).
 
 ## Write a test
 
@@ -34,6 +35,10 @@ Start from `Template.sikuli`: copy the folder, rename the folder and its `.py` t
   changed), and check the start state again, so runs can follow one another.
 - **No passwords in scripts**: read them from the environment (`System.getenv`).
 - Enter is `vnc.type("\r")`.
+- **Hold clicks 50 ms**: set `Settings.ClickDelay = 0.05` before each click (OculiX resets it after every click, and
+  with its default of 0 the press and the release go out together, which some applications miss).
+- **Start applications over SSH**, not from the quick-start launcher's tiles, so a test doesn't depend on what ran
+  before it.
 
 ## Run a test without the IDE window
 

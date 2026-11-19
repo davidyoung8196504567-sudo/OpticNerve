@@ -38,6 +38,12 @@ library override").
 | ON-OX-015 | Calls return success when nothing was delivered, and a decoder exception kills the reader thread while the script carries on | check stderr for `Thread-N` exceptions; keep a capture | tracker only; covered by drafts 3, 4, 5 and 9 | client-side: OculiX only |
 | ON-OX-016 | The viewer in tigervnc-java-oculix 2.0.4 (`com.tigervnc.vncviewer.VncViewer`) does not start: the jar holds no resources besides its manifest and Maven files, so the viewer's icon is missing and it fails with `NullPointerException` in `ImageIcon.<init>` (`VncViewer.java:74`, class initialiser). 2.0.2 has no images either. Found 2026-11-19 on Windows, Temurin 25.0.4+7; reproduced on macOS by the Oculix session. Already reported upstream as [tigervnc-java-oculix#12](https://github.com/oculix-org/tigervnc-java-oculix/issues/12) (2026-07-26, against 2.0.3): the images sit in `src/main/java`, which the build does not copy | the TigerVNC 1.16.2 viewer for Windows (`vncviewer64-1.16.2.exe`) | none (upstream issue #12 is open) | client-side: OculiX only (packaging; only matters if the jar is meant to be usable as a viewer) |
 
+## OpticNerve agent (ours)
+
+| ID | Issue | Workaround in use | Status |
+|---|---|---|---|
+| ON-AG-001 | The agent sends no cursor: it offers only Raw encoding, without the Cursor pseudo-encoding (-239), and the pointer is not part of the frames it reads from the screen, so a VNC viewer shows no pointer (found 2026-11-19 with TigerVNC 1.16.2) | TigerVNC: `AlwaysCursor=1 CursorType=System` shows the viewer's own pointer where clicks land | to do: send the cursor shape and hotspot (Cursor pseudo-encoding) |
+
 ## Third-party VNC servers
 
 | ID | Issue | Status |

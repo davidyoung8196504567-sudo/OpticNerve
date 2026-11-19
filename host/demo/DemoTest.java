@@ -245,11 +245,18 @@ public class DemoTest {
 
     static Pattern plus, reset, lampButton;
 
+    // OculiX's click, holding the button 50 ms as a hand does (ClickDelay; OculiX resets it after each click), as in
+    // ObstacleCourse.java: with the default 0 the press and release go out together.
+    static void click(Pattern target) throws Exception {
+        org.sikuli.basics.Settings.ClickDelay = 0.05;
+        s.click(target);
+    }
+
     static void checks(boolean showFailure) throws Exception {
         caption("Finding the RESET button by image, and clicking it");
         Match m = s.exists(reset, 3);
         check("find the RESET button by image", m != null, m == null ? "not found" : String.format("score %.4f", m.getScore()));
-        s.click(reset);
+        click(reset);
         settle();
         caption("Checking the count shows 0, pixel by pixel");
         String r0 = countIs(0);
@@ -257,7 +264,7 @@ public class DemoTest {
 
         caption("Clicking +1 three times; the agent on the target says when the screen has settled");
         for (int i = 1; i <= 3; i++) {
-            s.click(plus);
+            click(plus);
             settle();
         }
         caption("Checking the count shows 3");
@@ -267,7 +274,7 @@ public class DemoTest {
 
         caption("Clicking LAMP and checking the lamp turns from green (as RESET left it) to red");
         String before = lamp();
-        s.click(lampButton);
+        click(lampButton);
         settle();
         String after = lamp();
         for (int i = 0; i < 20 && before.equals(after); i++) { // up to 1 s, as for the count
@@ -296,7 +303,7 @@ public class DemoTest {
 
         // A run leaves the panel as it found it, so runs can follow one another (-repeat, or a loop of runs)
         caption("Leaving the panel as it started: RESET, then count 0, lamp green, text line empty");
-        s.click(reset);
+        click(reset);
         settle();
         String c0 = countIs(0);
         String lampNow = lamp();

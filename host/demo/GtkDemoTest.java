@@ -252,7 +252,7 @@ public class GtkDemoTest {
         lastClick = System.currentTimeMillis();
         BufferedImage before = s.capture().getImage();
         boolean[][] name = mask(before, y, x + 14);
-        s.click(s.newLocation(x + tri[0] / 2, y));
+        click(s.newLocation(x + tri[0] / 2, y));
         // Near the end of the list, closing a folder makes the list shorter and the rows move down: find the folder
         // again by its label.
         BufferedImage r = awaitFolder(name, x, open);
@@ -285,6 +285,13 @@ public class GtkDemoTest {
     }
 
     static int toggledY;
+
+    // OculiX's click, holding the button 50 ms as a hand does (ClickDelay; OculiX resets it after each click), as in
+    // ObstacleCourse.java: with the default 0 the press and release go out together.
+    static void click(Object target) throws Exception {
+        org.sikuli.basics.Settings.ClickDelay = 0.05;
+        s.click(target);
+    }
 
     // Moves the pointer off the sidebar's rows (to the page on the right), so that no row is drawn as under it.
     static void pointerAway() throws Exception {
@@ -366,7 +373,7 @@ public class GtkDemoTest {
         if (tile == null) return;
         BufferedImage shown = null;
         for (int attempt = 1; attempt <= 2 && shown == null; attempt++) {
-            s.click(tile);
+            click(tile);
             pointerAway();
             shown = await(now -> onScreen(), 10);
             say("     ", "click " + attempt + " on the tile: " + (shown != null ? "the GTK Demo is shown"
@@ -422,7 +429,7 @@ public class GtkDemoTest {
                     folders++;
                     // Select the folder by its label: Run must be disabled (a folder runs nothing).
                     lastClick = System.currentTimeMillis();
-                    s.click(s.newLocation(x + 40, y));
+                    click(s.newLocation(x + 40, y));
                     BufferedImage disabled = await(now -> !runEnabled(now), 1.5);
                     check(pad + name + " (folder) is not runnable", disabled != null,
                             disabled != null ? "" : "the Run button is enabled");
@@ -459,7 +466,7 @@ public class GtkDemoTest {
                     // Click the label; the window's title changes to the demo's name, then the Run button follows.
                     BufferedImage before = img;
                     lastClick = System.currentTimeMillis();
-                    s.click(s.newLocation(x + 30, y));
+                    click(s.newLocation(x + 30, y));
                     BufferedImage got = await(now -> !same(before, now, TITLE_X, TITLE_Y, TITLE_W, TITLE_H), 1.5);
                     img = await(GtkDemoTest::runEnabled, got == null ? 0.3 : 1);
                     boolean ok = img != null;
