@@ -41,7 +41,23 @@ public class ObstacleCourse {
         System.out.println(line);
     }
 
+    // With ON_CAPTION_FILE set, each caption also goes to that file, for a video's text overlay (OBS: a Text source
+    // that reads from the file). Written beside it and moved in, so the overlay never shows a half-written line.
+    static void overlay(String text) {
+        String f = System.getenv("ON_CAPTION_FILE");
+        if (f == null) return;
+        try {
+            java.nio.file.Path p = java.nio.file.Path.of(f), t = java.nio.file.Path.of(f + ".tmp");
+            java.nio.file.Files.writeString(t, text);
+            java.nio.file.Files.move(t, p, java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.io.IOException e) {
+            System.err.println("caption file: " + e);
+        }
+    }
+
     static void caption(String text) {
+        overlay(text);
         System.out.println();
         say("==> ", text);
     }
