@@ -10,13 +10,15 @@
 #   - runs the test in the background, its output in demo-out/NAME.log;
 #   - reads the spool every 10 s; a new incident stops the test, saves the screen (demo-out/NAME_alert.png, from the
 #     agent on port 5901 with ON_VNC_PASSWORD) and prints the incident.
+# The target is ON_HOST (default 10.30.1.116), as for pi_ssh.sh; the watcher's folder, holding onrun.sh and the spool,
+# is ON_WATCH_DIR (default the fleet peer's /data/home/qnxuser/watch).
 # A second path besides the fleet peer's own alert messages, which depend on its session being able to send them.
 # Tell the peer before a run (RUN START / RUN END) all the same: the state file is not the notification.
 # Run from the repository root.
 set -u
 name=$1; shift; [ "${1:-}" = "--" ] && shift
-W=/data/home/qnxuser/watch
-HOST=10.30.1.116
+W=${ON_WATCH_DIR:-/data/home/qnxuser/watch}
+HOST=${ON_HOST:-10.30.1.116}
 ssh_pi() { bash host/tools/pi_ssh.sh "$1" 2>/dev/null | tr -d '\r'; }
 # Incidents that count: the course itself closes the web browser after its link obstacles (the watcher reports each
 # as "epiphany gone"), so those lines are left out.
