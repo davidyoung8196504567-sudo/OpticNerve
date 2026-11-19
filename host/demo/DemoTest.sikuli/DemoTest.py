@@ -79,6 +79,14 @@ try:
     sleep(0.5)
     text = " ".join(area(400, 505, 1360, 80).text().split())
     check("typed text appears on the panel", text == "HELLO PI 5", 'OCR read "%s"' % text)
+
+    # A run leaves the panel as it found it, so runs can follow one another
+    scr.click("reset.png")
+    count0 = count_box.exists(Pattern("count_0.png").similar(0.95), 2)
+    green, detail = shows(lamp_box, "lamp_green.png", "lamp_red.png", 2)
+    left = " ".join(area(400, 505, 1360, 80).text().split())
+    check("the run leaves the panel as it started", count0 is not None and green and left == "",
+          'count %s, lamp %s, text "%s"' % ("0" if count0 else "not 0", "green" if green else "not green", left))
 finally:
     if vnc:
         vnc.stop()

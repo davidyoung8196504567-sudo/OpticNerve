@@ -293,5 +293,15 @@ public class DemoTest {
             String wrong = countIs(0);
             check("(deliberate) the count still shows 0", wrong != null, wrong == null ? "no match with count_0.png" : wrong);
         }
+
+        // A run leaves the panel as it found it, so runs can follow one another (-repeat, or a loop of runs)
+        caption("Leaving the panel as it started: RESET, then count 0, lamp green, text line empty");
+        s.click(reset);
+        settle();
+        String c0 = countIs(0);
+        String lampNow = lamp();
+        String left = read(400, 505, 1360, 80);
+        check("the run leaves the panel as it started", c0 != null && lampNow.equals("GREEN") && left.isEmpty(),
+            "count " + (c0 == null ? "not 0" : "0") + ", lamp " + lampNow + ", text \"" + left + "\"");
     }
 }
