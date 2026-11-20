@@ -58,7 +58,7 @@ what it cannot learn from pixels alone.
 
 | For | What | Used and tested here |
 |---|---|---|
-| Building | QNX SDP 8.0.5 from the QNX Software Center (the free QNX Everywhere licence), with `qcc`; the exact package list is `sdp/packages.lock` | Windows 11 host; baseline SDP-BL-006 |
+| Building | QNX SDP 8.0.5 from the QNX Software Center (the free QNX Everywhere licence), with `qcc`; the exact package list is `sdp/packages.lock` | Windows 11 host; baseline SDP-BL-007 |
 | The target | Raspberry Pi 5 with the QNX 8.0 quick-start image (package `quickstart.rpi5` 0.5.0.00050, image 20260902), on the network, with its `qnxuser` login | Pi 5, image as shipped |
 | Host tools | Python 3 with `cryptography` and `Pillow`; `ssh`, `scp` and `bash` | Python 3.14 on Windows (Git Bash) |
 | OculiX | OculiX 4.0.0 (`oculixapi-4.0.0-<os>.jar`) and Java 17 or newer; for VNC, `tigervnc-java-oculix` 2.0.4 first on the classpath (configuration ON-VNC-1, below) | Temurin 25.0.4+7 |

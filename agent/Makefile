@@ -1,4 +1,4 @@
-# Builds the agent's core and its tests with the QNX SDP (baseline SDP-BL-006; run `python sdp/check_sdp.py` first).
+# Builds the agent's core and its tests with the QNX SDP (baseline SDP-BL-007; run `python sdp/check_sdp.py` first).
 # Needs QNX_HOST and QNX_TARGET set, as the SDP's qnxsdp-env script sets them. Output goes to build/<arch>/.
 #
 #   make                 core tests for aarch64le and x86_64
