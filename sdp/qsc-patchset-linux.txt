@@ -40,6 +40,10 @@ com.qnx.qnx800.osr.libffi/3.2.1.00021T202311191417L//root-package
 com.qnx.qnx800.osr.libyuv/1787.0.0.00012T202507121955L//package
 com.qnx.qnx800.osr.sqlite3/0.0.1.03082T202512161159L//root-package
 com.qnx.qnx800.osr.toybox/0.8.11.00051T202603161435L//root-package
+com.qnx.qnx800.quickstart.qemu/0.5.0.00050T202609021847L//root-package
+com.qnx.qnx800.quickstart.qemu.0/0.5.0.00050T202609021847L//package
+com.qnx.qnx800.quickstart.qemu.1/0.5.0.00050T202609021847L//package
+com.qnx.qnx800.quickstart.qemu.2/0.5.0.00050T202609021847L//package
 com.qnx.qnx800.quickstart.rpi5/0.5.0.00050T202609021847L//root-package
 com.qnx.qnx800.quickstart.rpi5.0/0.5.0.00050T202609021847L//package
 com.qnx.qnx800.quickstart.rpi5.1/0.5.0.00050T202609021847L//package
@@ -171,6 +175,7 @@ com.qnx.qnx800.target.pci.srvrmod_event/3.0.0.02005T202411230033L//root-package
 com.qnx.qnx800.target.pci.srvrmod_misc/3.0.0.02005T202411230033L//root-package
 com.qnx.qnx800.target.pci.uisupport/3.0.1.03075T202605211339L//root-package
 com.qnx.qnx800.target.pci.utils/3.0.0.02005T202411230033L//root-package
+com.qnx.qnx800.target.qemuvirt/0.2.1.00087T202507241124L//root-package
 com.qnx.qnx800.target.qplms/2.0.1.00009T202602121736L//root-package
 com.qnx.qnx800.target.qplms.utils/2.0.1.00009T202602121736L//root-package
 com.qnx.qnx800.target.qscan/0.0.2.02005T202411230033L//root-package

@@ -6,9 +6,9 @@ fingerprint = fa1c61c9ac9ad6aa7a6c30eb8ad09a7d65f06b127a1d1eb26a5423e8a4fb1bfa
 case_collisions = 0
 
 [linux]
-packages = 233
-files = 21867
-bytes = 5908958553
-fingerprint = b4d9bcbf40601845e9eefe54e2beeba93f4774c50ae9f0eee373caebf5616f66
+packages = 238
+files = 21884
+bytes = 8472059018
+fingerprint = 961bd0be1e2f5d9225a0ea5ae81eacb058862e1fa3e454907d29a4a29e99d8a5
 case_collisions = 0
 
