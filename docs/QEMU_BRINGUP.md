@@ -220,6 +220,20 @@ Result: `opticnerve 0.1.0: display 1 (1280x768), port 5901`. From UBUNTU24, `hos
 `host/tools/vnc_input.py ... click:370,740` twice took its count from 0 to 2. So the x86_64 agent serves the screen
 and injects input on the QEMU target, as on the Pi 5.
 
-Still to do: reach the guest from the Windows host (a port forward through UBUNTU24), run the test suites against it,
-and choose a demo panel size for 1280 x 768.
+## 9. Reach the guest from the Windows host
+
+The guest's network (192.168.122.0/24) is NAT behind UBUNTU24, so the Windows host reaches it through an SSH tunnel
+to UBUNTU24; nothing changes on either side. From Git Bash on the Windows host:
+
+```
+ssh -f -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
+    -L 127.0.0.1:15901:192.168.122.146:5901 -L 127.0.0.1:12222:192.168.122.146:22 tester@10.30.1.132
+python host/tools/vnc_snapshot.py 127.0.0.1:15901 PASSWORD out.png     # the agent on the guest
+ssh -p 12222 qnxuser@127.0.0.1                                          # the guest's shell
+```
+
+The forwards listen on 127.0.0.1 only. Checked 2026-11-20: a capture of the demo panel through 15901, and the
+guest's SSH banner through 12222. Stop the tunnel by ending its `ssh` process.
+
+Still to do: run the test suites against the guest, and choose a demo panel size for 1280 x 768.
 
