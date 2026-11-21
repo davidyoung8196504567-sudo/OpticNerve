@@ -69,7 +69,7 @@ def install(binary):
         rs sh -c '{DEST}/bin/opticnerve passwd -passfile={DEST}/etc/vncpasswd < {STAGE}/pw'
         rm -rf {STAGE}
         rs chmod 600 {DEST}/etc/vncpasswd
-        sha256sum {DEST}/bin/opticnerve
+        sha256sum {DEST}/bin/opticnerve 2>/dev/null || openssl dgst -sha256 -r {DEST}/bin/opticnerve   # QEMU image: no sha256sum
         ls -l {DEST}/bin/opticnerve {DEST}/etc/vncpasswd 2>&1 || rs ls -l {DEST}/etc/vncpasswd
     """)
     got = out.split("\n")[0].split()[0] if out else ""

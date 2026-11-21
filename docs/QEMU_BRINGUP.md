@@ -180,7 +180,7 @@ KVM. UBUNTU24's AMD A8-4500M (2012) is older: on it we boot the guest with QEMU'
 (`-accel tcg -cpu Haswell-noTSX`, or `-cpu max`). The image's `qemu_options` asks for 8 CPUs (`-smp 8`); on a host
 with fewer cores QEMU warns and goes on.
 
-**How we boot it on UBUNTU24:** `~/opticnerve-work/qemu-run-tcg.sh`, the same QEMU arguments as `runimage` except
+**How we boot it on UBUNTU24:** `~/opticnerve-work/qemu-run-tcg.sh` (a copy of `host/qemu/qemu-run-tcg.sh`), the same QEMU arguments as `runimage` except
 `-accel tcg,thread=multi -cpu Haswell-noTSX -smp 4`, with the serial console on a socket
 (`~/opticnerve-work/qnx-serial.sock`, also logged to `output/qemu.out`) so that it can be used from scripts:
 
@@ -194,46 +194,62 @@ The guest boots in under a minute and took 192.168.122.146 from libvirt's DHCP. 
 login banner and the QNX guide (we use `qnxuser`, which may `sudo`). `sshd` starts about 40 s after boot; before
 that port 22 refuses. `vncserv` listens on 5900.
 
-## 8. Screen on a virtual display, and the agent
+## 8. Screen on a virtual display
 
 The image starts Screen with `graphics-virtio-virgl.conf`, the virtio GPU with 3D (virgl), for which the guide
 asks for QEMU 10 and virglrenderer 1.1.1 built from source. UBUNTU24 has Ubuntu's QEMU 8.2.2 and virglrenderer
-1.0.0, so there we run Screen on the image's own `graphics-virtual-display.conf` instead: a 1280 x 768 display in
-memory, no GPU. As root on the guest:
+1.0.0, so there we run Screen on a virtual display in memory, with no GPU: the image's own
+`graphics-virtual-display.conf` (1280 x 768) at the Pi 5's 1920 x 1080 instead, `host/qemu/graphics-virtual-1080.conf`.
+At the Pi's size, `demo_panel` and the tests' positions and reference pictures are the same as on the Pi.
+`host/qemu/guest_screen.sh` stops the agent and `demo_panel`, restarts Screen with that file and drops Screen's
+privileges, as the image's startup does. On the guest, with both files in `/data/home/qnxuser/qemu/`:
 
 ```
-screen -u 36:36 -c /usr/share/screen/graphics-virtual-display.conf
-echo drop_privileges > /dev/screen/command
+sudo sh /data/home/qnxuser/qemu/guest_screen.sh
 ```
 
-The agent and the demo panel, built on the Windows host for x86_64 (`agent/build/x86_64/`, SDP-BL-007), copied to
-the guest from UBUNTU24 with `scp` (the guest's network is reached only from UBUNTU24), 2026-11-20 20:24:
+Screen started this way does not survive a reboot of the guest; run the script again after each boot.
 
-```
-printf 'PASSWORD' | ./opticnerve passwd -passfile=$D/vncpasswd      # as root, D=/data/home/qnxuser/ontest
-./opticnerve serve -passfile=$D/vncpasswd < /dev/null > /dev/null 2>> $D/serve.log
-./demo_panel &                                                      # as qnxuser
-```
-
-Result: `opticnerve 0.1.0: display 1 (1280x768), port 5901`. From UBUNTU24, `host/tools/vnc_snapshot.py
-192.168.122.146:5901` returned the demo panel (cropped: the panel is laid out for 1920 x 1080), and
-`host/tools/vnc_input.py ... click:370,740` twice took its count from 0 to 2. So the x86_64 agent serves the screen
-and injects input on the QEMU target, as on the Pi 5.
+A first try on 2026-11-20 20:24 at 1280 x 768, with the agent started by hand, already captured the demo panel
+(cropped) and counted two clicks.
 
 ## 9. Reach the guest from the Windows host
 
 The guest's network (192.168.122.0/24) is NAT behind UBUNTU24, so the Windows host reaches it through an SSH tunnel
-to UBUNTU24; nothing changes on either side. From Git Bash on the Windows host:
+to UBUNTU24; nothing changes on either side. `host/qemu/tunnel.sh` forwards the guest's ports 22 and 5901 to the
+same ports on 127.0.0.2, a second loopback address that Windows answers on without setup. With `ON_HOST=127.0.0.2`
+the host tools then reach the guest as they reach the Pi, unchanged. From Git Bash on the Windows host:
 
 ```
-ssh -f -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 \
-    -L 127.0.0.1:15901:192.168.122.146:5901 -L 127.0.0.1:12222:192.168.122.146:22 tester@10.30.1.132
-python host/tools/vnc_snapshot.py 127.0.0.1:15901 PASSWORD out.png     # the agent on the guest
-ssh -p 12222 qnxuser@127.0.0.1                                          # the guest's shell
+ON_UBUNTU_PASSWORD=... sh host/qemu/tunnel.sh          # start, in the background
+sh host/qemu/tunnel.sh stop
 ```
 
-The forwards listen on 127.0.0.1 only. Checked 2026-11-20: a capture of the demo panel through 15901, and the
-guest's SSH banner through 12222. Stop the tunnel by ending its `ssh` process.
+The forwards listen on 127.0.0.2 only, and the tunnel ends with its `ssh` process (or a reboot of either host).
 
-Still to do: run the test suites against the guest, and choose a demo panel size for 1280 x 768.
+## 10. The agent and DemoTest on the guest
 
+From the Windows host, with the tunnel up, 2026-11-20 21:10 to 21:20 (`ON_LOGIN_PASSWORD` is the guest's `qnxuser`
+password here, not the Pi's):
+
+```
+export ON_HOST=127.0.0.2 ON_LOGIN_PASSWORD=...
+python host/tools/opticnerve_deploy.py install agent/build/x86_64/opticnerve
+python host/tools/opticnerve_deploy.py start
+scp agent/build/x86_64/demo_panel qnxuser@127.0.0.2:/data/home/qnxuser/
+ssh qnxuser@127.0.0.2 'nohup ./demo_panel > demo.log 2>&1 < /dev/null &'
+java -cp "$ON_TIGERVNC_JAR;$ON_OCULIX_JAR" host/demo/DemoTest.java 127.0.0.2 "$ON_VNC_PASSWORD" demo-out/qemu
+```
+
+The image has no `sha256sum`, so `opticnerve_deploy.py` checks the installed file with `openssl dgst -sha256`
+there. Installed binary SHA-256 `4c5ee62a75b9a849e1ca0c39be5ef00d73dd1d5dd7e6f8d21010498be617e044`; the agent
+reported `display 1 (1920x1080), port 5901`.
+
+**DemoTest result: all 6 checks passed in 24.0 s** (connect; find RESET by image, score 1.0000; count 0 and count 3,
+each with 0 pixels different from the Pi's reference pictures; LAMP green to red; typed text read back by OCR as
+"HELLO PI 5"; the panel left as it started). So the x86_64 agent serves the screen and takes pointer and keyboard
+input on the QEMU target as on the Pi 5.
+
+The other suites (DesktopTest, GtkDemoTest, LoginTest, ObstacleCourse) need the image's desktop and applications,
+which its startup brings up only together with the virgl Screen of step 8. Starting them on the virtual display has
+not been tried yet.
