@@ -38,13 +38,14 @@ libguestfs-tools bridge-utils`. What was run (from `/var/log/apt/history.log`):
 | 19:23 | `sudo apt install net-tools` | `ifconfig`, `netstat`; not needed by QEMU |
 | 19:24 | `sudo apt install libvirt-daemon-system` | the libvirt daemon, the `default` network, and the `libvirt` group |
 | 19:33 | `sudo apt install -y openssh-server` | not for QEMU: lets the Windows host's Claude session work on UBUNTU24 (step 6) |
+| 19:55 | `sudo apt install bridge-utils` (1.7.1-1ubuntu2) | needed after all: the image's `runimage` and `check-net` scripts call `brctl show` to find `virbr0` |
 
 Installed versions: QEMU 8.2.2 (`1:8.2.2+ds-0ubuntu1.18`), libvirt 10.0.0 (`10.0.0-2ubuntu8.19`), libguestfs-tools
 `1:1.52.0-5ubuntu3`, OVMF `2024.02-2ubuntu0.10`.
 
 Not installed from the guide's list: `qemu-system` (a metapackage for every architecture; only x86_64 is needed),
-`qemu-user` and `qemu-user-binfmt` (for running foreign Linux binaries on the host), `bridge-utils` (`brctl`; libvirt
-creates its bridge itself). Add them if a later step asks for them. The guide recommends QEMU 10 built from source;
+`qemu-user` and `qemu-user-binfmt` (for running foreign Linux binaries on the host). Add them if a later step asks
+for them. The guide recommends QEMU 10 built from source;
 we start with Ubuntu's 8.2.2.
 
 Check: `qemu-system-x86_64 --version` prints 8.2.2.
@@ -142,14 +143,83 @@ Undo: `sudo apt remove openssh-server`.
 
 ## 7. Unpack and boot the QNX image
 
-To come. Planned, from the guide: unpack the image from the SDP's `quickstart.qemu` package outside the SDP (as for
-the Pi 5 image), `source /home/tester/qnx805/qnxsdp-env.sh`, then in the unpacked folder `mkqnximage --run`
-(8 CPUs, 4 GB RAM, 720p by the guide's defaults; this host has 4 cores), `mkqnximage --getip` from a second
-terminal, and `mkqnximage --stop`. The QEMU window opens on the desktop, so a boot is done in a slot agreed with
-David.
+Unpack outside the SDP (as for the Pi 5 image), with the commands of the package's own `unpack_qemu_image.sh`:
 
-## 8. Run the agent
+```
+mkdir ~/opticnerve-work/qemu-quickstart-20260902 && cd ~/opticnerve-work/qemu-quickstart-20260902
+cat ~/qnx805/images/qemu/qnx_sdp8.0_qemu_quickstart_20260902.tar.gz.* | tar -xzf -
+```
 
-To come. The x86_64 build (`agent/build/x86_64/opticnerve`, built on the Windows host against SDP-BL-007) goes to
-UBUNTU24 and from there to the guest: the guest is on the NAT network 192.168.122.0/24, which the Windows host cannot
-reach directly. First check whether the image runs Screen and `vncserv`, which the agent needs.
+This gives `qemu/` with `local/` (options and snippets) and `output/` (`ifs.bin`, `disk-qemu.vmdk` and the 48 GB
+`disk-qemu` it points to). Everything is already built, so `mkqnximage --run` boots it without a build.
+
+Check the network setup first (it also prints what is missing):
+
+```
+cd qemu
+TOOL_DIR=~/qnx805/host/common/mkqnximage MKQNXIMAGE_NOPROMPT=1 bash ~/qnx805/host/common/mkqnximage/qemu/check-net qemu-system-x86_64
+echo $?      # 0
+```
+
+Boot. `--run=-h` sends the serial console to `output/qemu.out` and puts QEMU in the background; the display
+(`-vga none -device virtio-vga-gl -display sdl,gl=on` from `output/build/qemu_options`) still opens a window on the
+desktop. From a desktop terminal:
+
+```
+source ~/qnx805/qnxsdp-env.sh
+mkqnximage --run=-h
+mkqnximage --getip           # the guest's address on virbr0
+mkqnximage --stop
+```
+
+From an SSH login the same needs `DISPLAY=:0 XAUTHORITY=/run/user/1000/gdm/Xauthority` (the desktop's X server);
+`~/opticnerve-work/qemu-run.sh` does that.
+
+**Host processor.** Use a host with a Haswell-class or newer x86_64 processor (Intel 2013 or later, AMD Zen) for
+KVM. UBUNTU24's AMD A8-4500M (2012) is older: on it we boot the guest with QEMU's emulated CPU instead
+(`-accel tcg -cpu Haswell-noTSX`, or `-cpu max`). The image's `qemu_options` asks for 8 CPUs (`-smp 8`); on a host
+with fewer cores QEMU warns and goes on.
+
+**How we boot it on UBUNTU24:** `~/opticnerve-work/qemu-run-tcg.sh`, the same QEMU arguments as `runimage` except
+`-accel tcg,thread=multi -cpu Haswell-noTSX -smp 4`, with the serial console on a socket
+(`~/opticnerve-work/qnx-serial.sock`, also logged to `output/qemu.out`) so that it can be used from scripts:
+
+```
+setsid nohup ~/opticnerve-work/qemu-run-tcg.sh > output/run-tcg.log 2>&1 < /dev/null &
+virsh -c qemu:///system net-dhcp-leases default      # the guest, MAC 52:54:00:cf:bf:ed
+kill $(cat output/qemu.pid)                           # stop
+```
+
+The guest boots in under a minute and took 192.168.122.146 from libvirt's DHCP. Its users and passwords are in the
+login banner and the QNX guide (we use `qnxuser`, which may `sudo`). `sshd` starts about 40 s after boot; before
+that port 22 refuses. `vncserv` listens on 5900.
+
+## 8. Screen on a virtual display, and the agent
+
+The image starts Screen with `graphics-virtio-virgl.conf`, the virtio GPU with 3D (virgl), for which the guide
+asks for QEMU 10 and virglrenderer 1.1.1 built from source. UBUNTU24 has Ubuntu's QEMU 8.2.2 and virglrenderer
+1.0.0, so there we run Screen on the image's own `graphics-virtual-display.conf` instead: a 1280 x 768 display in
+memory, no GPU. As root on the guest:
+
+```
+screen -u 36:36 -c /usr/share/screen/graphics-virtual-display.conf
+echo drop_privileges > /dev/screen/command
+```
+
+The agent and the demo panel, built on the Windows host for x86_64 (`agent/build/x86_64/`, SDP-BL-007), copied to
+the guest from UBUNTU24 with `scp` (the guest's network is reached only from UBUNTU24), 2026-11-20 20:24:
+
+```
+printf 'PASSWORD' | ./opticnerve passwd -passfile=$D/vncpasswd      # as root, D=/data/home/qnxuser/ontest
+./opticnerve serve -passfile=$D/vncpasswd < /dev/null > /dev/null 2>> $D/serve.log
+./demo_panel &                                                      # as qnxuser
+```
+
+Result: `opticnerve 0.1.0: display 1 (1280x768), port 5901`. From UBUNTU24, `host/tools/vnc_snapshot.py
+192.168.122.146:5901` returned the demo panel (cropped: the panel is laid out for 1920 x 1080), and
+`host/tools/vnc_input.py ... click:370,740` twice took its count from 0 to 2. So the x86_64 agent serves the screen
+and injects input on the QEMU target, as on the Pi 5.
+
+Still to do: reach the guest from the Windows host (a port forward through UBUNTU24), run the test suites against it,
+and choose a demo panel size for 1280 x 768.
+
