@@ -253,3 +253,25 @@ input on the QEMU target as on the Pi 5.
 The other suites (DesktopTest, GtkDemoTest, LoginTest, ObstacleCourse) need the image's desktop and applications,
 which its startup brings up only together with the virgl Screen of step 8. Starting them on the virtual display has
 not been tried yet.
+
+## The same on VMUbuntu24
+
+VMUbuntu24 (10.30.1.104), the VMware virtual machine on the Windows host that replaces UBUNTU24 (row "Linux build
+host: VMUbuntu24" in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md)), was set up with the steps above on 2026-11-21,
+over SSH from the Windows host:
+
+- Step 1: the SDP at SDP-BL-009 already (`check_sdp.py` matches).
+- Step 2: `sudo apt install qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils git`, the
+  same versions as on UBUNTU24 (QEMU 8.2.2, libvirt 10.0.0, bridge-utils 1.7.1); OVMF came with them.
+- Steps 3 to 5 as written (`usermod -aG kvm,libvirt tester`, `systemctl enable --now libvirtd.socket libvirtd`,
+  `/etc/qemu/bridge.conf`, setuid bridge helper). The `default` network was active at once.
+- Step 7: the image unpacked to `~/opticnerve-work/qemu-quickstart-20260902/` (the disk then 80 % full: 20 GB free of
+  98 GB). The VM has no KVM (VMware without nested virtualization, as the Windows hypervisor is on), so the guest runs
+  with `host/qemu/qemu-run-tcg.sh` too, here with 2 CPUs (`-smp` defaults to the host's count). It booted in about
+  40 s and took 192.168.122.146 again.
+- Steps 8 to 10 as written: `host/qemu/tunnel.sh` now reaches VMUbuntu24 by default (`ON_QEMU_HOST`), the agent
+  (`4c5ee62a...`) reported `display 1 (1920x1080), port 5901`.
+
+DemoTest (`demo_panel -nomarker`), from the Windows host: all 6 checks passed in a normal run, 14.4 s; in `-brief`
+mode 10.6 s per run over 5 runs. For comparison, the same test on the Pi 5: 12.7 s and 6.2 s; on UBUNTU24's guest:
+15.6 s and 12.1 s.

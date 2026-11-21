@@ -1,17 +1,18 @@
 #!/bin/bash
-# Boot the QNX QEMU quickstart guest on UBUNTU24 with an emulated CPU (TCG): UBUNTU24's processor is too old for this
-# image under KVM (docs/QEMU_BRINGUP.md, step 7). The same arguments as mkqnximage's runimage script, except the
-# accelerator and the CPU. The serial console goes to a socket (for scripts) and is logged to output/qemu.out; the
-# QEMU window opens on the desktop (:0).
+# Boot the QNX QEMU quickstart guest with an emulated CPU (TCG), on a Linux host without usable KVM: UBUNTU24, whose
+# processor is too old for this image under KVM, and VMUbuntu24, a VM without nested virtualization
+# (docs/QEMU_BRINGUP.md, step 7). The same arguments as mkqnximage's runimage script, except the accelerator, the CPU
+# and the CPU count (QEMU_SMP, default: the host's). The serial console goes to a socket (for scripts) and is logged
+# to output/qemu.out; the QEMU window opens on the desktop (:0).
 #
-#   on UBUNTU24, from ~/opticnerve-work/:
+#   on the host, from ~/opticnerve-work/:
 #   setsid nohup ./qemu-run-tcg.sh > qemu-quickstart-20260902/qemu/output/run-tcg.log 2>&1 < /dev/null &
 #   kill $(cat qemu-quickstart-20260902/qemu/output/qemu.pid)          stop
 W=/home/tester/opticnerve-work
 cd $W/qemu-quickstart-20260902/qemu || exit 1
 export DISPLAY=:0 XAUTHORITY=/run/user/1000/gdm/Xauthority
 rm -f output/qemu.out
-exec qemu-system-x86_64 -accel tcg,thread=multi -cpu Haswell-noTSX -smp 4 -m 4G \
+exec qemu-system-x86_64 -accel tcg,thread=multi -cpu Haswell-noTSX -smp ${QEMU_SMP:-$(nproc)} -m 4G \
     -drive file=output/disk-qemu.vmdk,if=ide,id=drv0 \
     -netdev bridge,br=virbr0,id=net0 -device virtio-net-pci,netdev=net0,mac=52:54:00:cf:bf:ed \
     -pidfile output/qemu.pid -kernel output/ifs.bin \
