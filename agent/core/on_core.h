@@ -41,7 +41,7 @@ struct on_config {
 	on_time holdoff_min;        /* 4.5: the least gap between two captures (never less than the last capture took) */
 	on_time timed_capture;      /* 4.5: a capture when an incremental request has waited this long */
 	on_time auth_timeout;       /* I6: from the challenge, the time to answer it (a person typing a password); then
-				     * the login fails with the reason "login timed out" */
+				     * the login fails with the reason "login timed out". 0: no limit (test benches) */
 };
 
 /* The VNC password, already reduced to the 8 bytes VncAuth uses. have_key 0 means: refuse every login. */
@@ -108,6 +108,9 @@ struct on_stats {
 	uint64_t content;          /* content number of the last capture that changed something */
 	uint64_t logins_failed, logins_timed_out, refused_at_accept, server_full;
 	uint64_t cut_text_skipped, extended_cut_text, keys_dropped;
+	uint64_t pointer_dropped, input_handovers; /* 4.8: another client's pointer events while the owner held something,
+						    * or of a drag begun while input was elsewhere; input passed from one
+						    * client to another */
 	int signalled;             /* a composition was signalled since the last capture started */
 };
 struct on_client_stats {
@@ -115,6 +118,7 @@ struct on_client_stats {
 	uint64_t requests, updates, sent_seq;
 	int marked_tiles;
 	size_t queued;
+	int input_owner;           /* 1: this client's input is the one injected */
 };
 void on_stats(const struct on_core *c, struct on_stats *s);
 void on_client_stats(const struct on_core *c, int slot, struct on_client_stats *s);

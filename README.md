@@ -184,10 +184,16 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
   person typing into a viewer. If that time runs out, the login fails with the reason "login timed out: no password
   within 60 s", which a viewer can show, and the status counts it as `logins_timed_out`. The other side of this: two
   viewers left at their password prompts hold both login slots for up to a minute, and further connections are
-  refused at once until then (`refused_at_accept`). A client that reads nothing for 30 s while a frame is waiting for
-  it is closed.
-- **Input:** the first client that sends input owns it until it disconnects; its held keys and buttons are released
-  when it goes. Input from other clients is dropped (dropped keys are counted in the status).
+  refused at once until then (`refused_at_accept`). `opticnerve serve -logintimeout=S` changes the 60 s; on a test
+  bench `-logintimeout=0` takes the limit away, and then a prompt left open holds its login slot until the viewer
+  closes. A client that reads nothing for 30 s while a frame is waiting for it is closed.
+- **Input:** the client that sends input owns it, so a tester's viewer and a test script can take turns without
+  either one disconnecting. The one exception: while the owner holds a key or a mouse button, other clients' input
+  is dropped (counted as `pointer_dropped` and `keys_dropped`; the latter also counts presses beyond 32 held keys),
+  so a click or a drag is never split, and a drag begun while input was elsewhere waits for its release. The owner's
+  held keys and buttons are released when it disconnects. The status marks the owner's line `input_owner` and
+  counts `input_handovers`. A tester moving the mouse in the viewer during a test run does move the target's
+  pointer.
 - **Captures:** at most one at a time, and never sooner after the last one than that one took (at least 33 ms by
   default, `-holdoff=MS`); a timed capture every 2 s while a client waits for a change.
 - **Who can do what on the target:** the agent runs as root. Any user who can log in to the target can read its

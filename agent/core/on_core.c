@@ -49,6 +49,7 @@ struct slot {
 	int incr_timed;           /* a timed capture was taken while this incremental request waited */
 	uint32_t held[ON_HELD_KEYS];
 	int nheld, buttons;
+	int sent_mask;            /* the button mask of this client's last pointer event, injected or not */
 	uint64_t requests, updates, sent_seq;
 };
 
@@ -182,19 +183,34 @@ static void mark_area(struct on_core *c, struct slot *s, struct rect r)
 
 /* --- input from a client ------------------------------------------------------------------------------------ */
 
+/* 4.8: the client that sends input owns it, unless the owner holds a key or a button: a press is never split from
+ * its release, and a tester's viewer and a test script can take turns without either disconnecting. */
+static int take_input(struct on_core *c, int idx)
+{
+	int o = c->input_owner;
+	if (o == idx)
+		return 1;
+	if (o >= 0 && (c->slots[o].nheld || c->slots[o].buttons))
+		return 0;
+	if (o >= 0)
+		c->st.input_handovers++;
+	c->input_owner = idx;
+	return 1;
+}
+
 static void key_event(struct on_core *c, int idx, uint32_t sym, int down)
 {
 	struct slot *s = &c->slots[idx];
-	if (c->input_owner < 0)
-		c->input_owner = idx;
-	if (c->input_owner != idx) {
-		c->st.keys_dropped++;
-		return;
-	}
 	int at = -1;
 	for (int i = 0; i < s->nheld; i++)
 		if (s->held[i] == sym)
 			at = i;
+	if (!down && at < 0)
+		return; /* a release of a key this client does not hold: nothing to undo, and no reason to take input */
+	if (!take_input(c, idx)) {
+		c->st.keys_dropped++;
+		return;
+	}
 	if (down) {
 		if (at < 0) {
 			if (s->nheld == ON_HELD_KEYS) {
@@ -203,21 +219,22 @@ static void key_event(struct on_core *c, int idx, uint32_t sym, int down)
 			}
 			s->held[s->nheld++] = sym;
 		}
-	} else {
-		if (at < 0)
-			return; /* a release of a key this client does not hold: nothing to undo */
+	} else
 		s->held[at] = s->held[--s->nheld];
-	}
 	push(c, (struct on_action){ .type = ON_ACT_KEY, .slot = idx, .keysym = sym, .down = down });
 }
 
 static void pointer_event(struct on_core *c, int idx, int buttons, int x, int y)
 {
 	struct slot *s = &c->slots[idx];
-	if (c->input_owner < 0)
-		c->input_owner = idx;
-	if (c->input_owner != idx)
+	int was = s->sent_mask;
+	s->sent_mask = buttons;
+	/* a button this client pressed while another owned input stays dropped until it is let go: taking over in the
+	 * middle of that drag would put a press down where the user never pressed */
+	if ((c->input_owner != idx && (buttons & was)) || !take_input(c, idx)) {
+		c->st.pointer_dropped++;
 		return;
+	}
 	if (x >= c->cfg.width) x = c->cfg.width - 1;
 	if (y >= c->cfg.height) y = c->cfg.height - 1;
 	s->buttons = buttons;
@@ -341,7 +358,8 @@ static void handshake_input(struct on_core *c, int idx, on_time now)
 		queue(s, s->challenge, 16);
 		s->stage = H_AUTH;
 		s->need = 16;
-		s->deadline = now + c->cfg.auth_timeout; /* I6: a viewer now asks its user for the password */
+		/* I6: a viewer now asks its user for the password */
+		s->deadline = c->cfg.auth_timeout > 0 ? now + c->cfg.auth_timeout : ON_NEVER;
 		break;
 	case H_AUTH: {
 		uint8_t want[16], diff = 0;
@@ -839,6 +857,7 @@ void on_client_stats(const struct on_core *c, int idx, struct on_client_stats *o
 	o->updates = s->updates;
 	o->sent_seq = s->sent_seq;
 	o->queued = s->len;
+	o->input_owner = c->input_owner == idx;
 	o->marked_tiles = 0;
 	if (s->state == S_CLIENT)
 		for (int i = 0; i < c->ntiles; i++)

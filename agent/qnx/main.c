@@ -6,7 +6,8 @@ int serve_main(int argc, char **argv);
 int cli_main(const char *cmd, int argc, char **argv);
 
 static const char usage[] =
-	"usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-v] [-foreground]   (root)\n"
+	"usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-v]\n"
+	"                        [-foreground]                                                             (root)\n"
 	"       opticnerve status\n"
 	"       opticnerve wait [-timeout=S] [-since=COUNT] [-quiet=MS]\n"
 	"       opticnerve current\n"

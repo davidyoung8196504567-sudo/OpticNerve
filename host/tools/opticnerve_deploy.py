@@ -2,7 +2,8 @@
 """Install, start, stop and remove the OpticNerve agent on the QNX target, and record each step.
 
     python host/tools/opticnerve_deploy.py install [BINARY]   copy the agent to /data/opticnerve/ and set its password
-    python host/tools/opticnerve_deploy.py start              start `opticnerve serve` as root (port 5901)
+    python host/tools/opticnerve_deploy.py start [OPTION...]  start `opticnerve serve` as root (port 5901), with
+                                                              serve's options, e.g. -logintimeout=0 (no login limit)
     python host/tools/opticnerve_deploy.py status             print the agent's status text
     python host/tools/opticnerve_deploy.py stop               stop the agent (opticnerve stop, as root)
     python host/tools/opticnerve_deploy.py undo               stop the agent and delete /data/opticnerve/
@@ -16,7 +17,7 @@ Environment: ON_LOGIN_PASSWORD (the target's qnxuser password, also used for sud
 our server will ask for), optionally ON_HOST (default 10.30.1.116) and ON_LOGIN_USER (default qnxuser). Passwords
 go to the target on SSH's standard input only, never on a command line. Needs bash, ssh and scp on PATH.
 """
-import hashlib, os, subprocess, sys
+import hashlib, os, re, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -80,10 +81,15 @@ def install(binary):
     print(f"undo: python host/tools/opticnerve_deploy.py undo")
 
 
-def start():
+def start(options):
+    for o in options:   # serve's own options only; -foreground would block this step, -passfile is set here
+        if not re.fullmatch(r"-(display|port|holdoff|logintimeout)=[0-9]{1,6}|-v", o):
+            sys.exit(f"not a serve option: {o!r} (-display=N -port=P -holdoff=MS -logintimeout=S -v)")
+    opts = "".join(" " + o for o in options)
+    print(f"serve -passfile={DEST}/etc/vncpasswd{opts}")
     out = remote(f"""
         test -x {DEST}/bin/opticnerve || {{ echo 'not installed'; exit 1; }}
-        rs sh -c '{DEST}/bin/opticnerve serve -passfile={DEST}/etc/vncpasswd < /dev/null > /dev/null 2>> {DEST}/var/serve.log'
+        rs sh -c '{DEST}/bin/opticnerve serve -passfile={DEST}/etc/vncpasswd{opts} < /dev/null > /dev/null 2>> {DEST}/var/serve.log'
         sleep 1
         {DEST}/bin/opticnerve status | head -4
     """)
@@ -124,8 +130,10 @@ def main():
     cmd = sys.argv[1]
     if cmd == "install":
         install(sys.argv[2] if len(sys.argv) > 2 else ROOT / "agent" / "build" / "aarch64le" / "opticnerve")
+    elif cmd == "start":
+        start(sys.argv[2:])
     else:
-        {"start": start, "status": status, "stop": stop, "undo": undo}[cmd]()
+        {"status": status, "stop": stop, "undo": undo}[cmd]()
 
 
 if __name__ == "__main__":

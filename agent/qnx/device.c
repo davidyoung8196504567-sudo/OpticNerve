@@ -108,23 +108,25 @@ static size_t status_text(char *b, size_t cap)
 		"compositions %llu\nsignalled %d\ncaptures %llu\ntimed_captures %llu\nupdates_from_timed_capture %llu\n"
 		"content %llu\nidle_state %d\npower_mode %d\nlogins_failed %llu\nlogins_timed_out %llu\n"
 		"refused_at_accept %llu\nserver_full %llu\n"
-		"cut_text_skipped %llu\nextended_cut_text %llu\nkeys_dropped %llu\nwaiters %d\nstatus_readers %d\n",
+		"cut_text_skipped %llu\nextended_cut_text %llu\nkeys_dropped %llu\npointer_dropped %llu\n"
+		"input_handovers %llu\nwaiters %d\nstatus_readers %d\n",
 		info->version, (int)getpid(), info->width, info->height, info->port, (unsigned long long)st.signals,
 		st.signalled, (unsigned long long)st.captures, (unsigned long long)st.timed_captures,
 		(unsigned long long)st.updates_from_timed_capture, (unsigned long long)st.content, idle, power,
 		(unsigned long long)st.logins_failed, (unsigned long long)st.logins_timed_out,
 		(unsigned long long)st.refused_at_accept,
 		(unsigned long long)st.server_full, (unsigned long long)st.cut_text_skipped,
-		(unsigned long long)st.extended_cut_text, (unsigned long long)st.keys_dropped, nw, nt);
+		(unsigned long long)st.extended_cut_text, (unsigned long long)st.keys_dropped,
+		(unsigned long long)st.pointer_dropped, (unsigned long long)st.input_handovers, nw, nt);
 	for (int i = 0; i < ON_SLOTS && n < cap; i++) {
 		struct on_client_stats cs;
 		on_client_stats(core, i, &cs);
 		if (!cs.state)
 			continue;
 		n += (size_t)snprintf(b + n, cap - n,
-			"slot %d %s requests %llu updates %llu sent_seq %llu marked_tiles %d queued %zu\n", i,
+			"slot %d %s requests %llu updates %llu sent_seq %llu marked_tiles %d queued %zu%s\n", i,
 			state_name(cs.state), (unsigned long long)cs.requests, (unsigned long long)cs.updates,
-			(unsigned long long)cs.sent_seq, cs.marked_tiles, cs.queued);
+			(unsigned long long)cs.sent_seq, cs.marked_tiles, cs.queued, cs.input_owner ? " input_owner" : "");
 	}
 	return n < cap ? n : cap - 1;
 }

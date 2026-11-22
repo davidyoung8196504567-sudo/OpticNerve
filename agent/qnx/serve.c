@@ -3,7 +3,8 @@
  * select_attach(), Screen's composition signal, the timer and SIGTERM as pulses. The core (agent/core) decides; this
  * file only does what the core asks and tells it what happened.
  *
- *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-v]
+ *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-v]
+ *   -logintimeout=S is the time a viewer's user has to type the password (default 60, 0: no limit).
  *   -v logs every connection and every injected event to standard error (key values included: test use only).
  *
  * Runs in the foreground and logs to standard error (detaching comes later). Needs root: the display manager and
@@ -485,6 +486,8 @@ static int read_password(const char *path, uint8_t pw[8])
 int serve_main(int argc, char **argv)
 {
 	int display_no = 1, port = 5901, holdoff_ms = 33, foreground = 0;
+	long login_s = 60;
+	char *end;
 	for (int i = 0; i < argc; i++) {
 		if (strncmp(argv[i], "-display=", 9) == 0)
 			display_no = atoi(argv[i] + 9);
@@ -494,13 +497,16 @@ int serve_main(int argc, char **argv)
 			passfile = argv[i] + 10;
 		else if (strncmp(argv[i], "-holdoff=", 9) == 0)
 			holdoff_ms = atoi(argv[i] + 9);
+		else if (strncmp(argv[i], "-logintimeout=", 14) == 0 && argv[i][14] >= '0' && argv[i][14] <= '9' &&
+			 (login_s = strtol(argv[i] + 14, &end, 10), *end == '\0') && login_s <= 999999)
+			continue; /* seconds to type the password, at most 999999; 0: no limit */
 		else if (strcmp(argv[i], "-v") == 0)
 			verbose = 1;
 		else if (strcmp(argv[i], "-foreground") == 0)
 			foreground = 1;
 		else {
-			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-v] "
-					"[-foreground]\n");
+			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] "
+					"[-logintimeout=S] [-v] [-foreground]\n");
 			return 2;
 		}
 	}
@@ -533,7 +539,7 @@ int serve_main(int argc, char **argv)
 	gethostname(host, sizeof(host));
 	snprintf(name, sizeof(name), "OpticNerve %s %s:%d", ON_VERSION, host, display_no);
 	struct on_config cfg = { dsize[0], dsize[1], name, 10000000000LL, 30000000000LL,
-				 (on_time)holdoff_ms * 1000000, 2000000000LL, 60000000000LL };
+				 (on_time)holdoff_ms * 1000000, 2000000000LL, (on_time)login_s * 1000000000LL };
 	if (!(core = on_core_new(&cfg)))
 		die("on_core_new");
 	uint8_t pw[8];
@@ -563,8 +569,11 @@ int serve_main(int argc, char **argv)
 	dispatch_context_t *ctp = dispatch_context_alloc(dpp);
 	if (!ctp)
 		die("dispatch_context_alloc");
-	fprintf(stderr, "opticnerve %s: display %d (%dx%d), port %d, pid %d\n", ON_VERSION, display_no, dsize[0],
-		dsize[1], port, (int)getpid());
+	char limit[24] = "none";
+	if (login_s > 0)
+		snprintf(limit, sizeof(limit), "%ld s", login_s);
+	fprintf(stderr, "opticnerve %s: display %d (%dx%d), port %d, login limit %s, pid %d\n", ON_VERSION, display_no,
+		dsize[0], dsize[1], port, limit, (int)getpid());
 	while (!quit) {
 		dispatch_context_t *r = dispatch_block(ctp);
 		if (r) {

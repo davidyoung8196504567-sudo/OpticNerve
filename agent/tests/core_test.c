@@ -226,6 +226,49 @@ static void test_handshake(void)
 	n = drain(v, buf, sizeof(buf), t);
 	CHECK(n > 5 && buf[0] == 0, "other version: zero security types and a reason");
 	on_core_free(core);
+
+	/* auth_timeout 0 (serve -logintimeout=0): no limit on answering the challenge */
+	struct on_config cfg0 = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 0 };
+	core = on_core_new(&cfg0);
+	uint8_t pw0[8];
+	on_vnc_password((const char *)pw_text, pw0);
+	on_set_key(core, pw0, 1);
+	t = 1000 * MS;
+	int u = on_accept(core, ch, t);
+	drain(u, NULL, 512, t);
+	on_input(core, u, (const uint8_t *)"RFB 003.008\n", 12, t);
+	drain(u, NULL, 512, t);
+	on_input(core, u, (const uint8_t[]){ 2 }, 1, t);
+	drain(u, NULL, 512, t);
+	int u2 = on_accept(core, ch, t); /* a second prompt, left open, then its viewer closes */
+	drain(u2, NULL, 512, t);
+	on_input(core, u2, (const uint8_t *)"RFB 003.008\n", 12, t);
+	drain(u2, NULL, 512, t);
+	on_input(core, u2, (const uint8_t[]){ 2 }, 1, t);
+	drain(u2, NULL, 512, t);
+	when = on_schedule(core, t + 3600000 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 0 && when == ON_NEVER, "no login limit: nothing to close after an hour, no wake-up");
+	CHECK(on_accept(core, ch, t + 3600000 * MS) < 0, "no login limit: both prompts still hold their login slots");
+	on_stats(core, &st);
+	CHECK(st.logins_timed_out == 0, "no login limit: nothing timed out");
+	on_closed(core, u2, t + 3600000 * MS);
+	on_schedule(core, t + 3600000 * MS);
+	count_actions(ON_ACT_NONE);
+	int u3 = on_accept(core, ch, t + 3600000 * MS);
+	CHECK(u3 >= 0, "no login limit: the slot of a viewer that closed is free again");
+	on_closed(core, u3, t + 3600000 * MS);
+	on_schedule(core, t + 3600000 * MS);
+	count_actions(ON_ACT_NONE);
+	on_vnc_response(pw0, ch, resp);
+	on_input(core, u, resp, 16, t + 3600000 * MS);
+	n = drain(u, buf, sizeof(buf), t + 3600000 * MS);
+	CHECK(n == 4 && buf[3] == 0, "no login limit: a correct password after an hour logs in (got %zu bytes)", n);
+	t += 3600000 * MS;
+	on_schedule(core, t + 9999 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 0, "no login limit: no ClientInit yet, still open just before 10 s");
+	on_schedule(core, t + 10001 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 1, "no login limit: the 10 s ClientInit deadline still applies");
+	on_core_free(core);
 }
 
 static void fill(uint8_t base)
@@ -463,12 +506,118 @@ static void test_schedule(void)
 	on_core_free(core);
 }
 
+/* Runs every queued action; counts by type and slot. */
+struct tally { int ptr[ON_SLOTS], key[ON_SLOTS], close, ptr_x90; };
+static struct tally take(void)
+{
+	struct tally n = { { 0 }, { 0 }, 0, 0 };
+	struct on_action a;
+	while (on_next_action(core, &a)) {
+		if (a.type == ON_ACT_POINTER) {
+			n.ptr[a.slot]++;
+			n.ptr_x90 += a.x == 90;
+		}
+		n.key[a.slot] += a.type == ON_ACT_KEY;
+		n.close += a.type == ON_ACT_CLOSE;
+	}
+	return n;
+}
+
+/* 4.8 handover: a tester's viewer (v) and a test script (p) take turns; a press is never split from its release,
+ * and no client releases what another holds */
+static void test_handover(void)
+{
+	core = new_core();
+	uint8_t ch[16] = { 7 };
+	on_time t = 1000 * MS;
+	struct on_stats st;
+	struct on_client_stats cs;
+	int v = login(ch, "opt1cNrv", t), p = login(ch, "opt1cNrv", t);
+	drain(v, NULL, 64, t);
+	drain(p, NULL, 64, t);
+	on_input(core, v, (const uint8_t[]){ 1 }, 1, t);
+	on_input(core, p, (const uint8_t[]){ 1 }, 1, t);
+	drain(v, NULL, 512, t);
+	drain(p, NULL, 512, t);
+	take();
+
+	on_input(core, v, (const uint8_t[]){ 5, 1, 0, 10, 0, 10 }, 6, t);           /* v: button 1 down */
+	on_input(core, p, (const uint8_t[]){ 5, 0, 0, 90, 0, 90 }, 6, t);           /* p: a move, during v's press */
+	on_input(core, p, (const uint8_t[]){ 4, 1, 0, 0, 0, 0, 0, 0x61 }, 8, t);   /* p: 'a', during v's press */
+	struct tally n = take();
+	on_stats(core, &st);
+	on_client_stats(core, v, &cs);
+	CHECK(n.ptr[v] == 1 && n.ptr[p] == 0 && n.key[p] == 0 && st.pointer_dropped == 1 && st.keys_dropped == 1 &&
+	      st.input_handovers == 0 && cs.input_owner,
+	      "while v holds a button, p's pointer and key are dropped and counted; v still owns input");
+
+	on_input(core, v, (const uint8_t[]){ 5, 0, 0, 10, 0, 10 }, 6, t);           /* v: button up */
+	on_input(core, p, (const uint8_t[]){ 5, 1, 0, 90, 0, 90 }, 6, t);           /* p: click at 90,90 */
+	on_input(core, p, (const uint8_t[]){ 5, 0, 0, 90, 0, 90 }, 6, t);
+	n = take();
+	on_stats(core, &st);
+	on_client_stats(core, p, &cs);
+	CHECK(n.ptr[v] == 1 && n.ptr[p] == 2 && n.ptr_x90 == 2 && st.input_handovers == 1 && cs.input_owner,
+	      "once v let go, p's click is injected and p owns input (handovers %llu)", (unsigned long long)st.input_handovers);
+
+	on_input(core, v, (const uint8_t[]){ 5, 0, 0, 20, 0, 20 }, 6, t);           /* v: the tester moves the mouse */
+	n = take();
+	on_stats(core, &st);
+	CHECK(n.ptr[v] == 1 && st.input_handovers == 2, "and the tester's viewer can take it back at once");
+
+	/* a release of a key never pressed (a viewer losing focus) neither takes input nor counts */
+	on_input(core, p, (const uint8_t[]){ 4, 0, 0, 0, 0, 0, 0xff, 0xe3 }, 8, t); /* p: Control up */
+	n = take();
+	on_stats(core, &st);
+	on_client_stats(core, v, &cs);
+	CHECK(n.key[p] == 0 && st.input_handovers == 2 && st.keys_dropped == 1 && cs.input_owner,
+	      "an unheld key's release does nothing: v still owns input, nothing counted");
+
+	/* a held key blocks the handover too, and the other client cannot release it */
+	on_input(core, v, (const uint8_t[]){ 4, 1, 0, 0, 0, 0, 0xff, 0xe1 }, 8, t); /* v: Shift down */
+	on_input(core, p, (const uint8_t[]){ 5, 1, 0, 90, 0, 90 }, 6, t);           /* p: press during v's Shift */
+	on_input(core, p, (const uint8_t[]){ 4, 0, 0, 0, 0, 0, 0xff, 0xe1 }, 8, t); /* p: Shift up */
+	n = take();
+	on_stats(core, &st);
+	on_client_stats(core, v, &cs);
+	CHECK(n.key[v] == 1 && n.ptr[p] == 0 && n.key[p] == 0 && st.pointer_dropped == 2 && cs.input_owner,
+	      "while v holds Shift, p's press is dropped and p cannot release v's Shift");
+
+	/* p's button is still down (its press was dropped): when v lets go, p's drag does not take over mid-way */
+	on_input(core, v, (const uint8_t[]){ 4, 0, 0, 0, 0, 0, 0xff, 0xe1 }, 8, t); /* v: Shift up */
+	on_input(core, p, (const uint8_t[]){ 5, 1, 0, 95, 0, 95 }, 6, t);           /* p: drag motion, button still down */
+	n = take();
+	on_stats(core, &st);
+	CHECK(n.key[v] == 1 && n.ptr[p] == 0 && st.pointer_dropped == 3 && st.input_handovers == 2,
+	      "a drag that began without input does not become a press at a new place");
+	on_input(core, p, (const uint8_t[]){ 5, 0, 0, 95, 0, 95 }, 6, t);           /* p: lets go: a plain move, taken */
+	on_input(core, p, (const uint8_t[]){ 5, 1, 0, 90, 0, 90 }, 6, t);           /* p: a new press is */
+	n = take();
+	on_stats(core, &st);
+	CHECK(n.ptr[p] == 2 && st.input_handovers == 3, "after letting go, p's next events take input");
+
+	/* the owner's held button is released when it disconnects; the other client's events cause nothing */
+	on_closed(core, p, t);
+	on_closed(core, v, t);
+	on_schedule(core, t);
+	struct on_action a;
+	int rel_p = 0, rel_v = 0, closed = 0;
+	while (on_next_action(core, &a)) {
+		rel_p += a.type == ON_ACT_POINTER && a.slot == p && a.buttons == 0;
+		rel_v += (a.type == ON_ACT_POINTER || a.type == ON_ACT_KEY) && a.slot == v;
+		closed += a.type == ON_ACT_CLOSE;
+	}
+	CHECK(rel_p == 1 && rel_v == 0 && closed == 2, "only the owner's held button is released; both closed");
+	on_core_free(core);
+}
+
 int main(void)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	test_des();
 	test_handshake();
 	test_schedule();
+	test_handover();
 	printf("%d checks, %d failed\n", checks, fails);
 	return fails != 0;
 }
