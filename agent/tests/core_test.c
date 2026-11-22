@@ -35,7 +35,7 @@ static uint8_t frame[W * H * 4];
 
 static struct on_core *new_core(void)
 {
-	struct on_config cfg = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS };
+	struct on_config cfg = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS };
 	struct on_core *c = on_core_new(&cfg);
 	uint8_t pw[8];
 	on_vnc_password((const char *)pw_text, pw);
@@ -149,6 +149,76 @@ static void test_handshake(void)
 	on_schedule(core, t + 10001 * MS);
 	CHECK(count_actions(ON_ACT_CLOSE) == 2, "handshake deadline closes both");
 
+	/* I6: once the challenge is sent (a viewer asks its user for the password) the 10 s deadline no longer applies;
+	 * after 60 s without an answer the login fails with a reason, the slot lingers, then closes */
+	t = 100000 * MS;
+	int p = on_accept(core, ch, t);
+	drain(p, NULL, 512, t);
+	on_input(core, p, (const uint8_t *)"RFB 003.008\n", 12, t + 1 * MS);
+	drain(p, NULL, 512, t + 1 * MS);
+	on_input(core, p, (const uint8_t[]){ 2 }, 1, t + 2 * MS);
+	drain(p, NULL, 512, t + 2 * MS);
+	on_time when = on_schedule(core, t + 10001 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 0, "waiting for the password: still open after 10 s");
+	CHECK(when == t + 2 * MS + 60000 * MS, "next wake-up is the password deadline");
+	on_schedule(core, t + 2 * MS + 60000 * MS);
+	n = drain(p, buf, sizeof(buf), t + 60002 * MS);
+	CHECK(n == 48 && buf[3] == 1 && buf[4] == 0 && buf[5] == 0 && buf[6] == 0 && buf[7] == 40 &&
+	      memcmp(buf + 8, "login timed out: no password within 60 s", 40) == 0,
+	      "after 60 s: SecurityResult 1, reason length 40 and the reason (got %zu bytes)", n);
+	shut = 0;
+	while (on_next_action(core, &a))
+		shut += a.type == ON_ACT_SHUTDOWN_SEND && a.slot == p;
+	CHECK(shut == 1, "send side shut down after the timeout reason");
+	on_stats(core, &st);
+	CHECK(st.logins_timed_out == 1 && st.logins_failed == 2, /* 2: the wrong password and the type None above */
+	      "timeout counted on its own, not as a failed login (failed %llu)", (unsigned long long)st.logins_failed);
+	on_schedule(core, t + 62003 * MS);
+	int closed_p = 0, closed_other = 0;
+	while (on_next_action(core, &a))
+		if (a.type == ON_ACT_CLOSE) {
+			closed_p += a.slot == p;
+			closed_other += a.slot != p;
+		}
+	CHECK(closed_p == 1 && closed_other == 0, "the timed-out slot, and only it, closed after the linger");
+
+	/* the point of the 60 s: a correct password typed late but in time (59 s) logs in */
+	t = 150000 * MS;
+	int late = on_accept(core, ch, t);
+	drain(late, NULL, 512, t);
+	on_input(core, late, (const uint8_t *)"RFB 003.008\n", 12, t);
+	drain(late, NULL, 512, t);
+	on_input(core, late, (const uint8_t[]){ 2 }, 1, t);
+	drain(late, NULL, 512, t);
+	on_schedule(core, t + 30000 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 0, "still waiting for the password at 30 s");
+	uint8_t pwk[8], resp[16];
+	on_vnc_password((const char *)pw_text, pwk);
+	on_vnc_response(pwk, ch, resp);
+	on_input(core, late, resp, 16, t + 59000 * MS);
+	n = drain(late, buf, sizeof(buf), t + 59000 * MS);
+	CHECK(n == 4 && buf[3] == 0, "a correct password at 59 s: SecurityResult OK (got %zu bytes)", n);
+	/* logged in but no ClientInit: a program's step, so the 10 s deadline applies again from the login */
+	on_schedule(core, t + 59000 * MS + 9999 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 0, "no ClientInit yet: still open just before 10 s after the login");
+	on_schedule(core, t + 59000 * MS + 10001 * MS);
+	CHECK(count_actions(ON_ACT_CLOSE) == 1, "no ClientInit within 10 s of the login: closed");
+
+	/* a connection that has sent its version but not chosen a security type is still closed at 10 s, silently */
+	t = 200000 * MS;
+	int q = on_accept(core, ch, t);
+	drain(q, NULL, 512, t);
+	on_input(core, q, (const uint8_t *)"RFB 003.008\n", 12, t);
+	drain(q, NULL, 512, t);
+	on_schedule(core, t + 10001 * MS);
+	const uint8_t *qp;
+	size_t qn = on_output(core, q, &qp);
+	CHECK(qn == 0, "no security type chosen: nothing queued, no reason (got %zu bytes)", qn);
+	closed_p = 0;
+	while (on_next_action(core, &a))
+		closed_p += a.type == ON_ACT_CLOSE && a.slot == q;
+	CHECK(closed_p == 1, "no security type chosen: closed at 10 s");
+
 	/* a version other than 3.8 */
 	int v = on_accept(core, ch, t);
 	drain(v, NULL, 512, t);
@@ -245,6 +315,49 @@ static void test_schedule(void)
 	CHECK(pass(t) == 1, "signal with an incremental request pending: capture");
 	n = drain(s, big, sizeof(big), t);
 	CHECK(check_update(big, n) == 1, "one changed tile sent");
+
+	/* the comparison (masked 32-bit words since 2026-11-22): each colour byte alone, the last pixel of a full tile,
+	 * the partial corner tile, a padding-only change, and a capture buffer whose stride is wider than the screen */
+	struct { int x, y, byte; const char *what; } one[] = {
+		{ 130, 70, 1, "G alone" }, { 130, 70, 2, "R alone" }, { 191, 127, 0, "last pixel of full tile (2,1)" },
+		{ 199, 129, 2, "corner pixel of partial tile (3,2)" } };
+	for (size_t k = 0; k < sizeof(one) / sizeof(one[0]); k++) {
+		frame[(one[k].y * W + one[k].x) * 4 + one[k].byte] ^= 0x01;
+		t += 100 * MS;
+		request(s, 1, 0, 0, W, H, t);
+		on_signalled(core, t);
+		pass(t);
+		n = drain(s, big, sizeof(big), t);
+		CHECK(check_update(big, n) == 1, "one-byte change, %s: one tile sent", one[k].what);
+	}
+	for (int i = 0; i < W * H; i++)
+		frame[4 * i + 3] ^= 0x5a; /* padding only */
+	t += 100 * MS;
+	request(s, 1, 0, 0, W, H, t);
+	on_signalled(core, t);
+	CHECK(pass(t) == 1, "padding-only change: a capture is taken");
+	CHECK(drain(s, NULL, 64, t) == 0, "padding-only change: nothing sent");
+	{
+		static uint8_t wide[(W * 4 + 16) * H];
+		frame[(30 * W + 20) * 4] ^= 0x01; /* tile (0,0) */
+		for (int y = 0; y < H; y++) {
+			memcpy(wide + (size_t)y * (W * 4 + 16), frame + (size_t)y * W * 4, W * 4);
+			memset(wide + (size_t)y * (W * 4 + 16) + W * 4, 0xa5, 16); /* junk past the row: must be ignored */
+		}
+		t += 100 * MS;
+		on_signalled(core, t); /* the incremental request from the padding case is still pending */
+		on_schedule(core, t);
+		struct on_action ca;
+		int took = 0;
+		while (on_next_action(core, &ca))
+			if (ca.type == ON_ACT_CAPTURE) {
+				on_captured(core, wide, W * 4 + 16, t, t + 30 * MS);
+				took = 1;
+			}
+		on_schedule(core, t + 30 * MS);
+		n = drain(s, big, sizeof(big), t);
+		CHECK(took && check_update(big, n) == 1, "capture with a wider stride: one tile sent, junk ignored");
+	}
 
 	/* sequence A (UBUNTU24 finding 1): a change while the client's queue is full is sent when it drains */
 	t += 100 * MS;

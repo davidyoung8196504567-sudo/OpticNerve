@@ -36,10 +36,12 @@ struct on_core;
 struct on_config {
 	int width, height;          /* framebuffer size, pixels */
 	const char *desktop_name;   /* sent in ServerInit, ASCII */
-	on_time handshake_timeout;  /* I6: a connection that has not logged in by then is closed */
+	on_time handshake_timeout;  /* I6: a connection that has not chosen its security type by then is closed */
 	on_time stall_timeout;      /* I6: a client that reads nothing for this long while output is queued is closed */
 	on_time holdoff_min;        /* 4.5: the least gap between two captures (never less than the last capture took) */
 	on_time timed_capture;      /* 4.5: a capture when an incremental request has waited this long */
+	on_time auth_timeout;       /* I6: from the challenge, the time to answer it (a person typing a password); then
+				     * the login fails with the reason "login timed out" */
 };
 
 /* The VNC password, already reduced to the 8 bytes VncAuth uses. have_key 0 means: refuse every login. */
@@ -104,7 +106,7 @@ int on_next_action(struct on_core *c, struct on_action *a);
 struct on_stats {
 	uint64_t signals, captures, timed_captures, updates_from_timed_capture;
 	uint64_t content;          /* content number of the last capture that changed something */
-	uint64_t logins_failed, refused_at_accept, server_full;
+	uint64_t logins_failed, logins_timed_out, refused_at_accept, server_full;
 	uint64_t cut_text_skipped, extended_cut_text, keys_dropped;
 	int signalled;             /* a composition was signalled since the last capture started */
 };

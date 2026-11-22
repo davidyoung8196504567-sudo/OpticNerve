@@ -179,8 +179,13 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 
 - **Port 5901**, VNC authentication only (type 2), RFB 3.8 only, Raw encoding, 32 bits per pixel; a client that asks
   for another 32-bit pixel format gets it converted, and a client that asks for 8 or 16 bits per pixel is closed.
-- **At most 4 clients** at once, plus 2 connections that are still logging in; a client that has not logged in after
-  10 s is closed, and so is a client that reads nothing for 30 s while a frame is waiting for it.
+- **At most 4 clients** at once, plus 2 connections that are still logging in. A connection has 10 s to reach the
+  password prompt (version and security type; a program does this at once), then **60 s to answer it**, enough for a
+  person typing into a viewer. If that time runs out, the login fails with the reason "login timed out: no password
+  within 60 s", which a viewer can show, and the status counts it as `logins_timed_out`. The other side of this: two
+  viewers left at their password prompts hold both login slots for up to a minute, and further connections are
+  refused at once until then (`refused_at_accept`). A client that reads nothing for 30 s while a frame is waiting for
+  it is closed.
 - **Input:** the first client that sends input owns it until it disconnects; its held keys and buttons are released
   when it goes. Input from other clients is dropped (dropped keys are counted in the status).
 - **Captures:** at most one at a time, and never sooner after the last one than that one took (at least 33 ms by

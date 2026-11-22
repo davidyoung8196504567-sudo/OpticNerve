@@ -48,6 +48,8 @@ static screen_display_t disp;
 static screen_device_t kbd, ptr;
 static screen_pixmap_t pixmap;
 static screen_buffer_t pbuf;
+static uint8_t *pixels, *staging; /* the pixmap's memory, and the copy of each capture in ordinary memory */
+static int pstride;
 static int dsize[2], ptr_x, ptr_y, verbose;
 
 static on_time now_ns(void)
@@ -117,6 +119,14 @@ static void screen_setup(int display_no)
 	if (screen_create_pixmap_buffer(pixmap) != 0)
 		die("screen_create_pixmap_buffer");
 	screen_get_pixmap_property_pv(pixmap, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)&pbuf);
+	/* Each capture is copied once, row by row, into `staging` (ordinary memory) before the core compares it: on the Pi
+	 * the comparison runs several times faster on the copy than on the capture buffer in place, copy included
+	 * (measured 2026-11-22). */
+	if (screen_get_buffer_property_pv(pbuf, SCREEN_PROPERTY_POINTER, (void **)&pixels) != 0 || !pixels ||
+	    screen_get_buffer_property_iv(pbuf, SCREEN_PROPERTY_STRIDE, &pstride) != 0 || pstride < dsize[0] * 4)
+		die("pixmap pointer or stride");
+	if (!(staging = malloc((size_t)dsize[0] * 4 * (size_t)dsize[1])))
+		die("malloc (capture staging buffer)");
 
 	/* the composition signal, registered once (design 4.5) */
 	struct sigevent ev;
@@ -131,11 +141,11 @@ static void capture(void)
 	if (screen_read_display(disp, pbuf, 0, NULL, 0) != 0)
 		die("screen_read_display"); /* design 4.3 I7: Screen lost: exit, no recovery inside the process */
 	on_time t1 = now_ns();
-	uint8_t *p = NULL;
-	int stride = 0;
-	screen_get_buffer_property_pv(pbuf, SCREEN_PROPERTY_POINTER, (void **)&p);
-	screen_get_buffer_property_iv(pbuf, SCREEN_PROPERTY_STRIDE, &stride);
-	on_captured(core, p, stride, t0, t1);
+	size_t row = (size_t)dsize[0] * 4;
+	for (int y = 0; y < dsize[1]; y++)
+		memcpy(staging + y * row, pixels + (size_t)y * pstride, row);
+	/* started/ended stay the read itself (4.5): the copy and the comparison run after it, as the comparison did */
+	on_captured(core, staging, (int)row, t0, t1);
 }
 
 /* X keysym to QNX key code: characters are their own code; the 0xff00 block maps onto KEYCODE_PC_KEYS with the same
@@ -523,7 +533,7 @@ int serve_main(int argc, char **argv)
 	gethostname(host, sizeof(host));
 	snprintf(name, sizeof(name), "OpticNerve %s %s:%d", ON_VERSION, host, display_no);
 	struct on_config cfg = { dsize[0], dsize[1], name, 10000000000LL, 30000000000LL,
-				 (on_time)holdoff_ms * 1000000, 2000000000LL };
+				 (on_time)holdoff_ms * 1000000, 2000000000LL, 60000000000LL };
 	if (!(core = on_core_new(&cfg)))
 		die("on_core_new");
 	uint8_t pw[8];
@@ -578,9 +588,10 @@ int serve_main(int argc, char **argv)
 
 	struct on_stats st;
 	on_stats(core, &st);
-	fprintf(stderr, "opticnerve: stopping: signals %llu, captures %llu (timed %llu), failed logins %llu\n",
+	fprintf(stderr, "opticnerve: stopping: signals %llu, captures %llu (timed %llu), failed logins %llu, "
+		"timed-out logins %llu\n",
 		(unsigned long long)st.signals, (unsigned long long)st.captures, (unsigned long long)st.timed_captures,
-		(unsigned long long)st.logins_failed);
+		(unsigned long long)st.logins_failed, (unsigned long long)st.logins_timed_out);
 	for (int i = 0; i < ON_SLOTS; i++)
 		if (fds[i] >= 0)
 			on_closed(core, i, now_ns());
@@ -588,6 +599,7 @@ int serve_main(int argc, char **argv)
 	take_actions(); /* releases held keys and buttons, closes sockets */
 	close(listen_fd);
 	screen_destroy_pixmap(pixmap);
+	free(staging);
 	if (kbd)
 		screen_destroy_device(kbd);
 	if (ptr)
