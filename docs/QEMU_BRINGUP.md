@@ -275,3 +275,5 @@ over SSH from the Windows host:
 DemoTest (`demo_panel -nomarker`), from the Windows host: all 6 checks passed in a normal run, 14.4 s; in `-brief`
 mode 10.6 s per run over 5 runs. For comparison, the same test on the Pi 5: 12.7 s and 6.2 s; on UBUNTU24's guest:
 15.6 s and 12.1 s.
+
+The agent also builds on VMUbuntu24 (2026-11-21, `make -C agent` with `source ~/qnx805/qnxsdp-env.sh`, at commit ea74ca5): all six binaries (`opticnerve`, `demo_panel`, `core_test` for aarch64le and x86_64) are byte-identical to the Windows host's builds of the same sources, SHA-256 `5fdef8a0...` (aarch64le agent, the one on the Pi) and `4c5ee62a...` (x86_64 agent, the one in the QEMU guest).

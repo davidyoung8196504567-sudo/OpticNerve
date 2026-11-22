@@ -5,7 +5,8 @@
 **Gives your test tools eyes and hands on any QNX 8.0 screen.**
 
 > Status: work in progress for the QNX Global Hackathon (November to December 2026). The agent builds for QNX 8.0
-> (aarch64le and x86_64) and runs on a Raspberry Pi 5; OculiX sees and drives the Pi's screen through it.
+> (aarch64le and x86_64) and runs on a Raspberry Pi 5 and on a QNX 8.0 QEMU target; OculiX sees and drives their
+> screens through it.
 
 ## The problem
 
@@ -21,7 +22,7 @@ agent**, a small native program on the QNX 8.0 target that serves the screen to 
 what it cannot learn from pixels alone.
 
 ```
-  host (Windows / macOS / Linux)                     target (QNX 8.0, Raspberry Pi 5)
+  host (Windows / macOS / Linux)                     target (QNX 8.0: Raspberry Pi 5, or QEMU)
  +------------------------------+                   +---------------------------------------+
  |  OculiX 4.x test scripts     |   VNC (RFB 3.8)   |  opticnerve serve (our agent)         |
  |  image match, OCR, asserts   | <---------------> |   - reads the display (Screen API)    |
@@ -50,6 +51,7 @@ what it cannot learn from pixels alone.
 | `agent/tests/` | Tests of the core (`core_test`) |
 | `agent/spikes/` | Small test programs used to settle design questions on the target (input injection, window placement) |
 | `host/tools/` | Deploy script, a VNC snapshot tool and a VNC input tool (Python) |
+| `host/qemu/` | The QEMU target: launch script, a 1920 x 1080 virtual display for Screen, and a tunnel to reach the guest ([bring-up](docs/QEMU_BRINGUP.md)) |
 | `host/tests/`, `host/spikes/` | Network robustness tests; OculiX probes for reading and for input |
 | `sdp/` | The pinned QNX SDP baseline and the script that checks a build host against it |
 | `docs/` | [Configuration management](docs/CONFIG_MANAGEMENT.md) (everything needed to reproduce the setup) and the [OculiX issue list](docs/ISSUES.md) |
@@ -58,8 +60,9 @@ what it cannot learn from pixels alone.
 
 | For | What | Used and tested here |
 |---|---|---|
-| Building | QNX SDP 8.0.5 from the QNX Software Center (the free QNX Everywhere licence), with `qcc`; the exact package list is `sdp/packages.lock` | Windows 11 host; baseline SDP-BL-007 |
+| Building | QNX SDP 8.0.5 from the QNX Software Center (the free QNX Everywhere licence), with `qcc`; the exact package list is `sdp/packages.lock` | Windows 11 (baseline SDP-BL-007) and Ubuntu 24.04 (SDP-BL-009): the same sources give byte-identical binaries on both |
 | The target | Raspberry Pi 5 with the QNX 8.0 quick-start image (package `quickstart.rpi5` 0.5.0.00050, image 20260902), on the network, with its `qnxuser` login | Pi 5, image as shipped |
+| Or a QEMU target | The QNX 8.0 QEMU quick-start image (package `quickstart.qemu` 0.5.0.00050) on an Ubuntu 24.04 host with QEMU; see [QEMU bring-up](docs/QEMU_BRINGUP.md) | QEMU 8.2.2 on Ubuntu 24.04, emulated CPU |
 | Host tools | Python 3 with `cryptography` and `Pillow`; `ssh`, `scp` and `bash` | Python 3.14 on Windows (Git Bash) |
 | OculiX | OculiX 4.0.0 (`oculixapi-4.0.0-<os>.jar`) and Java 17 or newer; for VNC, `tigervnc-java-oculix` 2.0.4 first on the classpath (configuration ON-VNC-1, below) | Temurin 25.0.4+7 |
 
@@ -82,7 +85,7 @@ what it cannot learn from pixels alone.
 
    The results are `agent/build/<arch>/opticnerve` (the agent and its subcommands) and `agent/build/<arch>/core_test`.
    Everything builds with `-std=c11 -Wall -Wextra -Werror`. The aarch64le build runs on the Pi 5; the x86_64 build
-   builds, and has not been run on an x86_64 target.
+   runs on the QEMU target, where DemoTest passes as on the Pi ([QEMU bring-up](docs/QEMU_BRINGUP.md), step 10).
 
 4. Run the core tests on the target (they need no display): copy `agent/build/aarch64le/core_test` to the Pi and run
    it. It prints one line per failed check and a total (`45 checks, 0 failed`). A build of the core tests for a
