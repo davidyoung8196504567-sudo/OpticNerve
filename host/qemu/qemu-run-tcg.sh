@@ -3,14 +3,16 @@
 # processor is too old for this image under KVM, and VMUbuntu24, a VM without nested virtualization
 # (docs/QEMU_BRINGUP.md, step 7). The same arguments as mkqnximage's runimage script, except the accelerator, the CPU
 # and the CPU count (QEMU_SMP, default: the host's). The serial console goes to a socket (for scripts) and is logged
-# to output/qemu.out; the QEMU window opens on the desktop (:0).
+# to output/qemu.out; the QEMU window opens on the desktop (whichever display it is on).
 #
 #   on the host, from ~/opticnerve-work/:
 #   setsid nohup ./qemu-run-tcg.sh > qemu-quickstart-20260902/qemu/output/run-tcg.log 2>&1 < /dev/null &
 #   kill $(cat qemu-quickstart-20260902/qemu/output/qemu.pid)          stop
 W=/home/tester/opticnerve-work
 cd $W/qemu-quickstart-20260902/qemu || exit 1
-export DISPLAY=:0 XAUTHORITY=/run/user/1000/gdm/Xauthority
+# The desktop's display, as its gnome-shell has it (:0 or :1, depending on the boot)
+D=$(tr '\0' '\n' < /proc/$(pgrep -u "$USER" -x gnome-shell | head -1)/environ 2>/dev/null | sed -n 's/^DISPLAY=//p')
+export DISPLAY=${D:-:0} XAUTHORITY=/run/user/$(id -u)/gdm/Xauthority
 rm -f output/qemu.out
 exec qemu-system-x86_64 -accel tcg,thread=multi -cpu Haswell-noTSX -smp ${QEMU_SMP:-$(nproc)} -m 4G \
     -drive file=output/disk-qemu.vmdk,if=ide,id=drv0 \
