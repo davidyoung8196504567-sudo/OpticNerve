@@ -13,8 +13,8 @@
 //
 // Before each step the test prints a caption line ("==> ..."), for the video's captions. -slow paces the run for
 // recording: a pause after each caption. -brief prints only the PASS and FAIL lines (no captions, no screenshots).
-// Every run moves, clicks and types the way a hand does (see glide below), so the demo panel's pointer trail shows
-// each move; there is no faster mode.
+// Every run moves, clicks and types the way a hand does (see glide below), so the demo panel's pointer marker
+// follows each move; there is no faster mode.
 // -repeat=N runs the checks N times on one connection. Every run ends with its number of checks and its time.
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -129,7 +129,9 @@ public class DemoTest {
 
     // The change count from the last wait: the next wait asks for a change past it (-since), so it cannot return on the
     // stillness before the panel has responded, and then for a short quiet time (100 ms in a -brief run, as the panel
-    // draws each response in one frame; 300 ms otherwise, for the pointer marker's animation).
+    // draws each response in one frame; 300 ms otherwise). With the pointer marker on, a wait can return while the
+    // ring is still on the clicked button: the panel takes it away 1 s after the pointer rests, and the next image
+    // search (s.wait, up to 3 s) finds the button then.
     static long seen = -1;
 
     static void settle() throws Exception {

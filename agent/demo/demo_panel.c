@@ -5,6 +5,9 @@
  *
  *   demo_panel [-nomarker] [SECS]      runs until killed, or for SECS seconds; -nomarker: no pointer marker
  *
+ * The pointer marker is a ring at the pointer's latest position; a move redraws it at most 10 times a second (see
+ * below).
+ *
  * Buttons: "+1" adds one to the counter, "RESET" sets it to 0, clears the text line and turns the lamp green, "LAMP" switches the lamp between green and red.
  * Keys: letters, digits and space are added to the text line; Backspace deletes; Return clears it.
  *
@@ -12,6 +15,7 @@
  * -lscreen
  */
 #define _QNX_SOURCE
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,31 +117,16 @@ static double now_s(void)
 
 /*
  * A pointer marker of our own, so that a viewer (on the monitor and in VNC frames, which carry no pointer image) can
- * see where each move and click lands: a ring at the pointer, a fading trail, and a ripple where a button is pressed.
- * All of it fades within about a second after the pointer stops, so a test that waits for a quiet screen sees the
- * panel without it.
+ * see where the pointer is: a ring at its latest position, yellow while a button is held. No trail and no animation.
+ * A move redraws the panel at most MARKER_HZ times a second: pointer events that come in between are read and only
+ * their position is kept, so a stream of moves (a hand in a viewer sends about 60 a second) never queues redraws.
+ * A press or a release is drawn at once, as is everything else the panel shows. MARKER_HIDE seconds after the pointer
+ * stops, the ring is taken away (one redraw), so that a test that searches the screen for a button finds it as it is.
  */
-#define TRAIL 16
-#define RIPPLES 8
-#define RING_SECS 1.0
-#define TRAIL_SECS 0.6
-#define RIPPLE_SECS 0.5
-static int show_marker = 1; /* -nomarker: the panel only, for a test at full speed */
-static struct { int x, y; double t; } trail[TRAIL];
-static int trail_head;
-static struct { int x, y; double t; unsigned rgb; } ripples[RIPPLES];
-static int ptr_x = -1, ptr_y = -1;
-static double last_move = -100;
-
-static unsigned mix(unsigned a, unsigned b, double k) /* k = 0 gives a, k = 1 gives b */
-{
-	unsigned r = 0;
-	for (int s = 0; s <= 16; s += 8) {
-		double ca = (a >> s) & 0xff, cb = (b >> s) & 0xff;
-		r |= (unsigned)(ca + (cb - ca) * k) << s;
-	}
-	return r;
-}
+#define MARKER_HZ 10
+#define MARKER_HIDE 1.0
+static int show_marker = 1; /* -nomarker: the panel only */
+static int ptr_x = -1, ptr_y = -1, ptr_down, ptr_shown;
 
 static void ring(int cx, int cy, int r, int th, unsigned rgb)
 {
@@ -150,55 +139,13 @@ static void ring(int cx, int cy, int r, int th, unsigned rgb)
 		}
 }
 
-static void pointer_moved(int x, int y)
+/* Draws the marker over the panel. */
+static void overlay(void)
 {
-	ptr_x = x;
-	ptr_y = y;
-	last_move = now_s();
-	trail[trail_head].x = x;
-	trail[trail_head].y = y;
-	trail[trail_head].t = last_move;
-	trail_head = (trail_head + 1) % TRAIL;
-}
-
-static void pointer_pressed(int x, int y, unsigned rgb)
-{
-	int oldest = 0;
-	for (int i = 1; i < RIPPLES; i++)
-		if (ripples[i].t < ripples[oldest].t)
-			oldest = i;
-	ripples[oldest].x = x;
-	ripples[oldest].y = y;
-	ripples[oldest].t = now_s();
-	ripples[oldest].rgb = rgb;
-}
-
-/* Draws the marker over the panel. Returns 1 while something is still fading, so the caller keeps redrawing. */
-static int overlay(void)
-{
-	double t = now_s();
-	int busy = 0;
-	const unsigned bg = 0x1c2430, hot = 0xff2bd6;
-	for (int i = 0; i < TRAIL; i++) {
-		double age = t - trail[i].t;
-		if (age < TRAIL_SECS) {
-			ring(trail[i].x, trail[i].y, 12, 12, mix(hot, bg, age / TRAIL_SECS));
-			busy = 1;
-		}
-	}
-	for (int i = 0; i < RIPPLES; i++) {
-		double age = t - ripples[i].t;
-		if (age < RIPPLE_SECS) {
-			ring(ripples[i].x, ripples[i].y, 20 + (int)(age / RIPPLE_SECS * 70), 8, mix(ripples[i].rgb, bg, age / RIPPLE_SECS));
-			busy = 1;
-		}
-	}
-	if (ptr_x >= 0 && t - last_move < RING_SECS) {
-		ring(ptr_x, ptr_y, 34, 8, mix(hot, bg, (t - last_move) / RING_SECS));
-		ring(ptr_x, ptr_y, 5, 5, 0xffffff);
-		busy = 1;
-	}
-	return busy;
+	if (ptr_x < 0 || !ptr_shown)
+		return;
+	ring(ptr_x, ptr_y, 34, 8, ptr_down ? 0xffd166 : 0xff2bd6);
+	ring(ptr_x, ptr_y, 5, 5, 0xffffff);
 }
 
 static void draw(void)
@@ -258,7 +205,7 @@ int main(int argc, char **argv)
 	screen_set_window_property_iv(win, SCREEN_PROPERTY_POSITION, pos);
 	screen_set_window_property_cv(win, SCREEN_PROPERTY_ID_STRING, 16, "opticnerve-demo");
 	/* Two buffers: a frame is drawn into the one not on show and posted only when it is complete, so the monitor
-	 * never shows a half-drawn frame (with one buffer the marker's animation flickered on the monitor). */
+	 * never shows a half-drawn frame. */
 	if (screen_create_window_buffers(win, 2) != 0) {
 		perror("buffers");
 		return 1;
@@ -275,25 +222,37 @@ int main(int argc, char **argv)
 
 	screen_event_t ev;
 	screen_create_event(&ev);
-	double t0 = now_s();
-	int pressed = -1, animating = 0, last_buttons = 0;
+	double t0 = now_s(), drawn = 0, moved = 0; /* when the panel was last drawn, when the pointer last moved */
+	int pressed = -1, last_buttons = 0, move_pending = 0;
 	while (!secs || now_s() - t0 < secs) {
-		/* while the marker fades, wake every 30 ms to redraw it; otherwise wait for events */
-		if (screen_get_event(ctx, ev, animating ? 30000000ULL : 500000000ULL) != 0)
+		/* wait for events, but wake for a move not drawn yet (when its 1/MARKER_HZ s is up) or to hide the ring */
+		double due = now_s() + 0.5;
+		if (move_pending && drawn + 1.0 / MARKER_HZ < due)
+			due = drawn + 1.0 / MARKER_HZ;
+		if (ptr_shown && !move_pending && !ptr_down && moved + MARKER_HIDE < due)
+			due = moved + MARKER_HIDE;
+		double left = due - now_s();
+		uint64_t wait = left > 0 ? (uint64_t)(left * 1e9) : 0;
+		if (screen_get_event(ctx, ev, wait) != 0)
 			break;
-		int type = SCREEN_EVENT_NONE, changed = animating;
+		int type = SCREEN_EVENT_NONE, changed = 0;
 		screen_get_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
 		if (type == SCREEN_EVENT_POINTER) {
 			int p[2] = { 0, 0 }, buttons = 0;
 			screen_get_event_property_iv(ev, SCREEN_PROPERTY_SOURCE_POSITION, p);
 			screen_get_event_property_iv(ev, SCREEN_PROPERTY_BUTTONS, &buttons);
-			pointer_moved(p[0], p[1]);
-			int newly = buttons & ~last_buttons;
-			if (newly)
-				pointer_pressed(p[0], p[1], (newly & SCREEN_LEFT_MOUSE_BUTTON) ? 0xffd166
-							    : (newly & SCREEN_RIGHT_MOUSE_BUTTON) ? 0x4cc9f0 : 0xffffff);
+			if (show_marker && (p[0] != ptr_x || p[1] != ptr_y)) {
+				ptr_x = p[0];
+				ptr_y = p[1];
+				move_pending = 1;
+				moved = now_s();
+			}
+			if (buttons != last_buttons) {
+				ptr_down = buttons != 0;
+				moved = now_s();
+				changed = show_marker; /* a press or a release is drawn at once */
+			}
 			last_buttons = buttons;
-			changed = show_marker; /* without the marker, a move changes nothing on the screen */
 			int down = buttons & SCREEN_LEFT_MOUSE_BUTTON;
 			if (down && pressed < 0) {
 				for (int i = 0; i < 3; i++)
@@ -332,13 +291,24 @@ int main(int argc, char **argv)
 			changed = 1;
 		}
 	redraw:
+		if (move_pending && now_s() - drawn >= 1.0 / MARKER_HZ)
+			changed = 1;
+		if (changed && show_marker)
+			ptr_shown = 1;
+		if (ptr_shown && !move_pending && !ptr_down && now_s() - moved >= MARKER_HIDE) {
+			ptr_shown = 0; /* the pointer has rested: the panel without the ring */
+			changed = 1;
+		}
 		if (changed) {
 			screen_get_buffer_property_pv(bufs[back], SCREEN_PROPERTY_POINTER, (void **)&fb);
 			screen_get_buffer_property_iv(bufs[back], SCREEN_PROPERTY_STRIDE, &stride);
 			draw();
-			animating = show_marker ? overlay() : 0;
+			if (show_marker)
+				overlay();
 			screen_post_window(win, bufs[back], 1, dirty, 0);
 			back ^= 1;
+			move_pending = 0;
+			drawn = now_s();
 		}
 	}
 	screen_destroy_window(win);
