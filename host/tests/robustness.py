@@ -96,45 +96,74 @@ def alive(name):
         check(name, False, repr(e))
 
 
-def close_at_random_points(count=200, seed=1):
-    """RB01 (connect and disconnect in every state), over the network: every state by list, then random ones."""
+def close_at_random_points(count=200, seed=1, wait_limit=35.0):
+    """RB01 (connect and disconnect in every state), over the network: every state by list, then random ones.
+
+    A connection the agent turns away (closed at accept, or "server full") because the slots of earlier connections
+    are still taken is tried again every 0.25 s, for up to wait_limit seconds. From some clients (macOS, with its
+    default limit on resets) a connection closed by reset can stay open until the agent's keepalive ends it, about
+    10 s, and its slot with it. Every wait is reported; a slot that is not free within wait_limit is a failure."""
     rnd = random.Random(seed)
     states = ["accept", "after version", "after security type", "after challenge", "after response",
               "after ClientInit", "mid request", "mid frame"]
     plan = states + [rnd.choice(states) for _ in range(count)]
+    waits = []
     for i, st in enumerate(plan):
-        try:
-            s = connect()
-            if st != "accept":
-                recvn(s, 12)
-                s.sendall(b"RFB 003.008\n")
-            if st not in ("accept", "after version"):
-                recvn(s, 2)
-                s.sendall(bytes([2]))
-            if st not in ("accept", "after version", "after security type"):
-                ch = recvn(s, 16)
-            if st in ("after response", "after ClientInit", "mid request", "mid frame"):
-                s.sendall(response(ch))
-                recvn(s, 4)
-            if st in ("after ClientInit", "mid request", "mid frame"):
-                s.sendall(bytes([1]))
-                w, h = struct.unpack(">HH", recvn(s, 4))
-                recvn(s, 16)
-                recvn(s, struct.unpack(">I", recvn(s, 4))[0])
-            if st == "mid request":
-                s.sendall(bytes([3, 0, 0]))  # a request cut after 3 of its 10 bytes
-            if st == "mid frame":
-                s.sendall(struct.pack(">BBHHHH", 3, 0, 0, 0, w, h))
-                recvn(s, 4096)  # part of the update, then go
-            if rnd.random() < 0.5:  # half of them by reset instead of an orderly close
-                s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if os.name == "nt" else "ii", 1, 0))
-            s.close()
-        except Exception as e:
-            check(f"RB01 connection {i} ({st})", False, repr(e))
-            return
+        t0 = time.time()
+        while True:
+            try:
+                one_connection(rnd, st)
+                break
+            except (EOFError, ConnectionResetError) as e:
+                if time.time() - t0 > wait_limit:
+                    check(f"RB01 connection {i} ({st})", False, f"{e!r}; no free slot within {wait_limit:.0f} s")
+                    return
+                time.sleep(0.25)
+            except Exception as e:
+                check(f"RB01 connection {i} ({st})", False, repr(e))
+                return
+        if time.time() - t0 > 0.2:
+            waits.append((i, st, time.time() - t0))
         time.sleep(0.02)
-    check(f"RB01 {len(plan)} connections closed at every state (half by reset)", True)
+    for i, st, w in waits:
+        print(f"      RB01 connection {i} ({st}) waited {w:.1f} s for a free slot")
+    check(f"RB01 {len(plan)} connections closed at every state (half by reset)", True,
+          f"{len(waits)} waited for a free slot, longest {max((w for _, _, w in waits), default=0):.1f} s")
     alive("RB01 afterwards: a new client gets a full frame")
+
+
+def one_connection(rnd, st):
+    """One RB01 connection: taken to state ST, then closed, by reset or orderly as RND decides (one draw per
+    connection that gets through, so a connection tried again keeps the plan's sequence)."""
+    s = connect()
+    try:
+        if st != "accept":
+            recvn(s, 12)
+            s.sendall(b"RFB 003.008\n")
+        if st not in ("accept", "after version"):
+            recvn(s, 2)
+            s.sendall(bytes([2]))
+        if st not in ("accept", "after version", "after security type"):
+            ch = recvn(s, 16)
+        if st in ("after response", "after ClientInit", "mid request", "mid frame"):
+            s.sendall(response(ch))
+            recvn(s, 4)
+        if st in ("after ClientInit", "mid request", "mid frame"):
+            s.sendall(bytes([1]))
+            w, h = struct.unpack(">HH", recvn(s, 4))
+            recvn(s, 16)
+            recvn(s, struct.unpack(">I", recvn(s, 4))[0])
+        if st == "mid request":
+            s.sendall(bytes([3, 0, 0]))  # a request cut after 3 of its 10 bytes
+        if st == "mid frame":
+            s.sendall(struct.pack(">BBHHHH", 3, 0, 0, 0, w, h))
+            recvn(s, 4096)  # part of the update, then go
+    except BaseException:
+        s.close()
+        raise
+    if rnd.random() < 0.5:  # half of them by reset instead of an orderly close
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("HH" if os.name == "nt" else "ii", 1, 0))
+    s.close()
 
 
 def handshake_slots():

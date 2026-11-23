@@ -154,7 +154,7 @@ Every request has a time limit: an agent that does not answer makes a command pr
 | Test | Where | What it checks |
 |---|---|---|
 | `agent/tests/core_test.c` | on the target | DES and VNC authentication against independent values; the handshake and its refusals; the tile marks and the schedule (a change made while a client is busy, partial requests, the hold-off between captures, the timed capture); release of held keys and buttons on disconnect; message limits |
-| `host/tests/robustness.py <Pi>:5901` | from a host | wrong password, unknown messages, a fifth client, silent connections, a client that stops reading, 208 connections closed at every protocol state |
+| `host/tests/robustness.py <Pi>:5901` | from a host | wrong password, unknown messages, a fifth client, silent connections, a client that stops reading, 208 connections closed at every protocol state (a connection turned away while earlier ones still hold their slots waits for a free slot, up to 35 s, and the waits are reported: from macOS a connection closed by reset can hold its slot until the agent's keepalive, about 10 s) |
 | `host/spikes/oculix_input/OculixInputProbe.java` | from a host | 15 OculiX input calls through the agent; what arrives is logged by `agent/spikes/input_log.c` on the target |
 
 ## The demo
