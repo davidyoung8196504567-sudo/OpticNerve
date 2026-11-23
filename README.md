@@ -169,6 +169,12 @@ and `host/demo/DemoTest.java` is the OculiX test that drives it through the agen
 java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out [-slow] [-fail] [-brief] [-repeat=N] [-cols=N]
 ```
 
+Every test and tool that sends input does it the way a hand does: the pointer glides to its target along a slightly
+curved path at about 60 pointer events a second (0.5 to 0.8 s), rests, and clicks with the button held 50 to 90 ms;
+keys come 60 to 180 ms apart (`host/tools/hand.py`, and the same model in each Java test and OculiX script). There is
+no faster mode (`tests/regression/test_hand.py` checks that no test sends input any other way). The one exception is
+`host/spikes/oculix_input/OculixInputProbe.java`, a probe of OculiX's own input calls. `-slow` adds a pause after each caption, for recording; `-brief` prints only the PASS and FAIL lines.
+
 `host/demo/DemoTest.sikuli` is the same test as an OculiX IDE script, checked only by pictures and OCR as a test made
 in the IDE is. Open it in the OculiX 4.0.0 IDE, started with the TigerVNC jar first (`java -cp
 "tigervnc-java-oculix-2.0.4.jar;oculixide-4.0.0-windows.jar" org.sikuli.ide.Sikulix`), with `ON_HOST` and

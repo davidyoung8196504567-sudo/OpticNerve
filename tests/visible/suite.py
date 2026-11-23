@@ -381,17 +381,13 @@ def t_camera_sees_monitor():
 def t_pointer_square():
     to_launcher()
     pi("rs /tmp/screen_probe status >/dev/null")  # read the counters once before the moves
-    corners = [(560, 240), (1360, 240), (1360, 840), (560, 840), (560, 240)]
-    actions = []
-    for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
-        for i in range(1, 11):
-            actions += [f"move:{x0 + (x1 - x0) * i // 10},{y0 + (y1 - y0) * i // 10}", "wait:0.1"]
-    vnc(*actions, "move:960,540")
+    corners = [(560, 240), (1360, 240), (1360, 840), (560, 840), (560, 240), (960, 540)]
+    vnc(*[f"move:{x},{y}" for x, y in corners])   # by hand: at least 30 pointer events for each of the 6 moves
     out = pi("rs /tmp/screen_probe status") or ""
     m = re.search(r"metrics: .*?event=(\d+)", out)
     events = int(m.group(1)) if m else -1
-    return ("PASS" if events >= 41 else "FAIL"), (f"VNC: 41 pointer moves sent round a square; SSH: Screen counted "
-                                                  f"{events} input events")
+    return ("PASS" if events >= 150 else "FAIL"), (f"VNC: the pointer moved by hand round a square (6 moves, at least "
+                                                  f"180 pointer events); SSH: Screen counted {events} input events")
 
 
 def open_terminal():
@@ -646,7 +642,7 @@ MAIN = [
     ("A06", "GTK4 demo tile (cube icon)", "the GTK4 demo window, then the launcher", ["F03"], t_gtk4),
     ("A01", "camera viewfinder runs", "moving colour bars, then the launcher", ["C01"], t_viewfinder),
     ("A02", "Alt+Del closes an app", "gears, Alt+Del, then the launcher", ["F04"], t_alt_del),
-    ("S01", "update signal fires on a change", "the pointer jumps to 5 spots", ["F02"], t_update_on_change),
+    ("S01", "update signal fires on a change", "the pointer moves by hand to 5 spots", ["F02"], t_update_on_change),
     ("S02", "no update signal on a static screen", "the launcher, still", [], t_update_static),
     ("O01", "OculiX finds the Gears tile and clicks it", "gears open, then the launcher", ["F03"], t_oculix_click),
     ("A03", "sudo shutdown returns to the launcher", "login, 'sudo shutdown', the Pi reboots to the launcher",

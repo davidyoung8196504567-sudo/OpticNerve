@@ -7,8 +7,8 @@
 A - for HOST takes ON_HOST and ON_VNC_PORT, a - for PASSWORD takes ON_VNC_PASSWORD (host/tools/on_env.py).
 
 Connects to the OpticNerve agent (RFB 3.8, VNC password, raw encoding, 32 bits per pixel) and acts like a viewer
-driven by a hand on the demo panel (agent/demo/demo_panel.c): it moves the pointer to +1 along a curved path at about
-60 pointer events a second (0.5 to 0.8 s, ease-in and ease-out, as host/qemu tests do through a real viewer), clicks,
+driven by a hand on the demo panel (agent/demo/demo_panel.c): it moves the pointer to +1 the way a hand does
+(host/tools/hand.py: a curved path at about 60 pointer events a second, 0.5 to 0.8 s, easing in and out), clicks,
 then does the same to LAMP; one untimed +1 (so that RESET changes something), RESET, then ROUNDS rounds (default 10). A reader thread keeps an incremental
 FramebufferUpdateRequest outstanding, as a viewer does, and notes the arrival time of every update rectangle.
 For each click it reports the time from the button release to the first update that covers the count box (+1,
@@ -16,7 +16,7 @@ RESET) or the lamp (LAMP), which is the target's and the network's share of the 
 Takes input ownership while connected (the agent gives input to one client at a time), so no other client may be
 driving the target. Needs cryptography.
 """
-import math, os, random, socket, struct, sys, threading, time, traceback
+import os, random, socket, struct, sys, threading, time, traceback
 
 try:
     from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
@@ -25,6 +25,7 @@ except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same c
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import on_env
+from hand import Hand
 on_env.load()
 
 
@@ -127,30 +128,7 @@ def main():
     threading.Thread(target=reader, daemon=True).start()
     time.sleep(2)
     random.seed(1)
-    pos = [960, 1000]
-
-    def ptr(buttons, x, y):
-        send(struct.pack(">BBHH", 5, buttons, max(0, min(W - 1, int(x))), max(0, min(H - 1, int(y)))))
-
-    def hand_move(x1, y1):
-        x0, y0 = pos
-        dist = math.hypot(x1 - x0, y1 - y0)
-        dur = 0.5 + 0.3 * min(1.0, dist / 1500)
-        bend = random.uniform(-0.15, 0.15) * dist
-        nx, ny = (-(y1 - y0) / dist, (x1 - x0) / dist) if dist else (0, 0)
-        cx, cy = (x0 + x1) / 2 + nx * bend, (y0 + y1) / 2 + ny * bend
-        steps = max(2, int(dur * 60))
-        for i in range(1, steps + 1):
-            t = i / steps
-            e = t * t * (3 - 2 * t)
-            x = (1 - e) ** 2 * x0 + 2 * (1 - e) * e * cx + e * e * x1
-            y = (1 - e) ** 2 * y0 + 2 * (1 - e) * e * cy + e * e * y1
-            if i < steps:
-                x += random.uniform(-1.5, 1.5)
-                y += random.uniform(-1.5, 1.5)
-            ptr(0, x, y)
-            time.sleep(dur / steps)
-        pos[:] = [x1, y1]
+    hand = Hand(send, W, H, "%s:%d" % on_env.vnc_address(sys.argv[1], 5901), seed=1, start=(960, 1000))
 
     results = []
 
@@ -159,11 +137,7 @@ def main():
             sys.exit("the reader stopped, so no frame after this point can be timed:\n" + reader_error[0])
         gx, gy = TARGETS[name]
         tx, ty = gx + random.uniform(-60, 60), gy + random.uniform(-40, 40)
-        hand_move(tx, ty)
-        time.sleep(random.uniform(0.08, 0.2))
-        ptr(1, tx, ty)
-        time.sleep(0.05 + random.uniform(0, 0.04))
-        ptr(0, tx, ty)
+        hand.click(tx, ty)
         t_up = time.time()
         box = LAMP_BOX if name == "LAMP" else COUNT_BOX
         seen = None

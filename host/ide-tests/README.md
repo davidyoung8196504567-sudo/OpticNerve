@@ -29,8 +29,10 @@ viewer, because the agent sends none (ON-AG-001 in [docs/ISSUES.md](../../docs/I
 
 Start from `Template.sikuli`: copy the folder, rename the folder and its `.py` to the test's name.
 
-- **Every call goes to `vnc`**: `vnc.click(...)`, `vnc.exists(...)`, `vnc.type(...)`. A bare `click("x.png")` searches
-  and clicks this computer's screen.
+- **Input by hand, searches on `vnc`**: click with `click_on(image)` (or `hand_click(x, y)`) and type with
+  `hand_type("text")`, the template's hand: the pointer glides to the target and clicks as a person does, and keys
+  come one at a time (the same model as every other test, `host/tools/hand.py`). Search with `vnc.exists(...)`,
+  `vnc.wait(...)`. A bare `click("x.png")` searches and clicks this computer's screen, at machine speed.
 - **One capture per line, named straight away.** The IDE names a capture after the first word of a line that has an
   `=` (`plus = <capture>` gives `plus.png`), and it overwrites an existing file of that name. Several captures on one
   line, or two lines starting with the same name, overwrite each other (reported to OculiX; still in 870a7ff4).
@@ -38,9 +40,7 @@ Start from `Template.sikuli`: copy the folder, rename the folder and its `.py` t
 - **Leave the screen as you found it.** End with the steps that undo the test (close what it opened, reset what it
   changed), and check the start state again, so runs can follow one another.
 - **No passwords in scripts**: read them from the environment (`System.getenv`).
-- Enter is `vnc.type("\r")`.
-- **Hold clicks 50 ms**: set `Settings.ClickDelay = 0.05` before each click (OculiX resets it after every click, and
-  with its default of 0 the press and the release go out together, which some applications miss).
+- Enter is `hand_type("\r")`.
 - **Start applications over SSH**, not from the quick-start launcher's tiles, so a test doesn't depend on what ran
   before it. For the demo panel, `host/tools/demo_panel.sh start` stops any panel and starts a fresh one (count 0,
   lamp GREEN, no pointer marker; `-marker` to show it), and `stop` ends it. It needs `ON_LOGIN_PASSWORD` (the Pi's

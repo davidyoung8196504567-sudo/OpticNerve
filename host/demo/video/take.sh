@@ -50,7 +50,7 @@ sleep 4
 say "Run the OculiX test against the target through the agent"
 run "java DemoTest $H -slow -fail" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/DemoTest.java $H - demo-out -slow -fail -cols=50 2>&1 | grep --line-buffered -E '^(==>|PASS|FAIL|ALL|[0-9]+ FAILED|    )'"
 sleep 5
-say "The same test at full speed, three times in a row (the panel without its pointer marker)"
+say "The same test without captions, three times in a row (the panel without its pointer marker)"
 bash host/tools/pi_ssh.sh 'cd /data/home/qnxuser; slay -f demo_panel >/dev/null 2>&1; nohup ./demo_panel -nomarker 600 > demo.log 2>&1 < /dev/null & sleep 1' > /dev/null
 run "java DemoTest $H -brief -repeat=3" "java -cp \"\$ON_TIGERVNC_JAR;\$ON_OCULIX_JAR\" host/demo/DemoTest.java $H - demo-out -brief -repeat=3 -cols=50 2>&1 | grep --line-buffered -E '^(PASS|FAIL|ALL|[0-9]+ |run |    )'"
 sleep 5

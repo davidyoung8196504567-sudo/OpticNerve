@@ -13,7 +13,7 @@
 // the course closes Widget Factory (over SSH) and opens it again from the Applications menu, so that every run starts
 // alike.
 // All three pages. -only=A|B runs just the obstacles whose name contains A or B; -page=N just that page; -repeat=N
-// each obstacle N times; -move=S OculiX's MoveMouseDelay (default 0.1 s).
+// each obstacle N times. The pointer, the buttons and the keys are used the way a hand uses them (see glide below).
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,6 +63,108 @@ public class ObstacleCourse {
     static int vncPort() { return Integer.parseInt(cfg("ON_VNC_PORT", "5901")); }
 
     static VNCScreen s;
+
+    // A hand on the mouse and keyboard: the one way this test sends input (the model of host/tools/hand.py; the same
+    // block in each Java test, kept identical by tests/regression/test_hand.py). The pointer glides from where it is
+    // along a slightly curved path, easing in and out, at about 60 pointer events a second (0.5 to 0.8 s by distance,
+    // about 1.5 px of tremor), rests 80 to 200 ms, then clicks with the button held 50 to 90 ms: OculiX's click, with
+    // MoveMouseDelay 0 so that OculiX adds no move of its own, and ClickDelay set each time (OculiX resets it after
+    // each click; with 0 the press and release go out together). A double or triple click holds each press 50 to
+    // 90 ms, 80 to 150 ms apart. A drag holds the button along such a path. Each key is held 40 to 80 ms and comes 60
+    // to 180 ms after the last, one character at a time (typed at full speed, a Developer Desktop application got some
+    // characters out of order and lost others, 2026-11-17); wheel notches come 60 to 150 ms apart. The agent does not
+    // report where the pointer is, so the first move of a run starts at the bottom centre of the screen.
+    static final java.util.Random hand = new java.util.Random();
+    static int handX = -1, handY = -1;
+    static { org.sikuli.basics.Settings.MoveMouseDelay = 0; }
+
+    static void rest(double lo, double hi) throws InterruptedException {
+        Thread.sleep((long) (1000 * (lo + hand.nextDouble() * (hi - lo))));
+    }
+
+    static void glide(int x, int y) throws Exception {
+        org.sikuli.basics.Settings.MoveMouseDelay = 0;
+        int w = s.getW(), h = s.getH();
+        x = Math.max(0, Math.min(w - 1, x));
+        y = Math.max(0, Math.min(h - 1, y));
+        if (handX < 0) { handX = w / 2; handY = h - 1; }
+        double dist = Math.hypot(x - handX, y - handY), dur = 0, cx = x, cy = y;
+        int steps = 1;
+        if (dist >= 1) {
+            dur = 0.5 + 0.3 * Math.min(1, dist / 1500);
+            double bend = (hand.nextDouble() * 0.3 - 0.15) * dist;
+            cx = (handX + x) / 2.0 - (y - handY) / dist * bend;
+            cy = (handY + y) / 2.0 + (x - handX) / dist * bend;
+            steps = Math.max(2, (int) (dur * 60));
+        }
+        for (int i = 1; i <= steps; i++) {
+            double t = (double) i / steps, e = t * t * (3 - 2 * t);
+            double qx = (1 - e) * (1 - e) * handX + 2 * (1 - e) * e * cx + e * e * x;
+            double qy = (1 - e) * (1 - e) * handY + 2 * (1 - e) * e * cy + e * e * y;
+            if (i < steps) { qx += hand.nextDouble() * 3 - 1.5; qy += hand.nextDouble() * 3 - 1.5; }
+            s.getRobot().mouseMove((int) Math.max(0, Math.min(w - 1, Math.round(qx))),
+                                   (int) Math.max(0, Math.min(h - 1, Math.round(qy))));
+            if (dur > 0) Thread.sleep((long) (dur * 1000 / steps));
+        }
+        handX = x;
+        handY = y;
+    }
+
+    static void handClick(int x, int y) throws Exception {
+        glide(x, y);
+        rest(0.08, 0.2);
+        org.sikuli.basics.Settings.ClickDelay = 0.05 + hand.nextDouble() * 0.04;
+        s.click(s.newLocation(handX, handY));
+    }
+
+    // A double click (n = 2) or a triple click (n = 3), each press held 50 to 90 ms, 80 to 150 ms apart.
+    static void handClicks(int x, int y, int n) throws Exception {
+        glide(x, y);
+        rest(0.08, 0.2);
+        for (int i = 0; i < n; i++) {
+            if (i > 0) rest(0.08, 0.15);
+            s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
+            try {
+                rest(0.05, 0.09);
+            } finally {
+                s.getRobot().mouseUp(org.sikuli.script.Mouse.LEFT);
+            }
+        }
+    }
+
+    static void handDrag(int x1, int y1, int x2, int y2) throws Exception {
+        glide(x1, y1);
+        rest(0.08, 0.2);
+        s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
+        try {
+            rest(0.1, 0.2);
+            glide(x2, y2);
+            rest(0.08, 0.2);
+        } finally {
+            s.getRobot().mouseUp(org.sikuli.script.Mouse.LEFT);
+        }
+    }
+
+    static void handType(String text) throws Exception {
+        for (int i = 0; i < text.length(); i++) {
+            String k = text.substring(i, i + 1);
+            rest(0.06, 0.18);
+            s.keyDown(k);
+            try {
+                rest(0.04, 0.08);
+            } finally {
+                s.keyUp(k);
+            }
+        }
+    }
+
+    static void handWheel(int direction, int notches) throws Exception {
+        for (int i = 0; i < notches; i++) {
+            if (i > 0) rest(0.06, 0.15);
+            s.wheel(direction, 1);
+        }
+    }
+    // (end of the hand)
     static int cols;
 
     static void say(String prefix, String text) {
@@ -195,8 +297,8 @@ public class ObstacleCourse {
                 f.getParentFile().mkdirs();
                 javax.imageio.ImageIO.write(s.capture().getImage(), "png", f);
                 sc.detail += "; the screen is in " + f.getPath();
-                s.type(Key.ESC);
-                s.type(Key.ESC);
+                handType(Key.ESC);
+                handType(Key.ESC);
                 Thread.sleep(500);
             } catch (Throwable ignored) {
             }
@@ -275,12 +377,10 @@ public class ObstacleCourse {
         lastClick = System.currentTimeMillis();
     }
 
-    // OculiX's click, holding the button 50 ms as a hand does (ClickDelay; OculiX resets it after each click): a GTK
-    // switch missed clicks whose press and release came together (2026-11-17). OculiX's mouseDown and mouseUp with
-    // a pause between produced no clicks here.
+    // A click by hand (handClick: the button held 50 to 90 ms; a GTK switch missed clicks whose press and release came
+    // together, 2026-11-17).
     static void press(int x, int y) throws Exception {
-        org.sikuli.basics.Settings.ClickDelay = 0.05;
-        s.click(s.newLocation(x, y));
+        handClick(x, y);
     }
 
     // A spot that does nothing when clicked but makes the window active: the header bar, beside the page tabs. (A
@@ -296,7 +396,7 @@ public class ObstacleCourse {
     }
 
     static void away() throws Exception {
-        s.mouseMove(s.newLocation(1900, 1050)); // off the controls, so that none is drawn as under the pointer
+        glide(1900, 1050); // off the controls, so that none is drawn as under the pointer
     }
 
     static int[] box(int cx, int cy, int w, int h) {
@@ -328,7 +428,7 @@ public class ObstacleCourse {
             BufferedImage before = grab(r);
             click(x, y);
             if (!await(r, before, false, 6)) throw new Fail("no " + what + " opened");
-            s.type(Key.ESC);
+            handType(Key.ESC);
             Thread.sleep(500);
             refocus();
             if (!await(r, before, true, 3)) throw new Fail("the " + what + " did not close with Escape");
@@ -358,7 +458,7 @@ public class ObstacleCourse {
                 opened = count(area);
             }
             if (opened < least) throw new Fail("no " + what + " opened (" + opened + " sample points changed)");
-            s.type(Key.ESC);
+            handType(Key.ESC);
             Thread.sleep(800);
             refocus(); // the window stays drawn inactive after its dialog closes, until it is clicked
             int left = opened;
@@ -425,7 +525,7 @@ public class ObstacleCourse {
     static Run entry(int x, int y, int[] r, String text, int[] clear) {
         return () -> {
             selectAll(x, y);
-            typeSlowly(text);
+            handType(text);
             String got = waitText(r, text, 3);
             if (!got.contains(text)) throw new Fail("OCR read \"" + got + "\", not \"" + text + "\"");
             if (clear == null) return "OCR read \"" + got + "\"";
@@ -438,25 +538,16 @@ public class ObstacleCourse {
         };
     }
 
-    // One character at a time: typed at full speed, characters arrived out of order in a Developer Desktop
-    // application (2026-11-17, in the web browser).
-    static void typeSlowly(String text) throws Exception {
-        for (char c : text.toCharArray()) {
-            s.type(String.valueOf(c));
-            Thread.sleep(40);
-        }
-    }
-
     // Drags a slider's knob; the region changes; dragging back changes it again.
     static Run slider(int x1, int y1, int x2, int y2, int[] r) {
         return () -> {
             away();
             BufferedImage before = grab(r);
-            s.dragDrop(s.newLocation(x1, y1), s.newLocation(x2, y2));
+            handDrag(x1, y1, x2, y2);
             away();
             if (!await(r, before, false, 2)) throw new Fail("the drag did not move it");
             BufferedImage moved = grab(r);
-            s.dragDrop(s.newLocation(x2, y2), s.newLocation(x1, y1));
+            handDrag(x2, y2, x1, y1);
             away();
             if (!await(r, moved, false, 2)) throw new Fail("dragging back did not move it");
             return "dragged, and back";
@@ -488,8 +579,6 @@ public class ObstacleCourse {
         for (String x : a) if (x.startsWith("-page=")) onlyPage = x.substring(6);
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
-        org.sikuli.basics.Settings.MoveMouseDelay = 0.1f;
-        for (String x : a) if (x.startsWith("-move=")) org.sikuli.basics.Settings.MoveMouseDelay = Float.parseFloat(x.substring(6));
 
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
         sshFallback = a[0].equals("-") ? null : a[0];
@@ -500,11 +589,11 @@ public class ObstacleCourse {
         ssh("rs slay -f gtk4-widget-factory >/dev/null 2>&1; sleep 1");
         click(55, 12); // Applications
         Thread.sleep(1200);
-        s.mouseMove(s.newLocation(70, 202)); // Development
+        glide(70, 202); // Development
         Thread.sleep(1200);
-        s.mouseMove(s.newLocation(200, 202));
-        s.mouseMove(s.newLocation(266, 202));
-        s.mouseMove(s.newLocation(266, 486)); // Widget Factory (GTK+ 4)
+        glide(200, 202);
+        glide(266, 202);
+        glide(266, 486); // Widget Factory (GTK+ 4)
         Thread.sleep(500);
         click(266, 486);
         // It opens maximized if it was when it closed, otherwise somewhere else, in different sizes: found by its tab
@@ -806,17 +895,14 @@ public class ObstacleCourse {
     }
 
     // A tree's expander triangle. After OculiX's quick move (MoveMouseDelay 0.1 s) the click only selected the row
-    // (11 of 11, also with a 300 ms rest on the triangle before the click); after its default move (0.5 s) it closed
-    // and opened the branch (3 of 3).
+    // (11 of 11, also with a 300 ms rest on the triangle before the click); after a 0.5 s move it closed and opened
+    // the branch (3 of 3). A hand's move takes 0.5 s or more.
     static Run expander(int x, int y, int[] r) {
         return () -> {
             away();
             BufferedImage before = grab(r);
             for (int i = 0; i < 2; i++) {
-                float quick = org.sikuli.basics.Settings.MoveMouseDelay;
-                org.sikuli.basics.Settings.MoveMouseDelay = 0.5f;
-                s.mouseMove(s.newLocation(x, y));
-                org.sikuli.basics.Settings.MoveMouseDelay = quick;
+                glide(x, y);
                 Thread.sleep(300);
                 click(x, y);
                 away();
@@ -830,16 +916,16 @@ public class ObstacleCourse {
     // finds `top` in it: the pixels did not always come back exactly).
     static Run scroll(int x, int y, int[] r, int[] first, String top) {
         return () -> {
-            s.mouseMove(s.newLocation(x, y));
+            glide(x, y);
             Thread.sleep(300);
             BufferedImage before = grab(r);
-            s.wheel(org.sikuli.script.Button.WHEEL_DOWN, 3);
+            handWheel(org.sikuli.script.Button.WHEEL_DOWN, 3);
             away();
             if (!await(r, before, false, 3)) throw new Fail("the wheel did not scroll it");
             String gone = ocr(first);
             if (gone.contains(top)) throw new Fail("the first line is still there: OCR read \"" + gone + "\"");
-            s.mouseMove(s.newLocation(x, y));
-            s.wheel(org.sikuli.script.Button.WHEEL_UP, 3);
+            glide(x, y);
+            handWheel(org.sikuli.script.Button.WHEEL_UP, 3);
             away();
             String back = waitText(first, top, 4);
             if (!back.contains(top)) throw new Fail("the wheel back did not bring back the first line: OCR read \"" + back + "\"");
@@ -853,12 +939,12 @@ public class ObstacleCourse {
     static Run typeLine(int x, int y, int[] line2, String word) {
         return () -> {
             click(x, y);
-            s.type(Key.END);
-            s.type("\r");
-            typeSlowly("  " + word); // indented: at the very edge, OCR read the first letter wrong ("oump")
+            handType(Key.END);
+            handType("\r");
+            handType("  " + word); // indented: at the very edge, OCR read the first letter wrong ("oump")
             String typed = waitText(line2, word, 3);
             if (!typed.contains(word)) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
-            for (int i = 0; i <= word.length() + 2; i++) s.type(Key.BACKSPACE);
+            for (int i = 0; i <= word.length() + 2; i++) handType(Key.BACKSPACE);
             String after = ocr(line2);
             for (long end = System.nanoTime() + 2_000_000_000L; after.contains(word) && System.nanoTime() < end; ) after = ocr(line2);
             if (after.contains(word)) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
@@ -870,8 +956,8 @@ public class ObstacleCourse {
     static Run hexEntry(String name, int want) {
         return () -> {
             selectAll(1664, 312);
-            typeSlowly(name);
-            s.type("\r");
+            handType(name);
+            handType("\r");
             away();
             String hex = String.format("%06X", want);
             int got = -1;
@@ -911,8 +997,8 @@ public class ObstacleCourse {
     // The Developer Desktop blanks the screen after some idle minutes, and then shows "Unlock your desktop" with a
     // green circle to click (no password). Moves the pointer to wake it, and clicks the circle if it is there.
     static void wake() throws Exception {
-        s.mouseMove(s.newLocation(900, 500));
-        s.mouseMove(s.newLocation(960, 540));
+        glide(900, 500);
+        glide(960, 540);
         Thread.sleep(1500);
         String lock = ocr(new int[] { 660, 380, 600, 320 });
         if (lock.contains("Unlock")) {
@@ -1029,9 +1115,12 @@ public class ObstacleCourse {
     // Selects all the text of an entry with a triple click (Ctrl+A from OculiX arrived as a plain "a" here,
     // 2026-11-17).
     static void selectAll(int x, int y) throws Exception {
-        click(x, y);
-        press(x, y);
-        press(x, y);
+        if (Math.abs(x - lastAt[0]) < 8 && Math.abs(y - lastAt[1]) < 8) {
+            long wait = lastClick + 800 - System.currentTimeMillis();
+            if (wait > 0) Thread.sleep(wait);
+        }
+        handClicks(x, y, 3);
+        lastAt = new int[] { x, y };
         lastClick = System.currentTimeMillis();
     }
 
@@ -1087,11 +1176,11 @@ public class ObstacleCourse {
         return () -> {
             String before = ocr(r);
             click(x, y);
-            s.type(Key.HOME);
-            typeSlowly(word + " ");
+            handType(Key.HOME);
+            handType(word + " ");
             String typed = waitText(r, word, 3);
             if (count(typed, word) <= count(before, word)) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
-            for (int i = 0; i <= word.length(); i++) s.type(Key.BACKSPACE);
+            for (int i = 0; i <= word.length(); i++) handType(Key.BACKSPACE);
             String after = ocr(r);
             for (long end = System.nanoTime() + 2_000_000_000L; count(after, word) > count(before, word) && System.nanoTime() < end; ) after = ocr(r);
             if (count(after, word) > count(before, word)) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");
@@ -1138,7 +1227,7 @@ public class ObstacleCourse {
     static Run lineSelect(int x, int y, int cx, int cy) {
         return () -> {
             click(x, y);
-            s.doubleClick(s.newLocation(x, y));
+            handClicks(x, y, 2);
             lastClick = System.currentTimeMillis();
             away();
             boolean sel = false;
@@ -1204,7 +1293,7 @@ public class ObstacleCourse {
             if (!shown) throw new Fail("no search bar");
             Thread.sleep(500);
             click(960, 176);
-            typeSlowly("777");
+            handType("777");
             int[] field = { 872, 164, 140, 26 }; // the field's text (OCR read nothing in the whole bar)
             String typed = waitText(field, "777", 3);
             if (!typed.contains("777")) throw new Fail("OCR read \"" + typed + "\" in the search field");
@@ -1213,7 +1302,7 @@ public class ObstacleCourse {
             for (long end = System.nanoTime() + 2_000_000_000L; after.contains("777") && System.nanoTime() < end; ) after = ocr(field);
             if (after.contains("777")) throw new Fail("the erase button left \"" + after + "\"");
             click(960, 176); // Escape in the field closes the bar (so does its close button; Search again does nothing, as with the real mouse)
-            s.type(Key.ESC);
+            handType(Key.ESC);
             away();
             if (!await(bar, before, true, 3)) throw new Fail("Escape did not hide the bar");
             return "bar shown, \"777\" typed and erased, bar hidden with Escape";
@@ -1328,7 +1417,7 @@ public class ObstacleCourse {
         return () -> {
             int[] r = box(260, 319, 480, 30);
             selectAll(260, 319);
-            typeSlowly("thump3");
+            handType("thump3");
             Thread.sleep(300);
             String hidden = ocr(r);
             if (hidden.contains("thump3")) throw new Fail("the password is shown as typed: \"" + hidden + "\"");
@@ -1378,12 +1467,12 @@ public class ObstacleCourse {
         return () -> {
             int[] value = { 990, 285, 60, 26 };
             String v0 = ocr(value);
-            s.dragDrop(s.newLocation(1018, 514), s.newLocation(1018, 400));
+            handDrag(1018, 514, 1018, 400);
             away();
             String v1 = v0;
             for (long end = System.nanoTime() + 2_000_000_000L; v1.equals(v0) && System.nanoTime() < end; ) v1 = ocr(value);
             if (v1.equals(v0)) throw new Fail("its value stayed \"" + v0 + "\"");
-            s.dragDrop(s.newLocation(1018, 400), s.newLocation(1018, 514));
+            handDrag(1018, 400, 1018, 514);
             away();
             String v2 = v1;
             for (long end = System.nanoTime() + 2_000_000_000L; v2.equals(v1) && System.nanoTime() < end; ) v2 = ocr(value);
@@ -1397,11 +1486,11 @@ public class ObstacleCourse {
             int[] r = { 1560, 420, 350, 40 };
             String before = ocr(r);
             click(1580, 432);
-            s.type(Key.HOME);
-            typeSlowly("777 ");
+            handType(Key.HOME);
+            handType("777 ");
             String typed = waitText(r, "777", 3);
             if (count(typed, "777") <= count(before, "777")) throw new Fail("the typing did not show: OCR read \"" + typed + "\"");
-            for (int i = 0; i < 3; i++) s.type(Key.BACKSPACE);
+            for (int i = 0; i < 3; i++) handType(Key.BACKSPACE);
             String after = ocr(r);
             for (long end = System.nanoTime() + 2_000_000_000L; count(after, "777") > count(before, "777") && System.nanoTime() < end; ) after = ocr(r);
             if (count(after, "777") > count(before, "777")) throw new Fail("BackSpace did not take it out: OCR read \"" + after + "\"");

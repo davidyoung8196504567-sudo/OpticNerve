@@ -66,6 +66,108 @@ public class GtkDemoTest {
     static int vncPort() { return Integer.parseInt(cfg("ON_VNC_PORT", "5901")); }
 
     static VNCScreen s;
+
+    // A hand on the mouse and keyboard: the one way this test sends input (the model of host/tools/hand.py; the same
+    // block in each Java test, kept identical by tests/regression/test_hand.py). The pointer glides from where it is
+    // along a slightly curved path, easing in and out, at about 60 pointer events a second (0.5 to 0.8 s by distance,
+    // about 1.5 px of tremor), rests 80 to 200 ms, then clicks with the button held 50 to 90 ms: OculiX's click, with
+    // MoveMouseDelay 0 so that OculiX adds no move of its own, and ClickDelay set each time (OculiX resets it after
+    // each click; with 0 the press and release go out together). A double or triple click holds each press 50 to
+    // 90 ms, 80 to 150 ms apart. A drag holds the button along such a path. Each key is held 40 to 80 ms and comes 60
+    // to 180 ms after the last, one character at a time (typed at full speed, a Developer Desktop application got some
+    // characters out of order and lost others, 2026-11-17); wheel notches come 60 to 150 ms apart. The agent does not
+    // report where the pointer is, so the first move of a run starts at the bottom centre of the screen.
+    static final java.util.Random hand = new java.util.Random();
+    static int handX = -1, handY = -1;
+    static { org.sikuli.basics.Settings.MoveMouseDelay = 0; }
+
+    static void rest(double lo, double hi) throws InterruptedException {
+        Thread.sleep((long) (1000 * (lo + hand.nextDouble() * (hi - lo))));
+    }
+
+    static void glide(int x, int y) throws Exception {
+        org.sikuli.basics.Settings.MoveMouseDelay = 0;
+        int w = s.getW(), h = s.getH();
+        x = Math.max(0, Math.min(w - 1, x));
+        y = Math.max(0, Math.min(h - 1, y));
+        if (handX < 0) { handX = w / 2; handY = h - 1; }
+        double dist = Math.hypot(x - handX, y - handY), dur = 0, cx = x, cy = y;
+        int steps = 1;
+        if (dist >= 1) {
+            dur = 0.5 + 0.3 * Math.min(1, dist / 1500);
+            double bend = (hand.nextDouble() * 0.3 - 0.15) * dist;
+            cx = (handX + x) / 2.0 - (y - handY) / dist * bend;
+            cy = (handY + y) / 2.0 + (x - handX) / dist * bend;
+            steps = Math.max(2, (int) (dur * 60));
+        }
+        for (int i = 1; i <= steps; i++) {
+            double t = (double) i / steps, e = t * t * (3 - 2 * t);
+            double qx = (1 - e) * (1 - e) * handX + 2 * (1 - e) * e * cx + e * e * x;
+            double qy = (1 - e) * (1 - e) * handY + 2 * (1 - e) * e * cy + e * e * y;
+            if (i < steps) { qx += hand.nextDouble() * 3 - 1.5; qy += hand.nextDouble() * 3 - 1.5; }
+            s.getRobot().mouseMove((int) Math.max(0, Math.min(w - 1, Math.round(qx))),
+                                   (int) Math.max(0, Math.min(h - 1, Math.round(qy))));
+            if (dur > 0) Thread.sleep((long) (dur * 1000 / steps));
+        }
+        handX = x;
+        handY = y;
+    }
+
+    static void handClick(int x, int y) throws Exception {
+        glide(x, y);
+        rest(0.08, 0.2);
+        org.sikuli.basics.Settings.ClickDelay = 0.05 + hand.nextDouble() * 0.04;
+        s.click(s.newLocation(handX, handY));
+    }
+
+    // A double click (n = 2) or a triple click (n = 3), each press held 50 to 90 ms, 80 to 150 ms apart.
+    static void handClicks(int x, int y, int n) throws Exception {
+        glide(x, y);
+        rest(0.08, 0.2);
+        for (int i = 0; i < n; i++) {
+            if (i > 0) rest(0.08, 0.15);
+            s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
+            try {
+                rest(0.05, 0.09);
+            } finally {
+                s.getRobot().mouseUp(org.sikuli.script.Mouse.LEFT);
+            }
+        }
+    }
+
+    static void handDrag(int x1, int y1, int x2, int y2) throws Exception {
+        glide(x1, y1);
+        rest(0.08, 0.2);
+        s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
+        try {
+            rest(0.1, 0.2);
+            glide(x2, y2);
+            rest(0.08, 0.2);
+        } finally {
+            s.getRobot().mouseUp(org.sikuli.script.Mouse.LEFT);
+        }
+    }
+
+    static void handType(String text) throws Exception {
+        for (int i = 0; i < text.length(); i++) {
+            String k = text.substring(i, i + 1);
+            rest(0.06, 0.18);
+            s.keyDown(k);
+            try {
+                rest(0.04, 0.08);
+            } finally {
+                s.keyUp(k);
+            }
+        }
+    }
+
+    static void handWheel(int direction, int notches) throws Exception {
+        for (int i = 0; i < notches; i++) {
+            if (i > 0) rest(0.06, 0.15);
+            s.wheel(direction, 1);
+        }
+    }
+    // (end of the hand)
     static int fails, cols;
     static boolean record;
 
@@ -306,10 +408,10 @@ public class GtkDemoTest {
         // longer than that after the last click.
         long wait = lastClick + 800 - System.currentTimeMillis();
         if (wait > 0) Thread.sleep(wait);
-        lastClick = System.currentTimeMillis();
         BufferedImage before = s.capture().getImage();
         boolean[][] name = mask(before, y, x + 14);
         click(s.newLocation(x + tri[0] / 2, y));
+        lastClick = System.currentTimeMillis(); // after the press: the glide and rest before it take up to 1 s
         // Near the end of the list, closing a folder makes the list shorter and the rows move down: find the folder
         // again by its label.
         BufferedImage r = awaitFolder(name, x, open);
@@ -343,24 +445,30 @@ public class GtkDemoTest {
 
     static int toggledY;
 
-    // OculiX's click, holding the button 50 ms as a hand does (ClickDelay; OculiX resets it after each click), as in
-    // ObstacleCourse.java: with the default 0 the press and release go out together.
+    // A click by hand on a point, or on something found by image: a hand aims at that, not at its exact centre
+    // (within a quarter of its size).
     static void click(Object target) throws Exception {
-        org.sikuli.basics.Settings.ClickDelay = 0.05;
-        s.click(target);
+        if (target instanceof Match) {
+            Match m = (Match) target;
+            org.sikuli.script.Location c = m.getTarget();
+            handClick(c.x + (int) ((hand.nextDouble() - 0.5) * m.w / 2), c.y + (int) ((hand.nextDouble() - 0.5) * m.h / 2));
+        } else {
+            org.sikuli.script.Location l = (org.sikuli.script.Location) target;
+            handClick(l.x, l.y);
+        }
     }
 
     // Moves the pointer off the sidebar's rows (to the page on the right), so that no row is drawn as under it.
     static void pointerAway() throws Exception {
-        s.mouseMove(s.newLocation(1500, 600));
+        glide(1500, 600);
     }
 
     // Scrolls the sidebar by `notches` of the mouse wheel, towards the end of the list when positive (the pointer over
     // the sidebar while it turns). In the GTK Demo on this image the wheel turned up (away from the user) moves the
     // list towards its end, with the real mouse as well (2026-11-17); the agent sends the values the real mouse does.
     static BufferedImage wheel(int notches) throws Exception {
-        s.mouseMove(s.newLocation(SIDE_W - 60, (TOP + BOTTOM) / 2));
-        s.wheel(notches > 0 ? Button.WHEEL_UP : Button.WHEEL_DOWN, Math.abs(notches));
+        glide(SIDE_W - 60, (TOP + BOTTOM) / 2);
+        handWheel(notches > 0 ? Button.WHEEL_UP : Button.WHEEL_DOWN, Math.abs(notches));
         pointerAway();
         return still(3);
     }
@@ -414,7 +522,6 @@ public class GtkDemoTest {
                 STEP_MS.put(x.substring(6, x.lastIndexOf(':')), Integer.parseInt(x.substring(x.lastIndexOf(':') + 1)));
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
-        org.sikuli.basics.Settings.MoveMouseDelay = 0.2f;
 
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
         sshFallback = a[0].equals("-") ? null : a[0];
@@ -486,8 +593,8 @@ public class GtkDemoTest {
                 if (tri != null) {
                     folders++;
                     // Select the folder by its label: Run must be disabled (a folder runs nothing).
-                    lastClick = System.currentTimeMillis();
                     click(s.newLocation(x + 40, y));
+                    lastClick = System.currentTimeMillis();
                     BufferedImage disabled = await(now -> !runEnabled(now), 1.5);
                     check(pad + name + " (folder) is not runnable", disabled != null,
                             disabled != null ? "" : "the Run button is enabled");
@@ -523,8 +630,8 @@ public class GtkDemoTest {
                 } else {
                     // Click the label; the window's title changes to the demo's name, then the Run button follows.
                     BufferedImage before = img;
-                    lastClick = System.currentTimeMillis();
                     click(s.newLocation(x + 30, y));
+                    lastClick = System.currentTimeMillis();
                     BufferedImage got = await(now -> !same(before, now, TITLE_X, TITLE_Y, TITLE_W, TITLE_H), 1.5);
                     img = await(GtkDemoTest::runEnabled, got == null ? 0.3 : 1);
                     boolean ok = img != null;
