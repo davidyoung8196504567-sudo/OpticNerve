@@ -43,6 +43,7 @@ library override").
 | ID | Issue | Workaround in use | Status |
 |---|---|---|---|
 | ON-AG-001 | The agent sends no cursor: it offers only Raw encoding, without the Cursor pseudo-encoding (-239), and the pointer is not part of the frames it reads from the screen, so a VNC viewer shows no pointer (found 2026-11-19 with TigerVNC 1.16.2) | TigerVNC: `AlwaysCursor=1 CursorType=System` shows the viewer's own pointer where clicks land | to do: send the cursor shape and hotspot (Cursor pseudo-encoding) |
+| ON-AG-002 | The demo panel (`agent/demo/demo_panel.c`) has no way to close it from its own screen: a person at the Pi or in a viewer cannot leave it without SSH (asked by David, 2026-11-23) | `sh host/poc/demo-panel.sh stop` (over SSH) | to do: a close button, an unlabelled X in the top right corner of the panel's title bar as in any windowed GUI (away from +1, RESET and LAMP, so no test clicks it by accident) |
 
 ## Third-party VNC servers
 
