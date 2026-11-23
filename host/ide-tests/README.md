@@ -61,3 +61,7 @@ Start from `Template.sikuli`: copy the folder, rename the folder and its `.py` t
 ```
 java -cp oculixide-5.0.0-complete-win.jar org.sikuli.ide.Sikulix -r host/ide-tests/MyTest.sikuli
 ```
+
+Close the IDE first. On Linux (UBUNTU24, OculiX 870a7ff4 QTB-1 build) a run beside the open IDE crashes one or both
+within seconds, in OculiX's hotkey listener (`jxgrabkey.JXGrabKey.listen`, SIGSEGV), and the IDE's unsaved scripts
+are lost. On a Linux tester, `host/poc/run-test.sh` checks this and says PASS or FAIL.

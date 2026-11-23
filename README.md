@@ -51,6 +51,7 @@ what it cannot learn from pixels alone.
 | `agent/tests/` | Tests of the core (`core_test`) |
 | `agent/spikes/` | Small test programs used to settle design questions on the target (input injection, window placement) |
 | `host/tools/` | Deploy script, a VNC snapshot tool and a VNC input tool (Python) |
+| `host/poc/` | The PoC demo's commands on a Linux tester, with desktop shortcuts: the OculiX IDE, its VNC viewer, SSH to the Pi, the demo panel, a test run without the IDE, and installing the agent on the target ([list](host/poc/README.md)) |
 | `host/qemu/` | The QEMU target: launch script, a 1920 x 1080 virtual display for Screen, and a tunnel to reach the guest ([bring-up](docs/QEMU_BRINGUP.md)) |
 | `host/tests/`, `host/spikes/` | Network robustness tests; OculiX probes for reading and for input |
 | `sdp/` | The pinned QNX SDP baseline and the script that checks a build host against it |

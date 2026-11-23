@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PoC Demo Cheatsheet</title>
+<!-- Source of PoC-cheatsheet.pdf. Rebuild: chrome --headless --no-pdf-header-footer --print-to-pdf=PoC-cheatsheet.pdf cheatsheet.html -->
+<style>
+  @page { size: letter landscape; margin: 0.45in; }
+  :root { --ink: #1b2430; --muted: #5b6573; --rule: #d5dae1; --band: #eef2f7; --accent: #1f5fa8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--ink); background: #fff; font: 9.6pt/1.35 "Segoe UI", Arial, sans-serif; }
+  header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--accent);
+           padding-bottom: 4px; margin-bottom: 8px; }
+  h1 { font-size: 17pt; margin: 0; color: var(--accent); }
+  .sub { color: var(--muted); font-size: 9pt; }
+  h2 { font-size: 10.5pt; margin: 10px 0 4px; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 8.6pt; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--rule); padding: 3px 6px; }
+  td { vertical-align: top; padding: 4px 6px; border-bottom: 1px solid var(--rule); }
+  tr:nth-child(even) td { background: var(--band); }
+  td.n { width: 22px; font-weight: 700; color: var(--accent); font-size: 11pt; }
+  td.what { width: 15%; font-weight: 600; }
+  td.cmd { width: 27%; }
+  td.sc { width: 15%; color: var(--muted); }
+  code { font: 8.8pt Consolas, "Courier New", monospace; background: #e3e9f1; padding: 0 3px; border-radius: 2px; white-space: nowrap; }
+  td.cmd code { display: block; width: fit-content; margin: 1px 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  ol, ul { margin: 0; padding-left: 16px; }
+  li { margin: 1px 0; }
+  .warn { border-left: 3px solid #c0392b; padding-left: 6px; }
+  footer { margin-top: 6px; color: var(--muted); font-size: 8pt; }
+</style>
+</head>
+<body>
+<header>
+  <h1>OpticNerve PoC Demo: Commands</h1>
+  <span class="sub">Tester UBUNTU24 (10.30.1.132), OculiX IDE, drives the target Raspberry Pi 5 on QNX 8 (10.30.1.116)</span>
+</header>
+
+<p class="sub" style="margin:0 0 4px">In a terminal: <code>cd ~/OpticNerve-main/host/poc</code>, then <code>sh &lt;command&gt;</code>. Or double-click the desktop shortcut. Logs: <code>~/ide-session/</code></p>
+
+<table>
+  <tr><th></th><th>Task</th><th>Command</th><th>What it does</th><th>Shortcut</th></tr>
+  <tr><td class="n">1</td><td class="what">Start the IDE</td>
+      <td class="cmd"><code>sh ide.sh</code></td>
+      <td>Starts the OculiX IDE with the Pi's address and passwords set for tests. It opens as a <b>tray icon</b>: open a workspace from it.</td>
+      <td class="sc">OculiX IDE</td></tr>
+  <tr><td class="n">2</td><td class="what">VNC viewer (with control)</td>
+      <td class="cmd"><code>sh viewer.sh</code><code>sh viewer.sh &lt;IP&gt;</code><code>sh viewer.sh &lt;IP&gt;::5900</code></td>
+      <td>OculiX's built-in viewer; mouse and keyboard go to the target. With no address it asks for the address and the password (Enter keeps the saved ones). Port 5901 is the OpticNerve agent; <code>::5900</code> reaches other VNC servers. Saved password for the Pi's agent only; for others, type it.</td>
+      <td class="sc">OculiX VNC viewer</td></tr>
+  <tr><td class="n">3</td><td class="what">SSH to the Pi</td>
+      <td class="cmd"><code>sh ssh-pi.sh</code><code>sh ssh-pi.sh &lt;IP&gt;</code><code>sh ssh-pi.sh - &lt;command&gt;</code></td>
+      <td>A shell on the Pi as <code>qnxuser</code>, logging in by itself; root commands with <code>sudo</code>. <code>-</code> means the saved Pi, to run one command.</td>
+      <td class="sc">SSH to the Pi</td></tr>
+  <tr><td class="n">4</td><td class="what">Demo panel on the Pi</td>
+      <td class="cmd"><code>sh demo-panel.sh</code><code>sh demo-panel.sh stop</code><code>sh demo-panel.sh status</code></td>
+      <td>Starts a <b>fresh</b> panel (count 0, lamp GREEN, 1 hour, no pointer marker), replacing any running one. <code>sh demo-panel.sh start -marker 28800</code>: with the marker, for 8 hours.</td>
+      <td class="sc">Start the demo panel</td></tr>
+  <tr><td class="n">5</td><td class="what">Run a recorded test (IDE closed)</td>
+      <td class="cmd"><code>sh run-test.sh</code><code>sh run-test.sh &lt;Test&gt;</code></td>
+      <td>Runs a saved test and prints <b>PASS</b> or <b>FAIL</b> (exit 0 / 1). With no name it lists the tests in <code>~/ide-tests</code> to choose from. Refuses while the IDE is open.</td>
+      <td class="sc">Run an OculiX test</td></tr>
+  <tr><td class="n">6</td><td class="what">Install the agent on a target</td>
+      <td class="cmd"><code>sh sut.sh build</code><code>sh sut.sh install [&lt;IP&gt;]</code><code>sh sut.sh status | stop | start | undo</code></td>
+      <td><code>build</code> checks the QNX SDP and builds the agent and the demo panel. <code>install</code> puts both on the target and starts the agent (no login limit); it asks first. <code>undo</code> removes both. Record the SHA-256 it prints.</td>
+      <td class="sc">Install and start the agent on the Pi</td></tr>
+</table>
+
+<div class="cols">
+  <div>
+    <h2>Demo flow</h2>
+    <ol>
+      <li><code>sh demo-panel.sh</code>: a fresh panel on the Pi.</li>
+      <li><code>sh ide.sh</code>, open the workspace from the tray icon.</li>
+      <li><code>sh viewer.sh</code>: work the panel, capture images in the IDE.</li>
+      <li>Record and run the test in the IDE. <b>Save it</b> into <code>~/ide-tests/</code>.</li>
+      <li>Quit the IDE, then <code>sh run-test.sh</code>: replay without the IDE.</li>
+    </ol>
+  </div>
+  <div>
+    <h2>Rules</h2>
+    <ul>
+      <li class="warn"><b>One OculiX at a time.</b> A test run beside the open IDE crashes both, and unsaved tests are lost.</li>
+      <li>Keep your hands off the viewer while a test runs: your mouse moves the Pi's pointer.</li>
+      <li>The viewer always has control; never view-only.</li>
+      <li>In a test, start the panel itself: <code>demo_panel("start")</code> (helper in <code>host/ide-tests/README.md</code>).</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Setup (once per tester)</h2>
+    <ul>
+      <li>Settings: <code>~/.config/opticnerve/env</code>, mode 600, values in single quotes: <code>ON_HOST</code>, <code>ON_VNC_PASSWORD</code>, <code>ON_LOGIN_PASSWORD</code>.</li>
+      <li>Shortcuts: <code>sh install-shortcuts.sh</code> (<code>-remove</code> deletes them). If one shows as untrusted: right-click, Allow Launching.</li>
+      <li>After a Pi reboot: <code>sh sut.sh start</code>.</li>
+    </ul>
+  </div>
+</div>
+
+<footer>Full details: <code>host/poc/README.md</code> in the OpticNerve repository. No passwords on this sheet.</footer>
+</body>
+</html>
