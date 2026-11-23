@@ -7,9 +7,11 @@
 #   sh host/tools/demo_panel.sh stop                     stop the panel
 #   sh host/tools/demo_panel.sh status                   say whether a panel is running
 #
-# Needs ON_LOGIN_PASSWORD (and optionally ON_HOST, ON_LOGIN_USER), as host/tools/pi_ssh.sh does, and the panel
-# binary in the login user's home on the target (/data/home/qnxuser/demo_panel). Exits 1 if the step failed.
+# Needs ON_LOGIN_PASSWORD, and reaches the target as host/tools/pi_ssh.sh does (ON_SSH_HOST, ON_SSH_PORT,
+# ON_LOGIN_USER; from the environment or the settings file), and the panel binary in the login user's home on the
+# target (/data/home/qnxuser/demo_panel). Exits 1 if the step failed.
 D=$(cd "$(dirname "$0")" && pwd)
+. "$D/on_env.sh"
 [ -n "$ON_LOGIN_PASSWORD" ] || { echo "demo_panel.sh: set ON_LOGIN_PASSWORD" >&2; exit 1; }
 cmd=$1
 [ $# -gt 0 ] && shift

@@ -28,6 +28,12 @@
   ol, ul { margin: 0; padding-left: 16px; }
   li { margin: 1px 0; }
   .warn { border-left: 3px solid #c0392b; padding-left: 6px; }
+  .page2 { break-before: page; }
+  .page2 h1 { white-space: nowrap; }
+  .cols2 { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; font-size: 8.8pt; }
+  .cols2 td { padding: 3px 5px; }
+  .cols2 code { font-size: 8.2pt; white-space: normal; }
+  .cols2 td:first-child code { white-space: nowrap; }
   footer { margin-top: 6px; color: var(--muted); font-size: 8pt; }
 </style>
 </head>
@@ -90,7 +96,7 @@
   <div>
     <h2>Setup (once per tester)</h2>
     <ul>
-      <li>Settings: <code>~/.config/opticnerve/env</code>, mode 600, values in single quotes: <code>ON_HOST</code>, <code>ON_VNC_PASSWORD</code>, <code>ON_LOGIN_PASSWORD</code>.</li>
+      <li>Settings: <code>~/.config/opticnerve/env</code>, mode 600, values in single quotes: <code>ON_HOST</code>, <code>ON_VNC_PASSWORD</code>, <code>ON_LOGIN_PASSWORD</code>; ports and more on page 2.</li>
       <li>Shortcuts: <code>sh install-shortcuts.sh</code> (<code>-remove</code> deletes them). If one shows as untrusted: right-click, Allow Launching.</li>
       <li>After a Pi reboot: <code>sh sut.sh start</code>.</li>
     </ul>
@@ -98,5 +104,53 @@
 </div>
 
 <footer>Full details: <code>host/poc/README.md</code> in the OpticNerve repository. No passwords on this sheet.</footer>
+
+<section class="page2">
+<header>
+  <h1>Settings: Addresses, Ports, Passwords</h1>
+  <span class="sub">One file for every script: <code>~/.config/opticnerve/env</code> (mode 600)</span>
+</header>
+<p class="sub" style="margin:0 0 4px">Each value comes from the first of: <b>the command line</b> &rarr; <b>the environment</b> &rarr; <b>the settings file</b> &rarr; <b>the default</b>. A <code>-</code> in place of a host or password parameter means "from the settings". Lines are <code>NAME='VALUE'</code>; template <code>host/tools/opticnerve.env.example</code>.</p>
+
+<div class="cols2">
+<div>
+<h2>The settings</h2>
+<table>
+  <tr><th>Variable</th><th>What it is</th><th>Default</th></tr>
+  <tr><td><code>ON_HOST</code></td><td>Target address for VNC (the agent)</td><td><code>10.30.1.116</code></td></tr>
+  <tr><td><code>ON_VNC_PORT</code></td><td>The agent's VNC port, as this host reaches it</td><td><code>5901</code></td></tr>
+  <tr><td><code>ON_SSH_HOST</code></td><td>Target address for SSH, if not <code>ON_HOST</code></td><td><code>ON_HOST</code></td></tr>
+  <tr><td><code>ON_SSH_PORT</code></td><td>Target SSH port</td><td><code>22</code></td></tr>
+  <tr><td><code>ON_LOGIN_USER</code></td><td>SSH login on the target (and sudo)</td><td><code>qnxuser</code></td></tr>
+  <tr><td><code>ON_LOGIN_PASSWORD</code></td><td>That login's password</td><td>none</td></tr>
+  <tr><td><code>ON_VNC_PASSWORD</code></td><td>The agent's VNC password</td><td>none</td></tr>
+  <tr><td><code>ON_JAVA</code></td><td>JDK 17 <code>java</code> for OculiX</td><td><code>~/opticnerve-work/jdk/jdk17/bin/java</code></td></tr>
+  <tr><td><code>ON_OCULIX_JAR</code></td><td>OculiX IDE jar</td><td><code>~/qtb1/oculixide-5.0.0-complete-lux.jar</code></td></tr>
+  <tr><td><code>ON_TESTS</code>, <code>ON_LOGS</code></td><td>Saved tests; logs</td><td><code>~/ide-tests</code>, <code>~/ide-session</code></td></tr>
+  <tr><td><code>ON_QEMU_HOST</code>, <code>ON_GUEST</code></td><td>QEMU host and guest (<code>tunnel.sh</code>)</td><td><code>10.30.1.104</code>, <code>192.168.122.146</code></td></tr>
+  <tr><td><code>ON_OBS_HOST</code>, <code>ON_OBS_PORT</code></td><td>OBS WebSocket (<code>obs_control.py</code>)</td><td><code>127.0.0.1</code>, <code>4455</code></td></tr>
+</table>
+<p class="sub" style="margin:5px 0 0">SSH on another address or port (a port forward): <code>ON_HOST='127.0.0.1'</code>, <code>ON_SSH_PORT='2222'</code>.</p>
+</div>
+<div>
+<h2>Parameters and the settings they map to</h2>
+<table>
+  <tr><th>Command</th><th>Parameter</th><th>Setting</th></tr>
+  <tr><td><code>poc/viewer.sh</code></td><td><code>[HOST[::PORT]]</code></td><td><code>ON_HOST</code>, <code>ON_VNC_PORT</code>; <code>ON_VNC_PASSWORD</code></td></tr>
+  <tr><td><code>poc/ssh-pi.sh</code></td><td><code>[HOST[:PORT]|-]</code></td><td><code>ON_SSH_HOST</code>, <code>ON_SSH_PORT</code>, <code>ON_LOGIN_USER</code>, <code>ON_LOGIN_PASSWORD</code></td></tr>
+  <tr><td><code>poc/sut.sh</code></td><td><code>[HOST[:PORT]]</code></td><td><code>ON_SSH_HOST</code>, <code>ON_SSH_PORT</code>; passwords</td></tr>
+  <tr><td><code>poc/demo-panel.sh</code></td><td>(none)</td><td>SSH settings, <code>ON_LOGIN_PASSWORD</code></td></tr>
+  <tr><td><code>poc/ide.sh</code>, <code>poc/run-test.sh</code></td><td><code>[TEST]</code> (run)</td><td><code>ON_JAVA</code>, <code>ON_OCULIX_JAR</code>, <code>ON_TESTS</code>, <code>ON_LOGS</code></td></tr>
+  <tr><td>IDE tests (<code>.sikuli</code>)</td><td>(none)</td><td><code>ON_HOST</code>, <code>ON_VNC_PORT</code>, <code>ON_VNC_PASSWORD</code></td></tr>
+  <tr><td><code>tools/pi_ssh.sh</code>, <code>demo_panel.sh</code></td><td>(none)</td><td>SSH settings, <code>ON_LOGIN_PASSWORD</code></td></tr>
+  <tr><td><code>tools/opticnerve_deploy.py</code></td><td>(none)</td><td>SSH settings; <code>ON_VNC_PASSWORD</code> (install)</td></tr>
+  <tr><td><code>tools/vnc_snapshot.py</code>, <code>vnc_input.py</code>, <code>vnc_rate.py</code>, <code>vnc_latency.py</code></td><td><code>HOST[:PORT]|-</code>, <code>PASSWORD|-</code></td><td><code>-</code>: <code>ON_HOST</code>, <code>ON_VNC_PORT</code>; <code>ON_VNC_PASSWORD</code></td></tr>
+  <tr><td><code>tests/robustness.py</code></td><td><code>[HOST[:PORT]]</code></td><td><code>ON_HOST</code>, <code>ON_VNC_PORT</code>, <code>ON_VNC_PASSWORD</code></td></tr>
+  <tr><td><code>demo/*.java</code> tests</td><td><code>HOST|-</code>, <code>PASSWORD|-</code></td><td><code>ON_HOST</code>, <code>ON_VNC_PASSWORD</code>, <code>ON_VNC_PORT</code>; SSH settings</td></tr>
+</table>
+<p class="sub" style="margin:5px 0 0">"SSH settings": <code>ON_SSH_HOST</code>, <code>ON_SSH_PORT</code>, <code>ON_LOGIN_USER</code>. Paths are under <code>host/</code>. Full table: <code>docs/SETTINGS.md</code>.</p>
+</div>
+</div>
+</section>
 </body>
 </html>

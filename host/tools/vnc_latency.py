@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Time how long the target takes to show the result of input, with no viewer in between (the agent's share of lag).
 
-    python host/tools/vnc_latency.py HOST[:PORT] PASSWORD [ROUNDS]
+    python host/tools/vnc_latency.py HOST[:PORT] PASSWORD [ROUNDS]     (PORT default 5901)
+    python host/tools/vnc_latency.py - - [ROUNDS]                      the agent, from the settings
+
+A - for HOST takes ON_HOST and ON_VNC_PORT, a - for PASSWORD takes ON_VNC_PASSWORD (host/tools/on_env.py).
 
 Connects to the OpticNerve agent (RFB 3.8, VNC password, raw encoding, 32 bits per pixel) and acts like a viewer
 driven by a hand on the demo panel (agent/demo/demo_panel.c): it moves the pointer to +1 along a curved path at about
@@ -13,13 +16,16 @@ RESET) or the lamp (LAMP), which is the target's and the network's share of the 
 Takes input ownership while connected (the agent gives input to one client at a time), so no other client may be
 driving the target. Needs cryptography.
 """
-import math, random, socket, struct, sys, threading, time, traceback
+import math, os, random, socket, struct, sys, threading, time, traceback
 
 try:
     from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
 except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
     from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import on_env
+on_env.load()
 
 
 def recvn(s, n):
@@ -33,8 +39,9 @@ def recvn(s, n):
 
 
 def connect(host, password):
-    host, _, port = host.partition(":")
-    s = socket.create_connection((host, int(port or 5901)), timeout=30)
+    host, port = on_env.vnc_address(host, 5901)
+    password = on_env.vnc_password(password)
+    s = socket.create_connection((host, port), timeout=30)
     s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     recvn(s, 12)
     s.sendall(b"RFB 003.008\n")

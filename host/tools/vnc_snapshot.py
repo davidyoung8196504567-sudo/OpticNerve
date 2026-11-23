@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 """Grab one frame from a VNC (RFB 3.8) server, view-only, and save it as an image.
 
-    python host/tools/vnc_snapshot.py HOST[:PORT] PASSWORD OUT.png
+    python host/tools/vnc_snapshot.py HOST[:PORT] PASSWORD OUT.png      (PORT default 5900)
+    python host/tools/vnc_snapshot.py - - OUT.png                       the agent, from the settings
+
+A - for HOST takes ON_HOST and ON_VNC_PORT, a - for PASSWORD takes ON_VNC_PASSWORD (host/tools/on_env.py: the
+environment, then the settings file); - keeps the password out of the process list.
 
 Uses VNC password authentication and raw encoding. Sends no input events: only a
 shared ClientInit, SetPixelFormat, SetEncodings and one FramebufferUpdateRequest.
 Needs Pillow and cryptography.
 """
-import socket, struct, sys, time
+import os, socket, struct, sys, time
 try:
     from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
 except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
     from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
 from PIL import Image
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import on_env
+on_env.load()
 
 def recvn(s, n):
     b = b""
@@ -23,9 +30,9 @@ def recvn(s, n):
         b += c
     return b
 
-host, pw, out = sys.argv[1], sys.argv[2].encode(), sys.argv[3]
-host, _, port = host.partition(":")                    # HOST or HOST:PORT (default 5900)
-s = socket.create_connection((host, int(port or 5900)), timeout=10)
+host, port = on_env.vnc_address(sys.argv[1], 5900)
+pw, out = on_env.vnc_password(sys.argv[2]).encode(), sys.argv[3]
+s = socket.create_connection((host, port), timeout=10)
 print("server:", recvn(s, 12)); s.sendall(b"RFB 003.008\n")
 n = recvn(s, 1)[0]; types = list(recvn(s, n)); assert 2 in types, types
 s.sendall(bytes([2]))

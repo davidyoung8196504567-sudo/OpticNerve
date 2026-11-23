@@ -4,8 +4,10 @@
 #
 #   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixide-4.0.0-windows.jar" org.sikuli.ide.Sikulix -r host/demo/DemoTest.sikuli
 #
-# Needs demo_panel showing on the Pi, and one of these in the environment the IDE was started from:
-#   - ON_HOST and ON_VNC_PASSWORD: the script connects to the agent (port 5901) and works on the Pi's screen directly.
+# Needs demo_panel showing on the Pi, and one of these in the environment the IDE was started from or in the
+# settings file (~/.config/opticnerve/env):
+#   - ON_HOST and ON_VNC_PASSWORD: the script connects to the agent (port ON_VNC_PORT, default 5901) and works on the
+#     Pi's screen directly.
 #     Configuration ON-VNC-1: the tigervnc-java-oculix jar first on the classpath, security types VncAuth,None.
 #   - ON_LOCAL_SCREEN=N: the script works on this computer's monitor N (as OculiX numbers them, 0 = main), where a
 #     VNC viewer shows the Pi full screen at 100 % scale; its clicks and keys reach the Pi through the viewer.
@@ -14,19 +16,35 @@
 # main screen.
 from java.lang import System, Class
 from org.sikuli.vnc import VNCScreen
+import os, re
+def cfg(name, default=None):
+    # A setting: the environment the IDE was started from, then the settings file ON_CONFIG (default
+    # ~/.config/opticnerve/env; template host/tools/opticnerve.env.example), then the default.
+    v = System.getenv(name)
+    if v:
+        return v
+    f = System.getenv("ON_CONFIG") or os.path.join(System.getProperty("user.home"), ".config", "opticnerve", "env")
+    if os.path.isfile(f):
+        for line in open(f):
+            # the grammar of host/tools/on_env.sh: [export] NAME=VALUE [# comment], VALUE taken literally
+            m = re.match(r"""\s*(?:export\s+)?%s=(?:'([^']*)'|"([^"]*)"|([^\s#'"]*))\s*(?:#.*)?$""" % name,
+                         line.rstrip("\r\n"))
+            if m and (m.group(1) or m.group(2) or m.group(3)):
+                return m.group(1) or m.group(2) or m.group(3)
+    return default
 
 vnc = None
 local = System.getenv("ON_LOCAL_SCREEN")
 if local:
     scr = Screen(int(local))
 else:
-    host = System.getenv("ON_HOST")
-    password = System.getenv("ON_VNC_PASSWORD")
+    host = cfg("ON_HOST")
+    password = cfg("ON_VNC_PASSWORD")
     if not host or not password:
         raise Exception("set ON_HOST and ON_VNC_PASSWORD (or ON_LOCAL_SCREEN) before starting the IDE")
     # Offer only VNC authentication (ON-VNC-1)
     Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(None).setParam("VncAuth,None")
-    vnc = VNCScreen.start(host, 5901, password, 10, 1000)
+    vnc = VNCScreen.start(host, int(cfg("ON_VNC_PORT", "5901")), password, 10, 1000)
     scr = vnc
 
 # Positions on the panel, from the panel's top left corner. The panel's corner is found from the RESET button (at

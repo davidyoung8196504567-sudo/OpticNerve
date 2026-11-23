@@ -2,9 +2,10 @@
 """Robustness tests of the OpticNerve server over the network (tests RB01, RB03, HS09 and others of the private
 test outline). Raw RFB connections only; sends no key or pointer events.
 
-    python host/tests/robustness.py HOST[:PORT]          (PORT default 5901)
+    python host/tests/robustness.py [HOST[:PORT]]        (PORT default 5901)
 
-Needs ON_VNC_PASSWORD (the agent's password) and the agent running (host/tools/opticnerve_deploy.py start).
+Without HOST (or with -), the agent from the settings: ON_HOST and ON_VNC_PORT (host/tools/on_env.py: the
+environment, then the settings file). Needs ON_VNC_PASSWORD (the agent's password) and the agent running (host/tools/opticnerve_deploy.py start).
 Each test prints PASS or FAIL with what it saw; the exit status is the number of failures.
 Needs the cryptography package, as host/tools/vnc_snapshot.py does.
 """
@@ -14,9 +15,11 @@ try:
 except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
     from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "tools"))
+import on_env
+on_env.load()
 
-HOST, _, PORT = sys.argv[1].partition(":") if len(sys.argv) > 1 else ("10.30.1.116", "", "")
-PORT = int(PORT or 5901)
+HOST, PORT = on_env.vnc_address(sys.argv[1] if len(sys.argv) > 1 else "-", 5901)
 PW = os.environ.get("ON_VNC_PASSWORD", "").encode()
 fails = 0
 

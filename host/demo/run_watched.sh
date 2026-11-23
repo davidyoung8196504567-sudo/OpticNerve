@@ -9,8 +9,9 @@
 #   - arms it (onrun.sh start NAME) and disarms it at the end (onrun.sh end NAME);
 #   - runs the test in the background, its output in demo-out/NAME.log;
 #   - reads the spool every 10 s; a new incident stops the test, saves the screen (demo-out/NAME_alert.png, from the
-#     agent on port 5901 with ON_VNC_PASSWORD) and prints the incident.
-# The target is ON_HOST (default 10.30.1.116), as for pi_ssh.sh; the watcher's folder, holding onrun.sh and the spool,
+#     agent at ON_HOST:ON_VNC_PORT with ON_VNC_PASSWORD) and prints the incident.
+# The target's addresses and ports come from the environment or the settings file (host/tools/on_env.sh), as for
+# pi_ssh.sh; the watcher's folder, holding onrun.sh and the spool,
 # is ON_WATCH_DIR (default the fleet peer's /data/home/qnxuser/watch).
 # A second path besides the fleet peer's own alert messages, which depend on its session being able to send them.
 # Tell the peer before a run (RUN START / RUN END) all the same: the state file is not the notification.
@@ -18,7 +19,7 @@
 set -u
 name=$1; shift; [ "${1:-}" = "--" ] && shift
 W=${ON_WATCH_DIR:-/data/home/qnxuser/watch}
-HOST=${ON_HOST:-10.30.1.116}
+. host/tools/on_env.sh
 ssh_pi() { bash host/tools/pi_ssh.sh "$1" 2>/dev/null | tr -d '\r'; }
 # Incidents that count: the course itself closes the web browser after its link obstacles (the watcher reports each
 # as "epiphany gone"), so those lines are left out.
@@ -40,7 +41,7 @@ while kill -0 $pid 2>/dev/null; do
         echo "ALERT at $(date -u +%H:%M:%S) UTC: stopping the test"
         ssh_pi "grep -v 'epiphany gone' $W/spool | tail -n $((n - n0))"
         kill $pid 2>/dev/null; sleep 1; kill -9 $pid 2>/dev/null
-        python host/tools/vnc_snapshot.py "$HOST:5901" "$ON_VNC_PASSWORD" "demo-out/${name}_alert.png" >/dev/null 2>&1 \
+        python host/tools/vnc_snapshot.py "$ON_HOST:$ON_VNC_PORT" - "demo-out/${name}_alert.png" >/dev/null 2>&1 \
             && echo "screen saved: demo-out/${name}_alert.png"
         break
     fi

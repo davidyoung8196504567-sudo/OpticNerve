@@ -4,9 +4,9 @@
 #
 #   sh host/poc/viewer.sh [HOST[::PORT]]
 #
-# HOST defaults to ON_HOST and PORT to 5901 (the OpticNerve agent; 5900 is the usual port of other VNC servers).
-# The password: for the agent at ON_HOST::5901, ON_VNC_PASSWORD; for any other server, VNC_PASSWORD, or asked in the
-# terminal. Run in a terminal without HOST, it asks for the address and the password (Enter keeps the saved one).
+# HOST defaults to ON_HOST and PORT to ON_VNC_PORT (5901, the OpticNerve agent; 5900 is the usual port of other VNC
+# servers), from the environment or the settings file. The password: for the agent at ON_HOST::ON_VNC_PORT,
+# ON_VNC_PASSWORD; for any other server, VNC_PASSWORD, or asked in the terminal. Run in a terminal without HOST, it asks for the address and the password (Enter keeps the saved one).
 # The password goes to the viewer in a file only this user can read, deleted once the viewer has logged in.
 POC=$(cd "$(dirname "$0")" && pwd); . "$POC/poc-env.sh"
 need_java
@@ -14,11 +14,11 @@ pwfile=
 trap 'stty echo 2>/dev/null; rm -f "$pwfile"; exit 130' INT TERM HUP
 target=$1
 if [ -z "$target" ] && [ -t 0 ]; then
-	printf 'VNC server [%s::5901]: ' "$ON_HOST"; IFS= read -r target
+	printf 'VNC server [%s::%s]: ' "$ON_HOST" "$ON_VNC_PORT"; IFS= read -r target
 fi
 target=${target:-$ON_HOST}
-case $target in *:*) ;; *) target=$target::5901 ;; esac   # HOST::PORT or HOST:DISPLAY as given
-if [ "$target" = "$ON_HOST::5901" ] && [ -n "$ON_VNC_PASSWORD" ]; then pw=$ON_VNC_PASSWORD; else pw=$VNC_PASSWORD; fi
+case $target in *:*) ;; *) target=$target::$ON_VNC_PORT ;; esac   # HOST::PORT or HOST:DISPLAY as given
+if [ "$target" = "$ON_HOST::$ON_VNC_PORT" ] && [ -n "$ON_VNC_PASSWORD" ]; then pw=$ON_VNC_PASSWORD; else pw=$VNC_PASSWORD; fi
 if [ -t 0 ] && { [ -z "$1" ] || [ -z "$pw" ]; }; then
 	[ -n "$pw" ] && printf 'VNC password (Enter: the saved one): ' || printf 'VNC password: '
 	stty -echo; IFS= read -r typed; stty echo; echo

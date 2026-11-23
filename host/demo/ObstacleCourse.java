@@ -5,10 +5,13 @@
 // found it. Values are read with OCR. A disabled control must not change when clicked. Prints PASS or FAIL per
 // obstacle with its time, then a scoreboard; the exit status is the number of failures.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/ObstacleCourse.java HOST VNCPASSWORD [-cols=N]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/ObstacleCourse.java HOST|- VNCPASSWORD|- [-cols=N]
+// A - for HOST or PASSWORD takes ON_HOST or ON_VNC_PASSWORD from the environment or the settings file
+// (host/tools/opticnerve.env.example); SSH goes to ON_SSH_HOST:ON_SSH_PORT (default HOST, port 22).
 //
-// Needs the agent running on HOST (port 5901), the Developer Desktop on the screen and ON_LOGIN_PASSWORD set: the course
-// closes Widget Factory (over SSH) and opens it again from the Applications menu, so that every run starts alike.
+// Needs the agent running on HOST (port ON_VNC_PORT), the Developer Desktop on the screen and ON_LOGIN_PASSWORD set:
+// the course closes Widget Factory (over SSH) and opens it again from the Applications menu, so that every run starts
+// alike.
 // All three pages. -only=A|B runs just the obstacles whose name contains A or B; -page=N just that page; -repeat=N
 // each obstacle N times; -move=S OculiX's MoveMouseDelay (default 0.1 s).
 import java.awt.image.BufferedImage;
@@ -20,6 +23,45 @@ import org.sikuli.script.KeyModifier;
 import org.sikuli.vnc.VNCScreen;
 
 public class ObstacleCourse {
+    // A setting (docs/SETTINGS.md): the environment first, then the settings file ON_CONFIG (default
+    // ~/.config/opticnerve/env), then the default given. The file's grammar is host/tools/on_env.sh's: a line
+    // [export] NAME=VALUE [# comment], VALUE 'text', "text" or text without spaces, # or quotes, taken literally.
+    static String cfg(String name, String dflt) {
+        String v = System.getenv(name);
+        if (v != null && !v.isEmpty()) return v;
+        String f = System.getenv("ON_CONFIG");
+        java.nio.file.Path p = java.nio.file.Paths.get(f != null && !f.isEmpty() ? f
+                : System.getProperty("user.home") + "/.config/opticnerve/env");
+        java.util.regex.Pattern line = java.util.regex.Pattern.compile("^\\s*(?:export\\s+)?" + name
+                + "=(?:'([^']*)'|\"([^\"]*)\"|([^\\s#'\"]*))\\s*(?:#.*)?$");
+        try {
+            for (String l : java.nio.file.Files.readAllLines(p)) {
+                java.util.regex.Matcher m = line.matcher(l);
+                if (!m.matches()) continue;
+                String x = m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : m.group(3);
+                if (!x.isEmpty()) return x;
+            }
+        } catch (java.io.IOException e) { /* no settings file, or not readable: the default */ }
+        return dflt;
+    }
+
+    // HOST and PASSWORD on the command line, or "-" for the settings ON_HOST and ON_VNC_PASSWORD; the port is ON_VNC_PORT.
+    static String target(String arg) { return arg.equals("-") ? cfg("ON_HOST", "10.30.1.116") : arg; }
+    static String vncPassword(String arg) {
+        if (!arg.equals("-")) return arg;
+        String pw = cfg("ON_VNC_PASSWORD", null);
+        if (pw == null) throw new IllegalStateException("set ON_VNC_PASSWORD (in the environment or the settings file)");
+        return pw;
+    }
+    // host/tools/pi_ssh.sh with COMMANDS; SSH goes to ON_SSH_HOST, or else to the HOST given on the command line
+    static String sshFallback;
+    static ProcessBuilder pi_ssh(String commands) {
+        ProcessBuilder pb = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true);
+        if (sshFallback != null && cfg("ON_SSH_HOST", null) == null) pb.environment().put("ON_SSH_HOST", sshFallback);
+        return pb;
+    }
+    static int vncPort() { return Integer.parseInt(cfg("ON_VNC_PORT", "5901")); }
+
     static VNCScreen s;
     static int cols;
 
@@ -450,8 +492,9 @@ public class ObstacleCourse {
         for (String x : a) if (x.startsWith("-move=")) org.sikuli.basics.Settings.MoveMouseDelay = Float.parseFloat(x.substring(6));
 
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
-        s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
-        if (s == null || s.capture() == null) throw new IllegalStateException("no frame from " + a[0] + ":5901");
+        sshFallback = a[0].equals("-") ? null : a[0];
+        s = VNCScreen.start(target(a[0]), vncPort(), vncPassword(a[1]), 10, 1000);
+        if (s == null || s.capture() == null) throw new IllegalStateException("no frame from " + target(a[0]) + ":" + vncPort());
         wake();
         caption("A fresh Widget Factory: closed, then opened from the Applications menu and maximized");
         ssh("rs slay -f gtk4-widget-factory >/dev/null 2>&1; sleep 1");
@@ -881,7 +924,7 @@ public class ObstacleCourse {
 
     // Runs commands on the target over SSH (host/tools/pi_ssh.sh, which reads ON_LOGIN_PASSWORD); returns the output.
     static String ssh(String commands) throws Exception {
-        Process p = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true).start();
+        Process p = pi_ssh(commands).start();
         String out = new String(p.getInputStream().readAllBytes()).trim();
         p.waitFor();
         return out;

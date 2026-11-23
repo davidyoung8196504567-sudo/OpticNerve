@@ -3,12 +3,14 @@
 # OpticNerve agent). The guest is on libvirt's NAT network behind its Linux host, so the ports go through an SSH tunnel
 # to that host (docs/QEMU_BRINGUP.md, step 9). Windows answers on all of 127.0.0.0/8 without setup.
 #
-#   ON_UBUNTU_PASSWORD=... [ON_QEMU_HOST=10.30.1.104] [ON_GUEST=192.168.122.146] sh host/qemu/tunnel.sh   start (background)
+#   sh host/qemu/tunnel.sh        start (background)
 #   sh host/qemu/tunnel.sh stop
 #
 # ON_QEMU_HOST is the Linux host running the guest: VMUbuntu24 (10.30.1.104, the default) or UBUNTU24 (10.30.1.132).
-# The forwards listen on 127.0.0.2 only. The password comes from the environment only.
+# ON_GUEST is the guest's address there (default 192.168.122.146), ON_UBUNTU_PASSWORD the tester login on that host;
+# all three from the environment or the settings file (host/tools/on_env.sh). The forwards listen on 127.0.0.2 only.
 D=$(cd "$(dirname "$0")/../tools" && pwd)
+. "$D/on_env.sh"
 if [ "$1" = stop ]; then
     pid=$(ps -ef | awk '/ssh .*-L 127\.0\.0\.2:5901:/ && !/awk/ {print $2; exit}')   # Git Bash's ssh, so its own pid
     [ -n "$pid" ] && kill "$pid" && echo "stopped tunnel (pid $pid)" || echo "no tunnel"

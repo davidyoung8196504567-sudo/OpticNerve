@@ -55,7 +55,7 @@ what it cannot learn from pixels alone.
 | `host/qemu/` | The QEMU target: launch script, a 1920 x 1080 virtual display for Screen, and a tunnel to reach the guest ([bring-up](docs/QEMU_BRINGUP.md)) |
 | `host/tests/`, `host/spikes/` | Network robustness tests; OculiX probes for reading and for input |
 | `sdp/` | The pinned QNX SDP baseline and the script that checks a build host against it |
-| `docs/` | [Configuration management](docs/CONFIG_MANAGEMENT.md) (everything needed to reproduce the setup) and the [OculiX issue list](docs/ISSUES.md) |
+| `docs/` | [Configuration management](docs/CONFIG_MANAGEMENT.md) (everything needed to reproduce the setup), the scripts' [settings](docs/SETTINGS.md) (addresses, ports, passwords) and the [OculiX issue list](docs/ISSUES.md) |
 
 ## What you need
 
@@ -94,7 +94,9 @@ what it cannot learn from pixels alone.
 
 ## Run
 
-Set three environment variables on the host first: `ON_HOST` (the Pi's address), `ON_LOGIN_PASSWORD` (the Pi's
+The scripts take the target's addresses, ports and passwords from the command line, the environment or a settings
+file, `~/.config/opticnerve/env`: see [Settings](docs/SETTINGS.md), which lists every script's parameters and the
+variable each one maps to. Set three of them first: `ON_HOST` (the Pi's address), `ON_LOGIN_PASSWORD` (the Pi's
 `qnxuser` password, also used for `sudo`) and `ON_VNC_PASSWORD` (the password OpticNerve will ask VNC clients for, at
 most 8 characters). Passwords travel to the Pi on the SSH connection's input, never on a command line.
 
@@ -114,7 +116,7 @@ python host/tools/opticnerve_deploy.py undo        # stops the agent and deletes
 **See the screen** with any VNC viewer at `<Pi address>:5901` and the VNC password, or with our tool:
 
 ```
-python host/tools/vnc_snapshot.py <Pi address>:5901 "$ON_VNC_PASSWORD" frame.png
+python host/tools/vnc_snapshot.py - - frame.png      # the agent and password from the settings
 ```
 
 **Drive it from OculiX** (configuration ON-VNC-1):

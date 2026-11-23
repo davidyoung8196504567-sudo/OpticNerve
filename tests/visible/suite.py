@@ -26,7 +26,7 @@ SKIP with the reason. Tests that do not apply on the image under test are N/A wi
 target's health is checked: a new core dump or a missing graphics process fails the test and skips the rest. An ID
 is always shown with its title.
 
-Environment: ON_HOST (default 10.30.1.116), ON_VNC_PASSWORD and ON_LOGIN_PASSWORD (the image's documented defaults;
+Settings (the environment, then the settings file; host/tools/on_env.py): ON_HOST (default 10.30.1.116), ON_VNC_PASSWORD and ON_LOGIN_PASSWORD (the image's documented defaults;
 not stored here), ON_OCULIX_JAR (the pinned oculixapi jar) and ON_TIGERVNC_JAR (the pinned
 tigervnc-java-oculix 2.0.4 jar, first on the classpath: test configuration ON-VNC-1, docs/CONFIG_MANAGEMENT.md), ON_CAMERA (OBS source name,
 default "Video Capture Device"), ON_CAMERA_SCENE (default "Scene"). The update tests need /tmp/screen_probe on the
@@ -40,10 +40,13 @@ from PIL import Image, ImageChops, ImageStat
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "host" / "tools"))
 import obs_control  # noqa: E402
+import on_env  # noqa: E402
+
+on_env.load()
 
 RUNS = ROOT / "tests" / "visible" / "runs"
 STATE = RUNS / "current.json"
-HOST = os.environ.get("ON_HOST", "10.30.1.116")
+HOST = os.environ["ON_HOST"]  # the image's vncserv on port 5900 there; SSH through pi_ssh.sh
 CAMERA = os.environ.get("ON_CAMERA", "Video Capture Device")
 CAMERA_SCENE = os.environ.get("ON_CAMERA_SCENE", "Scene")
 CAPTION = "OpticNerve caption"
@@ -108,13 +111,15 @@ def to_launcher():
 # --- VNC: input in, frames out ----------------------------------------------------------------------------------
 
 def vnc(*actions):
-    subprocess.run([sys.executable, str(ROOT / "host/tools/vnc_input.py"), HOST, need("ON_VNC_PASSWORD"), *actions],
+    need("ON_VNC_PASSWORD")   # passed as "-": the tool reads it, so it stays out of the process list
+    subprocess.run([sys.executable, str(ROOT / "host/tools/vnc_input.py"), HOST, "-", *actions],
                    check=True, capture_output=True)
 
 
 def frame(name):
     out = RUNS / f"{name}_vnc.png"
-    subprocess.run([sys.executable, str(ROOT / "host/tools/vnc_snapshot.py"), HOST, need("ON_VNC_PASSWORD"), str(out)],
+    need("ON_VNC_PASSWORD")
+    subprocess.run([sys.executable, str(ROOT / "host/tools/vnc_snapshot.py"), HOST, "-", str(out)],
                    check=True, capture_output=True)
     return Image.open(out).convert("RGB")
 
@@ -289,7 +294,7 @@ def t_su_ssh():
     out = (pi("uname -sr; hostname; date -u '+%Y-%m-%d %H:%M UTC'; rs id -u", timeout=30) or "").splitlines()
     out = [l.strip() for l in out if l.strip()]
     ok = len(out) == 4 and out[-1] == "0"
-    return ("PASS" if ok else "FAIL"), (f"SSH to {HOST}: {', '.join(out[:3]) or 'no answer'}; root through sudo "
+    return ("PASS" if ok else "FAIL"), (f"SSH to {on_env.ssh_host()}: {', '.join(out[:3]) or 'no answer'}; root through sudo "
                                         f"{bool(out) and out[-1] == '0'}")
 
 

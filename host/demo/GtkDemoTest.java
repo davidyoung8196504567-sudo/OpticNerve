@@ -8,9 +8,11 @@
 // At the end the tree is compared with host/demo/ref/gtk_demo_tree.txt. A few items have a step time (STEP_MS):
 // the test stays on them that long before the next one.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/GtkDemoTest.java HOST VNCPASSWORD [-record] [-step=NAME:MS] [-nostep] [-cols=N]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/GtkDemoTest.java HOST|- VNCPASSWORD|- [-record] [-step=NAME:MS] [-nostep] [-cols=N]
+// A - for HOST or PASSWORD takes ON_HOST or ON_VNC_PASSWORD from the environment or the settings file
+// (host/tools/opticnerve.env.example); SSH goes to ON_SSH_HOST:ON_SSH_PORT (default HOST, port 22).
 //
-// Needs the agent running on HOST (port 5901) and ON_LOGIN_PASSWORD set (SSH closes a GTK Demo left running before
+// Needs the agent running on HOST (port ON_VNC_PORT) and ON_LOGIN_PASSWORD set (SSH closes a GTK Demo left running before
 // the test, and the test's own at the end). The tree it found is also written to demo-out/gtk_demo_tree.txt; -record saves it as the reference.
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -24,6 +26,45 @@ import org.sikuli.script.Pattern;
 import org.sikuli.vnc.VNCScreen;
 
 public class GtkDemoTest {
+    // A setting (docs/SETTINGS.md): the environment first, then the settings file ON_CONFIG (default
+    // ~/.config/opticnerve/env), then the default given. The file's grammar is host/tools/on_env.sh's: a line
+    // [export] NAME=VALUE [# comment], VALUE 'text', "text" or text without spaces, # or quotes, taken literally.
+    static String cfg(String name, String dflt) {
+        String v = System.getenv(name);
+        if (v != null && !v.isEmpty()) return v;
+        String f = System.getenv("ON_CONFIG");
+        java.nio.file.Path p = java.nio.file.Paths.get(f != null && !f.isEmpty() ? f
+                : System.getProperty("user.home") + "/.config/opticnerve/env");
+        java.util.regex.Pattern line = java.util.regex.Pattern.compile("^\\s*(?:export\\s+)?" + name
+                + "=(?:'([^']*)'|\"([^\"]*)\"|([^\\s#'\"]*))\\s*(?:#.*)?$");
+        try {
+            for (String l : java.nio.file.Files.readAllLines(p)) {
+                java.util.regex.Matcher m = line.matcher(l);
+                if (!m.matches()) continue;
+                String x = m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : m.group(3);
+                if (!x.isEmpty()) return x;
+            }
+        } catch (java.io.IOException e) { /* no settings file, or not readable: the default */ }
+        return dflt;
+    }
+
+    // HOST and PASSWORD on the command line, or "-" for the settings ON_HOST and ON_VNC_PASSWORD; the port is ON_VNC_PORT.
+    static String target(String arg) { return arg.equals("-") ? cfg("ON_HOST", "10.30.1.116") : arg; }
+    static String vncPassword(String arg) {
+        if (!arg.equals("-")) return arg;
+        String pw = cfg("ON_VNC_PASSWORD", null);
+        if (pw == null) throw new IllegalStateException("set ON_VNC_PASSWORD (in the environment or the settings file)");
+        return pw;
+    }
+    // host/tools/pi_ssh.sh with COMMANDS; SSH goes to ON_SSH_HOST, or else to the HOST given on the command line
+    static String sshFallback;
+    static ProcessBuilder pi_ssh(String commands) {
+        ProcessBuilder pb = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true);
+        if (sshFallback != null && cfg("ON_SSH_HOST", null) == null) pb.environment().put("ON_SSH_HOST", sshFallback);
+        return pb;
+    }
+    static int vncPort() { return Integer.parseInt(cfg("ON_VNC_PORT", "5901")); }
+
     static VNCScreen s;
     static int fails, cols;
     static boolean record;
@@ -326,7 +367,7 @@ public class GtkDemoTest {
 
     // Runs commands on the target over SSH (host/tools/pi_ssh.sh, which reads ON_LOGIN_PASSWORD); returns the output.
     static String ssh(String commands) throws Exception {
-        Process p = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true).start();
+        Process p = pi_ssh(commands).start();
         String out = new String(p.getInputStream().readAllBytes()).trim();
         p.waitFor();
         return out;
@@ -376,9 +417,10 @@ public class GtkDemoTest {
         org.sikuli.basics.Settings.MoveMouseDelay = 0.2f;
 
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
-        s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
+        sshFallback = a[0].equals("-") ? null : a[0];
+        s = VNCScreen.start(target(a[0]), vncPort(), vncPassword(a[1]), 10, 1000);
         boolean framed = s != null && s.capture() != null;
-        check("connect to the OpticNerve agent", framed, a[0] + ":5901");
+        check("connect to the OpticNerve agent", framed, target(a[0]) + ":" + vncPort());
         if (!framed) return;
 
         caption("Opening the GTK Demo from the launcher: finding its tile by image and clicking it");

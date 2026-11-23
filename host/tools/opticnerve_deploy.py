@@ -13,18 +13,23 @@ BINARY defaults to agent/build/aarch64le/opticnerve. Everything on the target li
 Each step prints what it changed and the SHA-256 of each file it put there, for the record in
 docs/CONFIG_MANAGEMENT.md.
 
-Environment: ON_LOGIN_PASSWORD (the target's qnxuser password, also used for sudo), ON_VNC_PASSWORD (the password
-our server will ask for), optionally ON_HOST (default 10.30.1.116) and ON_LOGIN_USER (default qnxuser). Passwords
-go to the target on SSH's standard input only, never on a command line. Needs bash, ssh and scp on PATH.
+Settings, from the environment or the settings file (host/tools/on_env.py): ON_LOGIN_PASSWORD (the target's login
+password, also used for sudo), ON_VNC_PASSWORD (the password our server will ask for), ON_SSH_HOST (default ON_HOST,
+10.30.1.116), ON_SSH_PORT (default 22), ON_LOGIN_USER (default qnxuser). Passwords go to the target on SSH's
+standard input only, never on a command line. Needs bash, ssh and scp on PATH.
 """
 import hashlib, os, re, subprocess, sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 TOOLS = ROOT / "host" / "tools"
+sys.path.insert(0, str(TOOLS))
+import on_env
+on_env.load()
 DEST = "/data/opticnerve"
-HOST = os.environ.get("ON_HOST", "10.30.1.116")
-USER = os.environ.get("ON_LOGIN_USER", "qnxuser")
+HOST = on_env.ssh_host()
+PORT = os.environ["ON_SSH_PORT"]
+USER = os.environ["ON_LOGIN_USER"]
 STAGE = f"/data/home/{USER}/.opticnerve-stage"   # not /tmp: the image tidies /tmp
 
 
@@ -39,7 +44,7 @@ def remote(script, check=True):
 
 def copy(local, remote_path):
     env = dict(os.environ, SSH_ASKPASS=str(TOOLS / "pi_askpass.sh"), SSH_ASKPASS_REQUIRE="force", DISPLAY="x")
-    r = subprocess.run(["scp", "-q", "-o", "PubkeyAuthentication=no", "-o", "ConnectTimeout=10",
+    r = subprocess.run(["scp", "-q", "-o", "PubkeyAuthentication=no", "-o", "ConnectTimeout=10", "-P", PORT,
                         str(local), f"{USER}@{HOST}:{remote_path}"], env=env, capture_output=True, text=True, timeout=120)
     if r.returncode:
         sys.exit(f"copy failed: {r.stderr.strip()}")

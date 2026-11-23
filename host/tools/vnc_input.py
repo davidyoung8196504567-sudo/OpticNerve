@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Send keyboard and pointer input to a VNC (RFB 3.8) server.
 
-    python host/tools/vnc_input.py HOST[:PORT] PASSWORD ACTION...
+    python host/tools/vnc_input.py HOST[:PORT] PASSWORD ACTION...      (PORT default 5900)
+    python host/tools/vnc_input.py - - ACTION...                       the agent, from the settings
+
+A - for HOST takes ON_HOST and ON_VNC_PORT, a - for PASSWORD takes ON_VNC_PASSWORD (host/tools/on_env.py).
 
 Actions, done in order:
     text:STRING        type the characters (key press and release each)
@@ -15,12 +18,15 @@ Actions, done in order:
 Only the left button is used: in X-style terminals the middle button pastes.
 Needs cryptography.
 """
-import socket, struct, sys, time
+import os, socket, struct, sys, time
 try:
     from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
 except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
     from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import on_env
+on_env.load()
 
 
 def recvn(s, n):
@@ -34,8 +40,9 @@ def recvn(s, n):
 
 
 def connect(host, password):
-    host, _, port = host.partition(":")  # HOST or HOST:PORT (default 5900)
-    s = socket.create_connection((host, int(port or 5900)), timeout=10)
+    host, port = on_env.vnc_address(host, 5900)
+    password = on_env.vnc_password(password)
+    s = socket.create_connection((host, port), timeout=10)
     recvn(s, 12)
     s.sendall(b"RFB 003.008\n")
     types = recvn(s, recvn(s, 1)[0])

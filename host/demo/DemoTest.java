@@ -2,9 +2,11 @@
 // the OpticNerve agent, and checks what the panel shows. Each step prints PASS or FAIL; the exit status is the
 // number of failures.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST PASSWORD [OUTDIR] [-fail] [-slow] [-cols=N] [-brief] [-repeat=N]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST|- PASSWORD|- [OUTDIR] [-fail] [-slow] [-cols=N] [-brief] [-repeat=N]
+// A - for HOST or PASSWORD takes ON_HOST or ON_VNC_PASSWORD from the environment or the settings file
+// (host/tools/opticnerve.env.example); SSH goes to ON_SSH_HOST:ON_SSH_PORT (default HOST, port 22).
 //
-// Needs the agent running on HOST (port 5901) and demo_panel showing. -fail adds one check that expects the wrong
+// Needs the agent running on HOST (port ON_VNC_PORT) and demo_panel showing. -fail adds one check that expects the wrong
 // count, to show what a caught failure looks like. Between steps the test asks the agent on the target, over SSH,
 // to wait until the screen has settled (`opticnerve wait -quiet`), when ON_LOGIN_PASSWORD is set; otherwise it
 // waits a fixed time. Configuration ON-VNC-1: the tigervnc-java-oculix jar first, security types VncAuth,None.
@@ -23,6 +25,38 @@ import org.sikuli.script.Region;
 import org.sikuli.vnc.VNCScreen;
 
 public class DemoTest {
+    // A setting (docs/SETTINGS.md): the environment first, then the settings file ON_CONFIG (default
+    // ~/.config/opticnerve/env), then the default given. The file's grammar is host/tools/on_env.sh's: a line
+    // [export] NAME=VALUE [# comment], VALUE 'text', "text" or text without spaces, # or quotes, taken literally.
+    static String cfg(String name, String dflt) {
+        String v = System.getenv(name);
+        if (v != null && !v.isEmpty()) return v;
+        String f = System.getenv("ON_CONFIG");
+        java.nio.file.Path p = java.nio.file.Paths.get(f != null && !f.isEmpty() ? f
+                : System.getProperty("user.home") + "/.config/opticnerve/env");
+        java.util.regex.Pattern line = java.util.regex.Pattern.compile("^\\s*(?:export\\s+)?" + name
+                + "=(?:'([^']*)'|\"([^\"]*)\"|([^\\s#'\"]*))\\s*(?:#.*)?$");
+        try {
+            for (String l : java.nio.file.Files.readAllLines(p)) {
+                java.util.regex.Matcher m = line.matcher(l);
+                if (!m.matches()) continue;
+                String x = m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : m.group(3);
+                if (!x.isEmpty()) return x;
+            }
+        } catch (java.io.IOException e) { /* no settings file, or not readable: the default */ }
+        return dflt;
+    }
+
+    // HOST and PASSWORD on the command line, or "-" for the settings ON_HOST and ON_VNC_PASSWORD; the port is ON_VNC_PORT.
+    static String target(String arg) { return arg.equals("-") ? cfg("ON_HOST", "10.30.1.116") : arg; }
+    static String vncPassword(String arg) {
+        if (!arg.equals("-")) return arg;
+        String pw = cfg("ON_VNC_PASSWORD", null);
+        if (pw == null) throw new IllegalStateException("set ON_VNC_PASSWORD (in the environment or the settings file)");
+        return pw;
+    }
+    static int vncPort() { return Integer.parseInt(cfg("ON_VNC_PORT", "5901")); }
+
     static VNCScreen s;
     static File out;
     static int fails, n;
@@ -98,7 +132,7 @@ public class DemoTest {
     static long seen = -1;
 
     static void settle() throws Exception {
-        if (System.getenv("ON_LOGIN_PASSWORD") == null) {
+        if (cfg("ON_LOGIN_PASSWORD", null) == null) {
             Thread.sleep(700);
             return;
         }
@@ -109,7 +143,7 @@ public class DemoTest {
 
     // Before the first action: the change count now.
     static void startCount() throws Exception {
-        if (System.getenv("ON_LOGIN_PASSWORD") != null) agent("wait -since=0 -timeout=1");
+        if (cfg("ON_LOGIN_PASSWORD", null) != null) agent("wait -since=0 -timeout=1");
     }
 
     // Runs `opticnerve ARGS` on the target and returns its output; notes the change count it reports.
@@ -118,13 +152,16 @@ public class DemoTest {
             String askpass = new File("host/tools/pi_askpass.sh").getAbsolutePath().replace('\\', '/');
             // Git's ssh through bash (askpass is a shell script); no quotes inside the bash command, since Java on
             // Windows does not pass embedded quotes through intact
-            String user = System.getenv().getOrDefault("ON_LOGIN_USER", "qnxuser");
+            String user = cfg("ON_LOGIN_USER", "qnxuser");
+            // SSH goes to ON_SSH_HOST:ON_SSH_PORT (default: the VNC address, port 22)
+            String sshHost = cfg("ON_SSH_HOST", host), sshPort = cfg("ON_SSH_PORT", "22");
             ProcessBuilder pb = new ProcessBuilder("bash", "-c", "exec ssh $@", "ssh", "-q", "-o", "PubkeyAuthentication=no",
-                    "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new", user + "@" + host, "sh -s")
+                    "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=accept-new", "-p", sshPort, user + "@" + sshHost, "sh -s")
                     .redirectErrorStream(true);
             pb.environment().put("SSH_ASKPASS", askpass);
             pb.environment().put("SSH_ASKPASS_REQUIRE", "force");
             pb.environment().put("DISPLAY", "x");
+            pb.environment().put("ON_LOGIN_PASSWORD", cfg("ON_LOGIN_PASSWORD", "")); // for pi_askpass.sh
             ssh = pb.start();
             sshOut = new java.io.BufferedReader(new java.io.InputStreamReader(ssh.getInputStream()));
             sshIn = new java.io.OutputStreamWriter(ssh.getOutputStream());
@@ -216,7 +253,7 @@ public class DemoTest {
     }
 
     static void run(String[] a) throws Exception {
-        host = a[0];
+        host = target(a[0]);
         boolean showFailure = java.util.Arrays.asList(a).contains("-fail");
         record = java.util.Arrays.asList(a).contains("-record");
         slow = java.util.Arrays.asList(a).contains("-slow");
@@ -230,10 +267,10 @@ public class DemoTest {
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
         if (slow) org.sikuli.basics.Settings.MoveMouseDelay = 1.0f;
         if (brief) org.sikuli.basics.Settings.MoveMouseDelay = 0; // the pointer jumps: only the search and the panel's response take time
-        caption("Connecting to the QNX 8.0 target through the OpticNerve agent (VNC, port 5901)");
-        s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
+        caption("Connecting to the QNX 8.0 target through the OpticNerve agent (VNC, port " + vncPort() + ")");
+        s = VNCScreen.start(target(a[0]), vncPort(), vncPassword(a[1]), 10, 1000);
         boolean framed = s != null && s.capture() != null; // a frame arrived, not just an object returned
-        check("connect to the OpticNerve agent", framed, a[0] + ":5901" + (framed ? "" : ", no frame"));
+        check("connect to the OpticNerve agent", framed, target(a[0]) + ":" + vncPort() + (framed ? "" : ", no frame"));
         if (!framed) return;
         shot("start");
 

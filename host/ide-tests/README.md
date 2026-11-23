@@ -5,7 +5,9 @@ screen through the OpticNerve agent on port 5901. `host/demo/DemoTest.sikuli` is
 
 ## Start the IDE
 
-Set `ON_HOST` (the Pi's address) and `ON_VNC_PASSWORD` (the agent's VNC password) in the shell, then:
+Set `ON_HOST` (the Pi's address) and `ON_VNC_PASSWORD` (the agent's VNC password), and `ON_VNC_PORT` if it isn't
+5901, in the shell or in the settings file `~/.config/opticnerve/env` ([docs/SETTINGS.md](../../docs/SETTINGS.md)),
+then:
 
 ```
 java -cp oculixide-5.0.0-complete-win.jar org.sikuli.ide.Sikulix

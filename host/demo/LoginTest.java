@@ -5,9 +5,11 @@
 // the Terminal. Each step prints PASS or FAIL; the exit status is the number of failures. The text read from the
 // screen is printed too.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/LoginTest.java HOST VNCPASSWORD [-nologin] [-cols=N]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/LoginTest.java HOST|- VNCPASSWORD|- [-nologin] [-cols=N]
+// A - for HOST or PASSWORD takes ON_HOST or ON_VNC_PASSWORD from the environment or the settings file
+// (host/tools/opticnerve.env.example); SSH goes to ON_SSH_HOST:ON_SSH_PORT (default HOST, port 22).
 //
-// Needs the agent running on HOST (port 5901) and ON_LOGIN_PASSWORD set (for SSH, and for the login). The login
+// Needs the agent running on HOST (port ON_VNC_PORT) and ON_LOGIN_PASSWORD set (for SSH, and for the login). The login
 // name is ON_LOGIN_USER (default qnxuser); the password is typed into the login prompt, which does not echo it, and
 // is never printed. -nologin types the name and stops at the password prompt.
 import java.awt.image.BufferedImage;
@@ -15,6 +17,45 @@ import java.awt.image.BufferedImage;
 import org.sikuli.vnc.VNCScreen;
 
 public class LoginTest {
+    // A setting (docs/SETTINGS.md): the environment first, then the settings file ON_CONFIG (default
+    // ~/.config/opticnerve/env), then the default given. The file's grammar is host/tools/on_env.sh's: a line
+    // [export] NAME=VALUE [# comment], VALUE 'text', "text" or text without spaces, # or quotes, taken literally.
+    static String cfg(String name, String dflt) {
+        String v = System.getenv(name);
+        if (v != null && !v.isEmpty()) return v;
+        String f = System.getenv("ON_CONFIG");
+        java.nio.file.Path p = java.nio.file.Paths.get(f != null && !f.isEmpty() ? f
+                : System.getProperty("user.home") + "/.config/opticnerve/env");
+        java.util.regex.Pattern line = java.util.regex.Pattern.compile("^\\s*(?:export\\s+)?" + name
+                + "=(?:'([^']*)'|\"([^\"]*)\"|([^\\s#'\"]*))\\s*(?:#.*)?$");
+        try {
+            for (String l : java.nio.file.Files.readAllLines(p)) {
+                java.util.regex.Matcher m = line.matcher(l);
+                if (!m.matches()) continue;
+                String x = m.group(1) != null ? m.group(1) : m.group(2) != null ? m.group(2) : m.group(3);
+                if (!x.isEmpty()) return x;
+            }
+        } catch (java.io.IOException e) { /* no settings file, or not readable: the default */ }
+        return dflt;
+    }
+
+    // HOST and PASSWORD on the command line, or "-" for the settings ON_HOST and ON_VNC_PASSWORD; the port is ON_VNC_PORT.
+    static String target(String arg) { return arg.equals("-") ? cfg("ON_HOST", "10.30.1.116") : arg; }
+    static String vncPassword(String arg) {
+        if (!arg.equals("-")) return arg;
+        String pw = cfg("ON_VNC_PASSWORD", null);
+        if (pw == null) throw new IllegalStateException("set ON_VNC_PASSWORD (in the environment or the settings file)");
+        return pw;
+    }
+    // host/tools/pi_ssh.sh with COMMANDS; SSH goes to ON_SSH_HOST, or else to the HOST given on the command line
+    static String sshFallback;
+    static ProcessBuilder pi_ssh(String commands) {
+        ProcessBuilder pb = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true);
+        if (sshFallback != null && cfg("ON_SSH_HOST", null) == null) pb.environment().put("ON_SSH_HOST", sshFallback);
+        return pb;
+    }
+    static int vncPort() { return Integer.parseInt(cfg("ON_VNC_PORT", "5901")); }
+
     static VNCScreen s;
     static int fails, cols;
 
@@ -110,7 +151,7 @@ public class LoginTest {
 
     // Runs commands on the target over SSH (host/tools/pi_ssh.sh, which reads ON_LOGIN_PASSWORD); returns the output.
     static String ssh(String commands) throws Exception {
-        Process p = new ProcessBuilder("bash", "host/tools/pi_ssh.sh", commands).redirectErrorStream(true).start();
+        Process p = pi_ssh(commands).start();
         String out = new String(p.getInputStream().readAllBytes()).trim();
         p.waitFor();
         return out;
@@ -141,16 +182,17 @@ public class LoginTest {
     static void run(String[] a) throws Exception {
         boolean login = !java.util.Arrays.asList(a).contains("-nologin");
         for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
-        String user = System.getenv().getOrDefault("ON_LOGIN_USER", "qnxuser");
-        String password = System.getenv("ON_LOGIN_PASSWORD");
+        String user = cfg("ON_LOGIN_USER", "qnxuser");
+        String password = cfg("ON_LOGIN_PASSWORD", null);
         if (password == null) throw new IllegalStateException("ON_LOGIN_PASSWORD is not set");
         Object p = Class.forName("com.tigervnc.rfb.SecurityClient").getField("secTypes").get(null);
         p.getClass().getMethod("setParam", String.class).invoke(p, "VncAuth,None");
 
         caption("Connecting to the QNX 8.0 target through the OpticNerve agent");
-        s = VNCScreen.start(a[0], 5901, a[1], 10, 1000);
+        sshFallback = a[0].equals("-") ? null : a[0];
+        s = VNCScreen.start(target(a[0]), vncPort(), vncPassword(a[1]), 10, 1000);
         BufferedImage first = s == null ? null : s.capture().getImage();
-        check("connect to the OpticNerve agent", first != null, a[0] + ":5901");
+        check("connect to the OpticNerve agent", first != null, target(a[0]) + ":" + vncPort());
         if (first == null) return;
 
         caption("Opening a Terminal on the target, as the launcher does (over SSH)");

@@ -11,8 +11,8 @@
                                                              OpticNerve_<UTC date-time>_<LABEL>.<ext>
     python host/tools/obs_control.py shot SOURCE OUT.png     one frame of SOURCE (e.g. the webcam) as PNG
 
-OBS must run with Tools > WebSocket Server Settings > Enable WebSocket server. Port 4455 on localhost unless
-ON_OBS_PORT is set. The password comes from ON_OBS_PASSWORD or else from OBS's own settings file
+OBS must run with Tools > WebSocket Server Settings > Enable WebSocket server. Its address is ON_OBS_HOST (default
+127.0.0.1) and ON_OBS_PORT (default 4455), from the environment or the settings file (host/tools/on_env.py). The password comes from ON_OBS_PASSWORD or else from OBS's own settings file
 (%APPDATA%/obs-studio/plugin_config/obs-websocket/config.json); it is never printed.
 
 OBS's profile writes every recording to the same name (OBS_recording.mp4, overwriting), and David renames each file
@@ -22,9 +22,13 @@ import base64, hashlib, json, os, re, socket, struct, sys, time, uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import on_env
+on_env.load()
+
 
 class Obs:
-    def __init__(self, host="127.0.0.1", port=int(os.environ.get("ON_OBS_PORT", 4455))):
+    def __init__(self, host=os.environ.get("ON_OBS_HOST", "127.0.0.1"), port=int(os.environ.get("ON_OBS_PORT", 4455))):
         self.s = socket.create_connection((host, port), timeout=30)
         key = base64.b64encode(os.urandom(16)).decode()
         self.s.sendall((f"GET / HTTP/1.1\r\nHost: {host}:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"

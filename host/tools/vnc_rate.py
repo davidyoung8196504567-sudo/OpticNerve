@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Count the updates a VNC (RFB 3.8) server sends to a viewer that stays connected (spike S6).
 
-    python host/tools/vnc_rate.py HOST PASSWORD SECONDS [ENCODINGS]
+    python host/tools/vnc_rate.py HOST[:PORT] PASSWORD SECONDS [ENCODINGS]     (PORT default 5900)
+    python host/tools/vnc_rate.py - - SECONDS [ENCODINGS]                      the agent, from the settings
+
+A - for HOST takes ON_HOST and ON_VNC_PORT, a - for PASSWORD takes ON_VNC_PASSWORD (host/tools/on_env.py).
 
 View-only, like vnc_snapshot.py: one full frame first, then incremental FramebufferUpdateRequests
 for SECONDS, printing updates, rectangles and bytes per second. ENCODINGS is a comma-separated
 list of RFB encoding numbers to offer (default 0 = raw); the tool decodes nothing, it only counts,
 so it can only offer encodings whose length it can read: 0 (raw) and 16 (ZRLE). Needs cryptography.
 """
-import socket, struct, sys, time
+import os, socket, struct, sys, time
 try:
     from cryptography.hazmat.decrepit.ciphers.algorithms import TripleDES
 except ImportError:  # cryptography < 43, e.g. Ubuntu 24.04's 41.0.7: the same class, older place
     from cryptography.hazmat.primitives.ciphers.algorithms import TripleDES
 from cryptography.hazmat.primitives.ciphers import Cipher, modes
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import on_env
+on_env.load()
 
 def recvn(s, n):
     b = bytearray()
@@ -23,10 +29,11 @@ def recvn(s, n):
         b += c
     return bytes(b)
 
-host, pw, secs = sys.argv[1], sys.argv[2].encode(), float(sys.argv[3])
+host, port = on_env.vnc_address(sys.argv[1], 5900)
+pw, secs = on_env.vnc_password(sys.argv[2]).encode(), float(sys.argv[3])
 encodings = [int(e) for e in (sys.argv[4] if len(sys.argv) > 4 else "0").split(",")]
 assert set(encodings) <= {0, 16}, "only raw (0) and ZRLE (16) can be counted"
-s = socket.create_connection((host, 5900), timeout=10)
+s = socket.create_connection((host, port), timeout=10)
 recvn(s, 12); s.sendall(b"RFB 003.008\n")
 n = recvn(s, 1)[0]; types = list(recvn(s, n)); assert 2 in types, types
 s.sendall(bytes([2]))
