@@ -53,6 +53,7 @@ what it cannot learn from pixels alone.
 | `host/tools/` | Deploy script, a VNC snapshot tool and a VNC input tool (Python) |
 | `host/poc/` | The PoC demo's commands on a Linux tester, with desktop shortcuts: the OculiX IDE, its VNC viewer, SSH to the Pi, the demo panel, a test run without the IDE, and installing the agent on the target ([list](host/poc/README.md)) |
 | `host/qemu/` | The QEMU target: launch script, a 1920 x 1080 virtual display for Screen, and a tunnel to reach the guest ([bring-up](docs/QEMU_BRINGUP.md)) |
+| `tests/regression/` | The [regression tests](tests/regression/README.md) to run after a change: `python -m pytest` (host only), `-m pi` (the target) |
 | `host/tests/`, `host/spikes/` | Network robustness tests; OculiX probes for reading and for input |
 | `sdp/` | The pinned QNX SDP baseline and the script that checks a build host against it |
 | `docs/` | [Configuration management](docs/CONFIG_MANAGEMENT.md) (everything needed to reproduce the setup), the scripts' [settings](docs/SETTINGS.md) (addresses, ports, passwords) and the [OculiX issue list](docs/ISSUES.md) |
