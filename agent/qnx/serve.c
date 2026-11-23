@@ -216,6 +216,8 @@ static uint32_t unshifted(uint32_t sym)
  * as "a" and ':' as ';' without them (2026-11-16). */
 static int held_mods;
 
+static const char *stamp(void);
+
 static void inject_key(uint32_t sym, int down)
 {
 	int code = map_key(sym);
@@ -248,7 +250,7 @@ static void inject_key(uint32_t sym, int down)
 	int rc = screen_inject_event(disp, ev);
 	screen_flush_context(sctx, 0); /* deliver now; whether Screen would hold it otherwise is not tested */
 	if (verbose)
-		fprintf(stderr, "key 0x%x -> 0x%x %s: %s\n", (unsigned)sym, (unsigned)code, down ? "down" : "up",
+		fprintf(stderr, "%s key 0x%x -> 0x%x %s: %s\n", stamp(), (unsigned)sym, (unsigned)code, down ? "down" : "up",
 			rc ? strerror(errno) : "ok");
 	screen_destroy_event(ev);
 }
@@ -278,13 +280,29 @@ static void inject_pointer(int x, int y, int mask)
 	int rc = screen_inject_event(disp, ev);
 	screen_flush_context(sctx, 0); /* deliver now; whether Screen would hold it otherwise is not tested */
 	if (verbose)
-		fprintf(stderr, "pointer %d,%d buttons 0x%x: %s\n", ptr_x, ptr_y, (unsigned)buttons, rc ? strerror(errno) : "ok");
+		fprintf(stderr, "%s pointer %d,%d buttons 0x%x: %s\n", stamp(), ptr_x, ptr_y, (unsigned)buttons,
+			rc ? strerror(errno) : "ok");
 	screen_destroy_event(ev);
 }
 
 /* --- sockets -------------------------------------------------------------------------------------------------- */
 
 static int on_client_io(select_context_t *ctp, int fd, unsigned flags, void *handle);
+static void take_actions(void);
+static int more[ON_SLOTS]; /* read_slot() stopped at its limit with input possibly left: read again next pass */
+
+/* Wall-clock time for the -v log, so its lines can be set beside a client's log or a packet capture */
+static const char *stamp(void)
+{
+	static char s[32];
+	struct timespec ts;
+	struct tm tm;
+	clock_gettime(CLOCK_REALTIME, &ts);
+	gmtime_r(&ts.tv_sec, &tm);
+	snprintf(s, sizeof(s), "%02d:%02d:%02d.%03d", tm.tm_hour % 24, tm.tm_min % 60, tm.tm_sec % 61,
+		 (int)(ts.tv_nsec / 1000000 % 1000));
+	return s;
+}
 
 static void watch(int slot)
 {
@@ -302,21 +320,51 @@ static void close_fd(int slot)
 	close(fds[slot]);
 	fds[slot] = -1;
 	want_write[slot] = 0;
+	more[slot] = 0;
+}
+
+/* Reads a client's socket until it would block, so that an end of stream or a reset that follows the last data is
+ * handled in the same pass (written during the RB01 investigation of 2026-11-23). Each read's actions are taken
+ * before the next read. At most 8 reads (16 KB) per call: if the limit is reached, the slot is marked and read
+ * again on the next pass, which run_pass() schedules at once, so nothing depends on another notification. */
+static void read_slot(int slot)
+{
+	/* 2048 bytes: at most 342 actions per read (341 PointerEvents of 6 bytes, plus one message carried over from the
+	 * previous read). The core's queue (512) is empty when read_slot() starts and is emptied after each read, so it
+	 * cannot overflow here; the releases of a closing client are queued later, by reap(), after it was emptied. */
+	uint8_t buf[2048];
+	more[slot] = 0;
+	for (int reads = 0; fds[slot] >= 0; reads++) {
+		if (reads == 8) {
+			more[slot] = 1;
+			return;
+		}
+		ssize_t n = recv(fds[slot], buf, sizeof(buf), 0);
+		if (n > 0) {
+			on_input(core, slot, buf, (size_t)n, now_ns());
+			take_actions(); /* only key and pointer injections can be waiting here */
+			continue;
+		}
+		if (n < 0 && errno == EINTR)
+			continue;
+		if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+			return;
+		if (verbose)
+			fprintf(stderr, "%s slot %d: connection ended (%s)\n", stamp(), slot,
+				n == 0 ? "end of stream" : strerror(errno));
+		on_closed(core, slot, now_ns());
+		return;
+	}
 }
 
 static int on_client_io(select_context_t *ctp, int fd, unsigned flags, void *handle)
 {
 	(void)ctp;
 	(void)fd;
+	(void)flags; /* read on any event; a read that finds nothing is harmless */
 	int slot = (int)(intptr_t)handle;
-	if (fds[slot] < 0 || !(flags & SELECT_FLAG_READ))
-		return 0;
-	uint8_t buf[16384];
-	ssize_t n = recv(fds[slot], buf, sizeof(buf), 0);
-	if (n > 0)
-		on_input(core, slot, buf, (size_t)n, now_ns());
-	else if (n == 0 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR))
-		on_closed(core, slot, now_ns());
+	if (fds[slot] >= 0)
+		read_slot(slot);
 	return 0;
 }
 
@@ -344,9 +392,10 @@ static int on_listen(select_context_t *ctp, int fd, unsigned flags, void *handle
 	setsockopt(c, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt));
 	fds[slot] = c;
 	want_write[slot] = 0;
+	more[slot] = 0;
 	watch(slot);
 	if (verbose)
-		fprintf(stderr, "accepted slot %d\n", slot);
+		fprintf(stderr, "%s accepted slot %d\n", stamp(), slot);
 	return 0;
 }
 
@@ -365,8 +414,12 @@ static void flush(void)
 			if (w < 0) {
 				if (errno == EAGAIN || errno == EWOULDBLOCK)
 					blocked = 1;
-				else if (errno != EINTR)
+				else if (errno != EINTR) {
+					if (verbose)
+						fprintf(stderr, "%s slot %d: connection ended (send: %s)\n", stamp(), i,
+							strerror(errno));
 					on_closed(core, i, t);
+				}
 				break;
 			}
 			on_sent(core, i, (size_t)w, t);
@@ -412,7 +465,7 @@ static void take_actions(void)
 			break;
 		case ON_ACT_CLOSE:
 			if (verbose)
-				fprintf(stderr, "closed slot %d\n", a.slot);
+				fprintf(stderr, "%s closed slot %d\n", stamp(), a.slot);
 			close_fd(a.slot);
 			break;
 		case ON_ACT_SHUTDOWN_SEND:
@@ -434,6 +487,12 @@ static void take_actions(void)
 /* Reap, decide, act; again if a capture was taken; then send, and arm the timer for the core's next deadline. */
 static void run_pass(void)
 {
+	int pending = 0;
+	for (int i = 0; i < ON_SLOTS; i++) /* the rest of what read_slot() left at its limit */
+		if (more[i] && fds[i] >= 0) {
+			read_slot(i);
+			pending |= more[i];
+		}
 	for (int round = 0; round < 3; round++) {
 		uint64_t before;
 		struct on_stats st;
@@ -447,6 +506,8 @@ static void run_pass(void)
 		if (dw < wake)
 			wake = dw;
 		on_stats(core, &st);
+		if (pending && wake > now_ns() + 1000000)
+			wake = now_ns() + 1000000; /* a slot still has input waiting: read it again in 1 ms */
 		if (st.captures == before) {
 			struct itimerspec it = { 0 };
 			if (wake != ON_NEVER) {

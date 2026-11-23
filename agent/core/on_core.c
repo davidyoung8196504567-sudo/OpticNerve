@@ -75,7 +75,8 @@ struct on_core {
 static void push(struct on_core *c, struct on_action a)
 {
 	if (c->act_len == ACTIONS)
-		return; /* cannot happen with the bounds above: at most 6 slots x (32 keys + 2) actions per pass */
+		return; /* not reached: a pass queues at most 6 slots x (32 keys + 2) releases, and the driver takes the
+			 * actions of each input buffer it hands to on_input() before the next (agent/qnx/serve.c) */
 	c->act[(c->act_head + c->act_len++) % ACTIONS] = a;
 }
 
