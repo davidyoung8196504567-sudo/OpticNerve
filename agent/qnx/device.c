@@ -109,7 +109,7 @@ static size_t status_text(char *b, size_t cap)
 		"content %llu\nidle_state %d\npower_mode %d\nlogins_failed %llu\nlogins_timed_out %llu\n"
 		"refused_at_accept %llu\nserver_full %llu\n"
 		"cut_text_skipped %llu\nextended_cut_text %llu\nkeys_dropped %llu\npointer_dropped %llu\n"
-		"input_handovers %llu\nwaiters %d\nstatus_readers %d\n",
+		"input_handovers %llu\nwaiters %d\nstatus_readers %d\npointer %s\n",
 		info->version, (int)getpid(), info->width, info->height, info->port, (unsigned long long)st.signals,
 		st.signalled, (unsigned long long)st.captures, (unsigned long long)st.timed_captures,
 		(unsigned long long)st.updates_from_timed_capture, (unsigned long long)st.content, idle, power,
@@ -117,16 +117,18 @@ static size_t status_text(char *b, size_t cap)
 		(unsigned long long)st.refused_at_accept,
 		(unsigned long long)st.server_full, (unsigned long long)st.cut_text_skipped,
 		(unsigned long long)st.extended_cut_text, (unsigned long long)st.keys_dropped,
-		(unsigned long long)st.pointer_dropped, (unsigned long long)st.input_handovers, nw, nt);
+		(unsigned long long)st.pointer_dropped, (unsigned long long)st.input_handovers, nw, nt,
+		on_pointer(core) ? "on" : "off");
 	for (int i = 0; i < ON_SLOTS && n < cap; i++) {
 		struct on_client_stats cs;
 		on_client_stats(core, i, &cs);
 		if (!cs.state)
 			continue;
 		n += (size_t)snprintf(b + n, cap - n,
-			"slot %d %s requests %llu updates %llu sent_seq %llu marked_tiles %d queued %zu%s\n", i,
-			state_name(cs.state), (unsigned long long)cs.requests, (unsigned long long)cs.updates,
-			(unsigned long long)cs.sent_seq, cs.marked_tiles, cs.queued, cs.input_owner ? " input_owner" : "");
+			"slot %d %s requests %llu updates %llu sent_seq %llu marked_tiles %d queued %zu pointer_encodings %d%s%s\n",
+			i, state_name(cs.state), (unsigned long long)cs.requests, (unsigned long long)cs.updates,
+			(unsigned long long)cs.sent_seq, cs.marked_tiles, cs.queued, cs.pointer_encodings,
+			cs.input_owner ? " input_owner" : "", cs.gets_arrow ? " arrow" : "");
 	}
 	return n < cap ? n : cap - 1;
 }
@@ -244,6 +246,18 @@ static int dev_devctl(resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb
 	int rc = iofunc_devctl_default(ctp, msg, ocb);
 	if (rc != _RESMGR_DEFAULT)
 		return rc;
+	if (msg->i.dcmd == ON_DCMD_POINTER) { /* answered at once; the loop's next pass sends what changes */
+		if (msg->i.nbytes < sizeof(struct on_dev_pointer))
+			return EINVAL;
+		int32_t set = ((struct on_dev_pointer *)_DEVCTL_DATA(msg->i))->set; /* read before the reply overwrites it */
+		if (set == 0 || set == 1)
+			on_set_pointer(core, set);
+		struct on_dev_pointer out = { set, on_pointer(core) };
+		memset(&msg->o, 0, sizeof(msg->o));
+		msg->o.nbytes = sizeof(out);
+		memcpy(_DEVCTL_DATA(msg->o), &out, sizeof(out));
+		return _RESMGR_PTR(ctp, &msg->o, sizeof(msg->o) + sizeof(out));
+	}
 	struct waiter *w = NULL;
 	for (int i = 0; i < WAITERS && !w; i++)
 		if (!waiters[i].used)

@@ -42,7 +42,8 @@ refuse point every address at a closed port on 127.0.0.1: nothing they do leaves
 
 ## The target's tests
 
-They change nothing a person could be using: none moves the pointer or types. `test_robustness` fills every client
+They change nothing a person could be using: none moves the pointer or types (the one exception, the pointer arrow
+test, is marked `watched` and runs only with `--watched`: see below). `test_robustness` fills every client
 slot and the demo panel test shows the panel on the target's screen for a few seconds, so both are skipped while any
 client is connected to the agent (also one still at its password prompt); someone connecting during the minute or
 two the robustness checks take is refused. The demo panel test is also skipped while a panel is running.
@@ -55,4 +56,8 @@ differ, the test runs `sdp/check_sdp.py` and says whether the SDP still matches 
 SDP from a changed build. `record_build.py` refuses to record over an entry with other bytes.
 
 Tests that drive the screen (`host/demo/DemoTest.java` and the others, the IDE tests) are not here: they move the
-target's pointer, so they are run one at a time, watched, when agreed.
+target's pointer, so they are run one at a time, watched, when agreed. The same holds for the one test here that
+moves the pointer, `test_pointer_arrow` (ON-AG-001: a viewer that asks for a pointer shape is sent the agent's arrow
+where the pointer stopped, within 0.3 s, also after its queue was full; a test tool is not; `opticnerve pointer
+off` and `on`): marked `watched`, it runs only when asked for, `python -m pytest --pi --watched -m watched`, and
+skips while any client is connected.

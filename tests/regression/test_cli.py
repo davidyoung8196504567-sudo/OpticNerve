@@ -67,6 +67,27 @@ def test_deploy_refuses_options_serve_must_not_get(option, safe_target):
     assert rc != 0 and "not a serve option" in out, out
 
 
+@pytest.mark.parametrize("setting,args,starts_with", [("0", [], "-nopointer"), ("1", [], None), (None, [], None),
+                                                       ("1", ["-nopointer"], "-nopointer")])
+def test_deploy_start_pointer_setting(setting, args, starts_with, safe_target):
+    """ON_AGENT_POINTER=0 starts the agent with the pointer arrow off; the default is on. The serve line is printed
+    before anything reaches the (stand-in) target."""
+    env = dict(safe_target, ON_LOGIN_PASSWORD="unused")
+    if setting is not None:
+        env["ON_AGENT_POINTER"] = setting
+    rc, out = py(TOOLS / "opticnerve_deploy.py", "start", *args, env=env)
+    line = next((l for l in out.splitlines() if l.startswith("serve ")), "")
+    assert line, out
+    assert ("-nopointer" in line) == (starts_with is not None) and line.count("-nopointer") <= 1, line
+
+
+@pytest.mark.parametrize("args", [["start"], ["pointer", "maybe"]])
+def test_deploy_refuses_a_bad_pointer_setting(args, safe_target):
+    env = dict(safe_target, ON_LOGIN_PASSWORD="unused", ON_AGENT_POINTER="yes")
+    rc, out = py(TOOLS / "opticnerve_deploy.py", *args, env=env)
+    assert rc != 0 and ("must be 0 or 1" in out or "pointer [on|off]" in out) and "serve " not in out, out
+
+
 # host/tools/pi_ssh.sh and demo_panel.sh
 # Where the scripts would connect: the sandbox's stand-in ssh prints its arguments
 def test_pi_ssh_connects_to_the_ssh_host_and_port(need_sh, no_settings):

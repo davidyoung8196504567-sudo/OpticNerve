@@ -36,7 +36,14 @@ struct on_dev_snapshot {
 	int32_t pad;
 };
 
+/* pointer: the pointer arrow (ON-AG-001), answered at once. */
+struct on_dev_pointer {
+	int32_t set;        /* in: 1 on, 0 off, -1 leave it */
+	int32_t on;         /* out: the setting after the request */
+};
+
 #define ON_DCMD_WAIT __DIOTF(_DCMD_MISC, 0x40, struct on_dev_wait)
+#define ON_DCMD_POINTER __DIOTF(_DCMD_MISC, 0x43, struct on_dev_pointer)
 #define ON_DCMD_SNAPSHOT __DIOTF(_DCMD_MISC, 0x42, struct on_dev_snapshot)
 #define ON_DCMD_CURRENT __DIOTF(_DCMD_MISC, 0x41, struct on_dev_current)
 

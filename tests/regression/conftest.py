@@ -136,15 +136,16 @@ def agent_build(tmp_path_factory):
 # be reached is a failure, not a skip: whoever asked for them is checking the target.
 def pytest_addoption(parser):
     parser.addoption("--pi", action="store_true", help="also run the target's tests (marker pi): the Pi at ON_HOST")
+    parser.addoption("--watched", action="store_true",
+                     help="also run the tests that move the target's pointer or type (marker watched); with --pi")
 
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--pi"):
-        return
-    target = [i for i in items if i.get_closest_marker("pi")]
-    if target:
-        config.hook.pytest_deselected(items=target)
-        items[:] = [i for i in items if not i.get_closest_marker("pi")]
+    out = [i for i in items if (i.get_closest_marker("pi") and not config.getoption("--pi")) or
+           (i.get_closest_marker("watched") and not config.getoption("--watched"))]
+    if out:
+        config.hook.pytest_deselected(items=out)
+        items[:] = [i for i in items if i not in out]
 
 
 @pytest.fixture(scope="session")

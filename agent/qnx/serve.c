@@ -3,8 +3,9 @@
  * select_attach(), Screen's composition signal, the timer and SIGTERM as pulses. The core (agent/core) decides; this
  * file only does what the core asks and tells it what happened.
  *
- *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-v]
+ *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-nopointer] [-v]
  *   -logintimeout=S is the time a viewer's user has to type the password (default 60, 0: no limit).
+ *   -nopointer starts with the pointer arrow off (on_core.h; `opticnerve pointer on|off` switches it later).
  *   -v logs every connection and every injected event to standard error (key values included: test use only).
  *
  * Runs in the foreground and logs to standard error (detaching comes later). Needs root: the display manager and
@@ -399,16 +400,19 @@ static int on_listen(select_context_t *ctp, int fd, unsigned flags, void *handle
 	return 0;
 }
 
-/* Sends what each slot has queued, until the socket would block. */
-static void flush(void)
+/* Sends what each slot has queued, until the socket would block. Returns how many slots' queues it emptied: the core
+ * holds back a client's next update while its queue is not empty, so a queue that empties here needs another
+ * decision (a pointer move, for example, brings no other event that would make one). */
+static int flush(void)
 {
 	on_time t = now_ns();
+	int emptied = 0;
 	for (int i = 0; i < ON_SLOTS; i++) {
 		if (fds[i] < 0)
 			continue;
 		const uint8_t *p;
 		size_t n;
-		int blocked = 0;
+		int blocked = 0, had = on_output(core, i, &p) > 0;
 		while ((n = on_output(core, i, &p)) > 0) {
 			ssize_t w = send(fds[i], p, n, 0);
 			if (w < 0) {
@@ -428,7 +432,10 @@ static void flush(void)
 			want_write[i] = blocked;
 			watch(i);
 		}
+		if (had && fds[i] >= 0 && on_output(core, i, &p) == 0)
+			emptied++;
 	}
+	return emptied;
 }
 
 /* --- the loop ------------------------------------------------------------------------------------------------- */
@@ -500,14 +507,14 @@ static void run_pass(void)
 		before = st.captures;
 		on_time wake = on_schedule(core, now_ns());
 		take_actions();
-		flush();
+		int emptied = flush();
 		take_actions();
 		on_time dw = device_pass(now_ns());
 		if (dw < wake)
 			wake = dw;
 		on_stats(core, &st);
-		if (pending && wake > now_ns() + 1000000)
-			wake = now_ns() + 1000000; /* a slot still has input waiting: read it again in 1 ms */
+		if ((pending || emptied) && wake > now_ns() + 1000000)
+			wake = now_ns() + 1000000; /* input still waiting, or a queue just emptied: decide again in 1 ms */
 		if (st.captures == before) {
 			struct itimerspec it = { 0 };
 			if (wake != ON_NEVER) {
@@ -546,7 +553,7 @@ static int read_password(const char *path, uint8_t pw[8])
 
 int serve_main(int argc, char **argv)
 {
-	int display_no = 1, port = 5901, holdoff_ms = 33, foreground = 0;
+	int display_no = 1, port = 5901, holdoff_ms = 33, foreground = 0, pointer = 1;
 	long login_s = 60;
 	char *end;
 	for (int i = 0; i < argc; i++) {
@@ -561,13 +568,15 @@ int serve_main(int argc, char **argv)
 		else if (strncmp(argv[i], "-logintimeout=", 14) == 0 && argv[i][14] >= '0' && argv[i][14] <= '9' &&
 			 (login_s = strtol(argv[i] + 14, &end, 10), *end == '\0') && login_s <= 999999)
 			continue; /* seconds to type the password, at most 999999; 0: no limit */
+		else if (strcmp(argv[i], "-nopointer") == 0)
+			pointer = 0;
 		else if (strcmp(argv[i], "-v") == 0)
 			verbose = 1;
 		else if (strcmp(argv[i], "-foreground") == 0)
 			foreground = 1;
 		else {
 			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] "
-					"[-logintimeout=S] [-v] [-foreground]\n");
+					"[-logintimeout=S] [-nopointer] [-v] [-foreground]\n");
 			return 2;
 		}
 	}
@@ -603,6 +612,7 @@ int serve_main(int argc, char **argv)
 				 (on_time)holdoff_ms * 1000000, 2000000000LL, (on_time)login_s * 1000000000LL };
 	if (!(core = on_core_new(&cfg)))
 		die("on_core_new");
+	on_set_pointer(core, pointer);
 	uint8_t pw[8];
 	int have = read_password(passfile, pw);
 	on_set_key(core, pw, have);

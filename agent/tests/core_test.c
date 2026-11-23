@@ -304,7 +304,30 @@ static int pass(on_time t)
 	return captured;
 }
 
-/* Parses an update and checks every pixel against `frame`. Returns the rectangle count, -1 on a bad pixel. */
+/* The arrow the core is expected to draw (ON-AG-001), defined here independently of the core's copy: X black,
+ * . white, space not drawn, hotspot at the top left. */
+static const char *const ARROW[19] = {
+	"X           ", "XX          ", "X.X         ", "X..X        ", "X...X       ", "X....X      ",
+	"X.....X     ", "X......X    ", "X.......X   ", "X........X  ", "X.........X ", "X......XXXXX",
+	"X...X..X    ", "X..XX..X    ", "X.X  X..X   ", "XX   X..X   ", "X     X..X  ", "      X..X  ",
+	"       XX   ",
+};
+static int arrow_x = -1, arrow_y = -1; /* where check_update() expects the arrow; -1: no arrow */
+
+/* The expected pixel at x,y: the frame's, or the arrow's where it is drawn. */
+static const uint8_t *expected(int x, int y)
+{
+	static const uint8_t white[4] = { 255, 255, 255, 0 }, black[4] = { 0, 0, 0, 0 };
+	if (arrow_x >= 0 && x >= arrow_x && x < arrow_x + 12 && y >= arrow_y && y < arrow_y + 19) {
+		char k = ARROW[y - arrow_y][x - arrow_x];
+		if (k != ' ')
+			return k == '.' ? white : black;
+	}
+	return frame + ((size_t)y * W + x) * 4;
+}
+
+/* Parses an update and checks every pixel against `frame`, with the arrow where arrow_x/arrow_y say. Returns the
+ * rectangle count, -1 on a bad pixel. */
 static int check_update(const uint8_t *u, size_t n)
 {
 	if (n < 4 || u[0] != 0)
@@ -317,12 +340,29 @@ static int check_update(const uint8_t *u, size_t n)
 		at += 12;
 		for (int j = 0; j < h; j++)
 			for (int i = 0; i < w; i++, at += 4) {
-				const uint8_t *f = frame + ((size_t)(y + j) * W + x + i) * 4;
+				const uint8_t *f = expected(x + i, y + j);
 				if (u[at] != f[0] || u[at + 1] != f[1] || u[at + 2] != f[2] || u[at + 3] != 0)
 					return -1;
 			}
 	}
 	return at == n ? count : -3;
+}
+
+/* 1 if the update holds a rectangle that covers the pixel x,y. */
+static int update_covers(const uint8_t *u, size_t n, int px, int py)
+{
+	if (n < 4)
+		return 0;
+	int count = u[2] << 8 | u[3];
+	size_t at = 4;
+	for (int r = 0; r < count && at + 12 <= n; r++) {
+		int x = u[at] << 8 | u[at + 1], y = u[at + 2] << 8 | u[at + 3];
+		int w = u[at + 4] << 8 | u[at + 5], h = u[at + 6] << 8 | u[at + 7];
+		if (px >= x && px < x + w && py >= y && py < y + h)
+			return 1;
+		at += 12 + (size_t)w * h * 4;
+	}
+	return 0;
 }
 
 static uint8_t big[4 + 12 * 12 + W * H * 4 + 64];
@@ -611,6 +651,440 @@ static void test_handover(void)
 	on_core_free(core);
 }
 
+/* --- the pointer arrow (ON-AG-001) ------------------------------------------------------------------------------ */
+
+/* A logged-in client after ClientInit, its ServerInit drained. */
+static int client(uint8_t seed, on_time t)
+{
+	uint8_t ch[16] = { seed };
+	int s = login(ch, "opt1cNrv", t);
+	drain(s, NULL, 64, t);
+	on_input(core, s, (const uint8_t[]){ 1 }, 1, t);
+	drain(s, NULL, 512, t);
+	return s;
+}
+
+/* Sends SetEncodings with the n encodings in e, whole or one byte at a time; extra bytes follow in the same input. */
+static void encodings(int s, const int32_t *e, int n, int bytewise, const uint8_t *extra, size_t nextra, on_time t)
+{
+	static uint8_t m[4 + 4 * 65535 + 16];
+	size_t k = 0;
+	m[k++] = 2;
+	m[k++] = 0;
+	m[k++] = (uint8_t)(n >> 8);
+	m[k++] = (uint8_t)n;
+	for (int i = 0; i < n; i++) {
+		uint32_t v = (uint32_t)e[i];
+		m[k++] = (uint8_t)(v >> 24);
+		m[k++] = (uint8_t)(v >> 16);
+		m[k++] = (uint8_t)(v >> 8);
+		m[k++] = (uint8_t)v;
+	}
+	if (nextra)
+		memcpy(m + k, extra, nextra);
+	k += nextra;
+	if (bytewise)
+		for (size_t i = 0; i < k; i++)
+			on_input(core, s, m + i, 1, t);
+	else
+		on_input(core, s, m, k, t);
+}
+
+static int bits_of(int s)
+{
+	struct on_client_stats cs;
+	on_client_stats(core, s, &cs);
+	return cs.pointer_encodings;
+}
+
+static void pointer_to(int s, int x, int y, on_time t)
+{
+	on_input(core, s, (const uint8_t[]){ 5, 0, (uint8_t)(x >> 8), (uint8_t)x, (uint8_t)(y >> 8), (uint8_t)y }, 6, t);
+	count_actions(ON_ACT_NONE);
+}
+
+static void test_pointer_parser(void)
+{
+	core = new_core();
+	on_time t = 1000 * MS;
+	int s = client(21, t);
+	const uint8_t req[10] = { 3, 1, 0, 0, 0, 0, 0, 8, 0, 8 }; /* a FramebufferUpdateRequest after each list */
+	struct on_client_stats cs;
+	uint64_t before;
+
+	/* OculiX's own list, as tapped in 317 connections (OculiX 4.0.0 with tigervnc-java 2.0.4) */
+	static const int32_t tool[] = { -307, -224, -313, -312, -258, -1063131698, 16, 1, 7, 5, 2, 1, 0, -254 };
+	for (int bw = 0; bw < 2; bw++) {
+		on_client_stats(core, s, &cs);
+		before = cs.requests;
+		encodings(s, tool, 14, bw, req, 10, t);
+		on_client_stats(core, s, &cs);
+		CHECK(bits_of(s) == 0 && cs.requests == before + 1, "a test tool's list (%s): no pointer encoding, the request after it read",
+		      bw ? "byte by byte" : "whole");
+	}
+	static const int32_t cur[] = { -239 }, both[] = { -240, 0, 16, -314 }, last[] = { 0, 1, -239 };
+	encodings(s, cur, 1, 0, NULL, 0, t);
+	CHECK(bits_of(s) == 1, "Cursor (-239) alone: asked for (%d)", bits_of(s));
+	encodings(s, tool, 14, 0, NULL, 0, t);
+	CHECK(bits_of(s) == 0, "a later list without it: no longer asked for");
+	encodings(s, cur, 1, 1, NULL, 0, t);
+	CHECK(bits_of(s) == 1, "Cursor alone, byte by byte: asked for");
+	encodings(s, both, 4, 1, NULL, 0, t);
+	CHECK(bits_of(s) == 6, "XCursor first and CursorWithAlpha last, byte by byte: both (%d)", bits_of(s));
+	encodings(s, last, 3, 0, NULL, 0, t);
+	CHECK(bits_of(s) == 1, "Cursor last in a list");
+	on_client_stats(core, s, &cs);
+	before = cs.requests;
+	encodings(s, NULL, 0, 0, req, 10, t);
+	on_client_stats(core, s, &cs);
+	CHECK(bits_of(s) == 0 && cs.requests == before + 1, "an empty list after one with Cursor: no longer asked for, the request after it read");
+	static const int32_t near[] = { -223, -224, -238, -241, -313, -315 };
+	encodings(s, near, 6, 0, NULL, 0, t);
+	CHECK(bits_of(s) == 0, "the neighbours of the pointer encodings are not taken for them");
+	static const int32_t misaligned[] = { 0x000000ff, (int32_t)0xffff1100 }; /* FF FF FF 11 across an entry boundary */
+	encodings(s, misaligned, 2, 1, NULL, 0, t);
+	CHECK(bits_of(s) == 0, "the bytes of -239 across two entries are not taken for it");
+
+	/* the longest list: 65,535 entries, Cursor the last, in pieces of 1000 bytes; not committed before its end */
+	static int32_t longest[65535];
+	memset(longest, 0, sizeof(longest));
+	longest[0] = -239; /* first: a list committed entry by entry would show it long before the end */
+	{
+		static uint8_t m[4 + 4 * 65535 + 10];
+		size_t k = 0;
+		m[k++] = 2; m[k++] = 0; m[k++] = 0xff; m[k++] = 0xff;
+		for (int i = 0; i < 65535; i++) {
+			uint32_t v = (uint32_t)longest[i];
+			m[k++] = (uint8_t)(v >> 24); m[k++] = (uint8_t)(v >> 16); m[k++] = (uint8_t)(v >> 8); m[k++] = (uint8_t)v;
+		}
+		memcpy(m + k, req, 10);
+		k += 10;
+		on_client_stats(core, s, &cs);
+		before = cs.requests;
+		int early = 0;
+		for (size_t i = 0; i < k; i += 1000) {
+			on_input(core, s, m + i, k - i < 1000 ? k - i : 1000, t);
+			if (i + 1000 < k - 14)
+				early |= bits_of(s) != 0;
+		}
+		on_client_stats(core, s, &cs);
+		CHECK(!early && bits_of(s) == 1 && cs.requests == before + 1 && cs.state == 2,
+		      "65,535 entries in pieces, Cursor first: taken only at the end of the list, and the request after it read");
+	}
+
+	/* a close in the middle of a list; the slot reused starts without it */
+	{
+		const uint8_t part[] = { 2, 0, 0, 2, 0xff, 0xff, 0xff };
+		on_input(core, s, part, sizeof(part), t);
+		on_closed(core, s, t);
+		on_schedule(core, t);
+		count_actions(ON_ACT_NONE);
+		int s2 = client(22, t);
+		on_client_stats(core, s2, &cs);
+		CHECK(s2 == s && bits_of(s2) == 0 && cs.requests == 0, "a slot closed in the middle of a list is reused clean");
+		on_input(core, s2, req, 10, t);
+		on_client_stats(core, s2, &cs);
+		CHECK(cs.requests == 1 && cs.state == 2, "and reads its messages from the start");
+	}
+	on_core_free(core);
+}
+
+static void test_pointer_arrow(void)
+{
+	core = new_core();
+	on_time t = 1000 * MS;
+	static const int32_t cur[] = { 0, -239 }, plain[] = { 0 };
+	int v = client(31, t), p = client(32, t); /* v: a viewer that asks for a pointer; p: a test tool */
+	encodings(v, cur, 2, 0, NULL, 0, t);
+	encodings(p, plain, 1, 0, NULL, 0, t);
+	struct on_client_stats cs;
+	struct on_stats st;
+	size_t n;
+	fill(40);
+
+	/* nothing drawn before a position is known */
+	request(v, 0, 0, 0, W, H, t);
+	request(p, 0, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = arrow_y = -1;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 12, "no position yet: the viewer's frame has no arrow");
+	drain(p, NULL, sizeof(big), t);
+
+	/* p moves the pointer: the viewer gets the arrow there, the test tool gets nothing for it */
+	t += 100 * MS;
+	request(v, 1, 0, 0, W, H, t);
+	request(p, 1, 0, 0, W, H, t);
+	pointer_to(p, 30, 30, t);
+	on_stats(core, &st);
+	uint64_t content = st.content, captures = st.captures;
+	on_schedule(core, t);
+	CHECK(count_actions(ON_ACT_CAPTURE) == 0, "a pointer move asks for no capture");
+	arrow_x = 30, arrow_y = 30;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 1, "the viewer gets the arrow at 30,30, every pixel right (%d)", check_update(big, n));
+	CHECK(drain(p, NULL, sizeof(big), t) == 0, "the test tool, with a request waiting, gets nothing for the move");
+	on_stats(core, &st);
+	CHECK(st.content == content && st.captures == captures, "a pointer-only update leaves content and captures alone");
+	on_client_stats(core, v, &cs);
+	CHECK(cs.gets_arrow == 1 && cs.pointer_encodings == 1, "the viewer is shown as getting the arrow");
+	on_client_stats(core, p, &cs);
+	CHECK(cs.gets_arrow == 0 && cs.pointer_encodings == 0, "the test tool is shown as not getting it");
+
+	/* the test tool's own full frame has no arrow */
+	request(p, 0, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = -1;
+	n = drain(p, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 12, "the test tool's full frame: no arrow anywhere");
+
+	/* a move away from where the viewer was last sent the arrow: the old place is sent again, clean */
+	t += 100 * MS;
+	pointer_to(p, 150, 100, t); /* tile (2,1); the arrow was in tile (0,0) */
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = 150, arrow_y = 100;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 2 && update_covers(big, n, 30, 30) && update_covers(big, n, 150, 100),
+	      "a move away: the old place sent clean and the new one with the arrow (%d)", check_update(big, n));
+
+	/* three moves with no update between: one update, the arrow only at the last, the old places clean */
+	t += 100 * MS;
+	pointer_to(p, 10, 10, t);
+	pointer_to(p, 150, 20, t);
+	pointer_to(p, 60, 60, t); /* across the corner of four tiles */
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = 60, arrow_y = 60;
+	n = drain(v, big, sizeof(big), t);
+	int r = check_update(big, n);
+	CHECK(r == 6 && update_covers(big, n, 10, 10) && update_covers(big, n, 150, 20) && update_covers(big, n, 63, 63) &&
+	      update_covers(big, n, 64, 64), "three moves: one update, every old place sent clean, the arrow at 60,60 across four tiles (%d)", r);
+
+	/* the screen changes under the resting arrow: the arrow stays */
+	t += 100 * MS;
+	frame[(70 * W + 70) * 4] ^= 0x5a; /* tile (1,1), under the arrow */
+	request(v, 1, 0, 0, W, H, t);
+	on_signalled(core, t);
+	pass(t);
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 1, "a change under the resting arrow: sent with the arrow over it");
+	drain(p, NULL, sizeof(big), t);
+
+	/* a request for part of the screen that cuts the arrow */
+	t += 100 * MS;
+	pointer_to(p, 20, 20, t);
+	request(v, 1, 0, 0, 25, 25, t);
+	pass(t);
+	arrow_x = 20, arrow_y = 20;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) >= 1 && update_covers(big, n, 20, 20) && !update_covers(big, n, 26, 26),
+	      "an area that cuts the arrow: its part of the arrow, nothing outside the area");
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) >= 1, "the rest of the cut tiles follows, with the arrow");
+
+	/* the viewer stops asking for a pointer: the arrow is taken back without a move; asks again: back at once */
+	t += 100 * MS;
+	encodings(v, plain, 1, 0, NULL, 0, t);
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = -1;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 1 && update_covers(big, n, 20, 20), "the viewer no longer asks: the arrow's tile sent clean");
+	encodings(v, cur, 2, 0, NULL, 0, t);
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = 20;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 1 && update_covers(big, n, 20, 20), "it asks again: the arrow is sent at once");
+
+	/* the switch: off takes the arrow back, on brings it */
+	t += 100 * MS;
+	on_set_pointer(core, 0);
+	CHECK(on_pointer(core) == 0, "the arrow switched off");
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = -1;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 1, "switched off: the arrow's tile sent clean");
+	pointer_to(p, 100, 100, t);
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	CHECK(drain(v, NULL, sizeof(big), t) == 0, "switched off: a move sends the viewer nothing");
+	on_client_stats(core, v, &cs);
+	CHECK(cs.gets_arrow == 0 && cs.pointer_encodings == 1, "switched off: still asks, does not get it");
+	on_set_pointer(core, 1);
+	pass(t);
+	arrow_x = 100, arrow_y = 100;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) == 1, "switched on: the arrow appears where the pointer went while it was off");
+
+	/* a move while the viewer's queue is full arrives when it drains */
+	t += 100 * MS;
+	request(v, 0, 0, 0, W, H, t);
+	pass(t); /* a full frame queued, not drained */
+	request(v, 1, 0, 0, W, H, t);
+	pointer_to(p, 140, 30, t);
+	pass(t);
+	drain(v, big, sizeof(big), t); /* the old full frame, with the arrow where it was */
+	pass(t);
+	arrow_x = 140, arrow_y = 30;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) >= 1 && update_covers(big, n, 140, 30), "a move while the queue was full arrives after it drains");
+
+	/* events that are dropped, and the release when a client goes, do not move the arrow */
+	t += 100 * MS;
+	on_input(core, p, (const uint8_t[]){ 5, 1, 0, 140, 0, 30 }, 6, t); /* p holds button 1 */
+	on_input(core, v, (const uint8_t[]){ 5, 0, 0, 10, 0, 100 }, 6, t); /* v's move: dropped, p holds a button */
+	count_actions(ON_ACT_NONE);
+	on_closed(core, p, t); /* releases p's button: a pointer action at -1,-1 */
+	on_schedule(core, t);
+	count_actions(ON_ACT_NONE);
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	CHECK(drain(v, NULL, sizeof(big), t) == 0, "a dropped move and the release on disconnect leave the arrow where it was");
+
+	/* the viewer's own moves move it too; a pixel format other than the native one */
+	t += 100 * MS;
+	const uint8_t bgr[20] = { 0, 0, 0, 0, 32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 0, 8, 16, 0, 0, 0 }; /* red at 0, blue at 16 */
+	on_input(core, v, bgr, 20, t);
+	pointer_to(v, 30, 40, t);
+	request(v, 0, 0, 0, W, H, t);
+	pass(t);
+	n = drain(v, big, sizeof(big), t);
+	{
+		int ok = n > 16 && big[0] == 0 && (big[2] << 8 | big[3]) == 12;
+		size_t at = 4;
+		for (int k = 0; ok && k < 12; k++) {
+			int x = big[at] << 8 | big[at + 1], y = big[at + 2] << 8 | big[at + 3];
+			int w = big[at + 4] << 8 | big[at + 5], h = big[at + 6] << 8 | big[at + 7];
+			at += 12;
+			for (int j = 0; ok && j < h; j++)
+				for (int i = 0; ok && i < w; i++, at += 4) {
+					arrow_x = 30, arrow_y = 40;
+					const uint8_t *e = expected(x + i, y + j); /* B, G, R */
+					ok = big[at] == e[2] && big[at + 1] == e[1] && big[at + 2] == e[0] && big[at + 3] == 0;
+				}
+		}
+		CHECK(ok, "red-at-0 format: the frame and the arrow in the client's format, after its own move to 30,40");
+	}
+
+	/* a format the conversion visibly changes (10 bits a channel: white is 1023): the arrow goes through it too */
+	{
+		const uint8_t ten[20] = { 0, 0, 0, 0, 32, 30, 0, 1, 0x03, 0xff, 0x03, 0xff, 0x03, 0xff, 20, 10, 0, 0, 0, 0 };
+		t += 100 * MS; /* past the hold-off after the last capture */
+		on_input(core, v, ten, 20, t);
+		request(v, 0, 0, 0, W, H, t);
+		pass(t);
+		n = drain(v, big, sizeof(big), t);
+		int ok = n > 16 && (big[2] << 8 | big[3]) == 12, arrow_px = 0;
+		size_t at = 4;
+		for (int k = 0; ok && k < 12; k++) {
+			int x = big[at] << 8 | big[at + 1], y = big[at + 2] << 8 | big[at + 3];
+			int w = big[at + 4] << 8 | big[at + 5], h = big[at + 6] << 8 | big[at + 7];
+			at += 12;
+			for (int j = 0; ok && j < h; j++)
+				for (int i = 0; ok && i < w; i++, at += 4) {
+					arrow_x = 30, arrow_y = 40;
+					const uint8_t *e = expected(x + i, y + j);
+					uint32_t want = (uint32_t)e[2] * 1023 / 255 << 20 | (uint32_t)e[1] * 1023 / 255 << 10 |
+							(uint32_t)e[0] * 1023 / 255;
+					uint32_t got = (uint32_t)big[at] | (uint32_t)big[at + 1] << 8 | (uint32_t)big[at + 2] << 16 |
+						       (uint32_t)big[at + 3] << 24;
+					ok = got == want;
+					arrow_px += want == 0x3fffffff && x + i == 31 && y + j == 42; /* a white arrow pixel */
+				}
+		}
+		CHECK(ok && arrow_px == 1, "10 bits a channel: the frame and the arrow converted (white arrow pixel 0x3fffffff)");
+		const uint8_t native32[20] = { 0, 0, 0, 0, 32, 24, 0, 1, 0, 255, 0, 255, 0, 255, 16, 8, 0, 0, 0, 0 };
+		on_input(core, v, native32, 20, t);
+		pass(t);
+		drain(v, NULL, sizeof(big), t);
+	}
+
+	/* the arrow cut by the right and bottom edges of a partial tile, pixel by pixel */
+	t += 100 * MS;
+	pointer_to(v, 195, 125, t);
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	arrow_x = 195, arrow_y = 125;
+	n = drain(v, big, sizeof(big), t);
+	CHECK(check_update(big, n) >= 1 && update_covers(big, n, 199, 129), "the arrow cut at the corner, every pixel right");
+
+	/* positions the driver reports are kept within the screen */
+	t += 100 * MS;
+	on_pointer_at(core, -5, 500, t);
+	request(v, 1, 0, 0, W, H, t);
+	pass(t);
+	n = drain(v, big, sizeof(big), t);
+	CHECK(n > 4 && update_covers(big, n, 0, H - 1), "a reported position off the screen is drawn at its edge");
+	on_core_free(core);
+
+	/* the edges, at a size made of whole tiles (128 x 128: 2 x 2): the arrow is cut, no tile outside is marked */
+	struct on_config cfg = { 128, 128, "edges", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS };
+	core = on_core_new(&cfg);
+	uint8_t pw[8];
+	on_vnc_password((const char *)pw_text, pw);
+	on_set_key(core, pw, 1);
+	static uint8_t frame128[128 * 128 * 4];
+	int e = client(41, t);
+	encodings(e, cur, 2, 0, NULL, 0, t);
+	request(e, 0, 0, 0, 128, 128, t);
+	on_schedule(core, t);
+	struct on_action a;
+	while (on_next_action(core, &a))
+		if (a.type == ON_ACT_CAPTURE)
+			on_captured(core, frame128, 128 * 4, t, t + MS);
+	on_schedule(core, t + MS);
+	drain(e, NULL, sizeof(big), t);
+	struct { int x, y, tiles; const char *what; } edge[] = {
+		{ 127, 127, 1, "the bottom right corner" }, { 127, 60, 2, "the right edge, across two tiles" },
+		{ 60, 127, 2, "the bottom edge, across two tiles" }, { 120, 0, 1, "the top right" }, { 63, 63, 4, "the middle, across four" } };
+	int px = -1, py = -1;
+	for (size_t k = 0; k < sizeof(edge) / sizeof(edge[0]); k++) {
+		pointer_to(e, edge[k].x, edge[k].y, t);
+		on_client_stats(core, e, &cs);
+		int marked = cs.marked_tiles;
+		/* exactly the tiles under the arrow's old and new places, each cut to the screen, are marked */
+		int want = 0;
+		for (int ty = 0; ty < 2; ty++)
+			for (int tx = 0; tx < 2; tx++) {
+				int x0 = tx * 64, y0 = ty * 64, hit = 0;
+				for (int w = 0; w < 2; w++) {
+					int ax = w ? edge[k].x : px, ay = w ? edge[k].y : py;
+					if (ax < 0)
+						continue;
+					int ax1 = ax + 12 < 128 ? ax + 12 : 128, ay1 = ay + 19 < 128 ? ay + 19 : 128;
+					hit |= ax < x0 + 64 && ax1 > x0 && ay < y0 + 64 && ay1 > y0;
+				}
+				want += hit;
+			}
+		CHECK(marked == want, "edge, %s: the tiles marked are those under the old and new arrow (%d, want %d)",
+		      edge[k].what, marked, want);
+		px = edge[k].x;
+		py = edge[k].y;
+		request(e, 1, 0, 0, 128, 128, t);
+		on_schedule(core, t);
+		n = drain(e, big, sizeof(big), t);
+		/* the previous place is marked too, so count the new place's tiles from the update */
+		int covered = 0;
+		for (int ty = 0; ty < 2; ty++)
+			for (int tx = 0; tx < 2; tx++) {
+				int x0 = tx * 64, y0 = ty * 64;
+				int in = edge[k].x < x0 + 64 && edge[k].x + 12 > x0 && edge[k].y < y0 + 64 && edge[k].y + 19 > y0;
+				covered += in && update_covers(big, n, x0 + (edge[k].x > x0 ? edge[k].x - x0 : 0),
+							       y0 + (edge[k].y > y0 ? edge[k].y - y0 : 0));
+			}
+		on_client_stats(core, e, &cs);
+		CHECK(marked <= 4 && covered == edge[k].tiles && cs.marked_tiles == 0,
+		      "edge, %s: %d tile(s) with the arrow sent, none left marked (marked %d before)", edge[k].what, covered, marked);
+	}
+	on_core_free(core);
+	arrow_x = arrow_y = -1;
+}
+
 int main(void)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
@@ -618,6 +1092,8 @@ int main(void)
 	test_handshake();
 	test_schedule();
 	test_handover();
+	test_pointer_parser();
+	test_pointer_arrow();
 	printf("%d checks, %d failed\n", checks, fails);
 	return fails != 0;
 }

@@ -38,7 +38,9 @@ what it cannot learn from pixels alone.
 - **QNX-native.** One thread on a QNX dispatch loop: sockets, Screen's change signal, a timer and signals arrive as
   pulses and select events; `/dev/opticnerve` is a resource manager on the same loop.
 - **Exact pixels.** Frames are 32 bits per pixel, read straight from the display: what the test compares is what
-  the display shows.
+  the display shows. A viewer for a person (one that asks for a pointer shape) also gets an arrow drawn where the
+  agent last put the pointer; test tools that ask for no pointer shape (OculiX VNCScreen) never do (`opticnerve
+  pointer on|off`, ON-AG-001).
 - **Frames only on change.** The agent tracks, for each client and each 64x64 tile, what the client has not been
   sent yet, so a test can rely on a frame being current, and can ask (`opticnerve current`).
 
@@ -142,7 +144,8 @@ java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/spike
 |---|---|
 | `opticnerve status` | the status text: version, process ID, display, change count, captures, clients |
 | `opticnerve wait [-timeout=S] [-since=COUNT] [-quiet=MS]` | waits for the next screen change (exit 0) or the timeout (exit 2); `-since` returns at once if the change count is already past COUNT; `-quiet` waits until the screen has settled (no change for MS); with `-since`, it first waits for a change past COUNT |
-| `opticnerve current` | captures and says, for each VNC client, whether its last frame is current |
+| `opticnerve current` | captures and says, for each VNC client, whether its last frame is current (a viewer that gets the pointer arrow is not current while a move of the arrow waits for its next request) |
+| `opticnerve pointer [on\|off]` | shows, or switches, the pointer arrow drawn for viewers that ask for a pointer shape (on when the agent starts, unless `serve -nopointer`) |
 | `opticnerve capture X Y W H FILE` | writes a region of the screen to FILE (PPM), as the calling user |
 | `opticnerve stop` | stops the agent (root only) |
 | `opticnerve passwd [-passfile=PATH] < password` | sets the VNC password and tells the agent (root only) |
@@ -153,7 +156,7 @@ Every request has a time limit: an agent that does not answer makes a command pr
 
 | Test | Where | What it checks |
 |---|---|---|
-| `agent/tests/core_test.c` | on the target | DES and VNC authentication against independent values; the handshake and its refusals; the tile marks and the schedule (a change made while a client is busy, partial requests, the hold-off between captures, the timed capture); release of held keys and buttons on disconnect; message limits |
+| `agent/tests/core_test.c` | on the target | DES and VNC authentication against independent values; the handshake and its refusals; the tile marks and the schedule (a change made while a client is busy, partial requests, the hold-off between captures, the timed capture); release of held keys and buttons on disconnect; message limits; the pointer arrow (which clients ask for it, the list read across any split, the arrow's pixels in each format, the tiles marked when it moves, at the edges, and when a client or the switch changes) |
 | `host/tests/robustness.py <Pi>:5901` | from a host | wrong password, unknown messages, a fifth client, silent connections, a client that stops reading, 208 connections closed at every protocol state (a connection turned away while earlier ones still hold their slots waits for a free slot, up to 35 s, and the waits are reported: from macOS a connection closed by reset can hold its slot until the agent's keepalive, about 10 s) |
 | `host/spikes/oculix_input/OculixInputProbe.java` | from a host | 15 OculiX input calls through the agent; what arrives is logged by `agent/spikes/input_log.c` on the target |
 
@@ -207,8 +210,8 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 - **Captures:** at most one at a time, and never sooner after the last one than that one took (at least 33 ms by
   default, `-holdoff=MS`); a timed capture every 2 s while a client waits for a change.
 - **Who can do what on the target:** the agent runs as root. Any user who can log in to the target can read its
-  status and capture the screen through `/dev/opticnerve` without the VNC password; input needs a VNC connection and
-  the password. Stopping the agent and setting its password are root only. This fits a single-user test target.
+  status, capture the screen and switch the viewers' pointer arrow through `/dev/opticnerve` without the VNC
+  password; input needs a VNC connection and the password. Stopping the agent and setting its password are root only. This fits a single-user test target.
 - **Input:** the agent injects input through Screen. It reaches application windows (the demo panel, a Terminal,
   the GTK apps) and the quick-start image's launcher: a click on a launcher tile opens its application
   (`host/demo/GtkDemoTest.java`), and Alt+Tab switches from the Developer Desktop to the launcher (both checked on

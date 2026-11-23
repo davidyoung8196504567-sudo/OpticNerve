@@ -54,7 +54,9 @@ To put the agent on a new Pi: `sut.sh build`, then `sut.sh install`. Record the 
 
 ## A test session
 
-`ide.sh`, then `viewer.sh` to work the Pi's apps and capture images, and `demo-panel.sh` for a fresh panel (a test
+`ide.sh`, then `viewer.sh` to work the Pi's apps and capture images (the viewer shows the agent's pointer arrow;
+switch it off before capturing images, `python host/tools/opticnerve_deploy.py pointer off`, and on again after),
+and `demo-panel.sh` for a fresh panel (a test
 can also start it itself: see [host/ide-tests/README.md](../ide-tests/README.md)). The viewer and the test take
 turns at the Pi's input, so keep your hands off the viewer while a test runs. `run-test.sh` replays a saved test
 with the IDE closed.

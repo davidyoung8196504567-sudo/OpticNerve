@@ -36,6 +36,10 @@ struct slot {
 	size_t have, need;        /* bytes in msg, bytes the fixed part needs */
 	uint32_t skip;            /* bytes of a variable part still to skip */
 	int extended;             /* the variable part being skipped is an extended clipboard message */
+	int encodings;            /* the variable part being skipped is a SetEncodings list: its entries are read */
+	uint8_t reg[4];           /* the encoding entry being read, and how many of its bytes are in */
+	int reg_n;
+	int enc_bits, enc_new;    /* pointer encodings asked for (1 -239, 2 -240, 4 -314); those of the list being read */
 	uint8_t *out;             /* output queue: out[head .. head+len) */
 	size_t cap, head, len;
 	on_time deadline;         /* handshake deadline, or the end of the linger after a failure */
@@ -61,6 +65,8 @@ struct on_core {
 	uint8_t *cur;             /* our copy of the display, bytes B, G, R, 0 */
 	struct slot slots[ON_SLOTS];
 	int input_owner;          /* slot whose input is injected; -1 none */
+	int pointer_on;           /* the arrow is drawn for clients that ask for a pointer encoding */
+	int ptr_known, ptr_x, ptr_y; /* the pointer's position, within the screen */
 	on_time now;              /* the time of the current on_schedule() */
 	/* capture state */
 	int in_flight, in_flight_timed, device_want;
@@ -182,6 +188,129 @@ static void mark_area(struct on_core *c, struct slot *s, struct rect r)
 			s->marks[ty * c->tw + tx] = 1;
 }
 
+/* --- the pointer arrow (on_core.h, ON-AG-001) ------------------------------------------------------------------ */
+
+/* An arrow of our own, hotspot at its tip (the top left): X black, . white, space not drawn. */
+#define ARROW_W 12
+#define ARROW_H 19
+static const char *const ARROW[ARROW_H] = {
+	"X           ",
+	"XX          ",
+	"X.X         ",
+	"X..X        ",
+	"X...X       ",
+	"X....X      ",
+	"X.....X     ",
+	"X......X    ",
+	"X.......X   ",
+	"X........X  ",
+	"X.........X ",
+	"X......XXXXX",
+	"X...X..X    ",
+	"X..XX..X    ",
+	"X.X  X..X   ",
+	"XX   X..X   ",
+	"X     X..X  ",
+	"      X..X  ",
+	"       XX   ",
+};
+
+/* The arrow's rectangle at the pointer, clipped to the screen; 0 if the position is not known yet. The position is
+ * always within the screen, so only the right and bottom edges can cut it. */
+static int pointer_rect(const struct on_core *c, struct rect *r)
+{
+	if (!c->ptr_known)
+		return 0;
+	*r = (struct rect){ c->ptr_x, c->ptr_y, ARROW_W, ARROW_H };
+	return clip(c, r);
+}
+
+static int gets_arrow(const struct on_core *c, const struct slot *s)
+{
+	return c->pointer_on && s->enc_bits && s->state == S_CLIENT && s->stage > H_INIT;
+}
+
+/* Marks the tiles under the arrow: for one client (idx >= 0, whatever its encodings), or for every client that asks
+ * for a pointer (idx < 0). Called on every change of what a client should see there, so an unmarked tile always
+ * holds what the client was last sent: the screen, plus the arrow if it gets one. */
+static void mark_pointer(struct on_core *c, int idx)
+{
+	struct rect r;
+	if (!pointer_rect(c, &r))
+		return;
+	for (int i = 0; i < ON_SLOTS; i++) {
+		struct slot *s = &c->slots[i];
+		if ((idx < 0 ? s->enc_bits != 0 : i == idx) && s->state == S_CLIENT && s->stage > H_INIT)
+			mark_area(c, s, r);
+	}
+}
+
+static void move_pointer(struct on_core *c, int x, int y)
+{
+	if (x < 0) x = 0;
+	if (y < 0) y = 0;
+	if (x >= c->cfg.width) x = c->cfg.width - 1;
+	if (y >= c->cfg.height) y = c->cfg.height - 1;
+	if (c->ptr_known && x == c->ptr_x && y == c->ptr_y)
+		return;
+	if (c->pointer_on)
+		mark_pointer(c, -1); /* where it was */
+	c->ptr_known = 1;
+	c->ptr_x = x;
+	c->ptr_y = y;
+	if (c->pointer_on)
+		mark_pointer(c, -1); /* where it is */
+}
+
+/* Draws the arrow's part of screen row y into buf, which holds pixels x0..x1-1 of that row as B, G, R, 0. */
+static void draw_arrow_row(const struct on_core *c, uint8_t *buf, int x0, int x1, int y)
+{
+	const char *line = ARROW[y - c->ptr_y];
+	int from = x0 > c->ptr_x ? x0 : c->ptr_x, to = x1 < c->ptr_x + ARROW_W ? x1 : c->ptr_x + ARROW_W;
+	for (int x = from; x < to; x++) {
+		char k = line[x - c->ptr_x];
+		if (k == ' ')
+			continue;
+		uint8_t v = k == '.' ? 255 : 0;
+		uint8_t *p = buf + (size_t)(x - x0) * 4;
+		p[0] = p[1] = p[2] = v;
+		p[3] = 0;
+	}
+}
+
+/* The pointer encodings of a client's SetEncodings, once the whole list is in. */
+static void set_pointer_encodings(struct on_core *c, int idx, int bits)
+{
+	struct slot *s = &c->slots[idx];
+	int had = s->enc_bits != 0;
+	s->enc_bits = bits;
+	if (had != (bits != 0) && c->pointer_on)
+		mark_pointer(c, idx); /* it now gets the arrow, or no longer: its tiles there are sent again */
+}
+
+static int pointer_encoding(uint32_t e)
+{
+	int32_t v = (int32_t)e;
+	return v == -239 ? 1 : v == -240 ? 2 : v == -314 ? 4 : 0;
+}
+
+void on_set_pointer(struct on_core *c, int on)
+{
+	on = on != 0;
+	if (on == c->pointer_on)
+		return;
+	c->pointer_on = on;
+	mark_pointer(c, -1); /* the arrow appears, or goes, for every client that asks for one */
+}
+
+int on_pointer(const struct on_core *c) { return c->pointer_on; }
+
+void on_pointer_at(struct on_core *c, int x, int y, on_time now)
+{
+	(void)now;
+	move_pointer(c, x, y);
+}
+
 /* --- input from a client ------------------------------------------------------------------------------------ */
 
 /* 4.8: the client that sends input owns it, unless the owner holds a key or a button: a press is never split from
@@ -240,6 +369,7 @@ static void pointer_event(struct on_core *c, int idx, int buttons, int x, int y)
 	if (y >= c->cfg.height) y = c->cfg.height - 1;
 	s->buttons = buttons;
 	push(c, (struct on_action){ .type = ON_ACT_POINTER, .slot = idx, .x = x, .y = y, .buttons = buttons });
+	move_pointer(c, x, y);
 }
 
 static int set_pixel_format(struct slot *s, const uint8_t *m)
@@ -276,7 +406,15 @@ static void client_message(struct on_core *c, int idx, on_time now)
 			mark_all(c, s);
 		break;
 	case 2:
-		s->skip = 4u * get_u16(m + 2); /* the encodings: Raw is always allowed, nothing else is used yet */
+		/* the encodings: Raw is always used; the list is read only for the pointer encodings (on_input reads the
+		 * entries as it skips them, and commits them at the end of the list, so a pass between two segments of a
+		 * long list still works from the previous list) */
+		s->skip = 4u * get_u16(m + 2);
+		s->enc_new = 0;
+		s->reg_n = 0;
+		s->encodings = s->skip != 0;
+		if (!s->skip)
+			set_pointer_encodings(c, idx, 0);
 		break;
 	case 3: {
 		struct rect r = { (int)get_u16(m + 2), (int)get_u16(m + 4), (int)get_u16(m + 6), (int)get_u16(m + 8) };
@@ -421,11 +559,24 @@ void on_input(struct on_core *c, int idx, const uint8_t *data, size_t len, on_ti
 			return; /* dropped: nothing more is read from a slot that is going */
 		if (s->skip) {
 			size_t n = len < s->skip ? len : s->skip;
+			if (s->encodings)
+				for (size_t i = 0; i < n; i++) {
+					s->reg[s->reg_n++] = data[i];
+					if (s->reg_n == 4) { /* entries start where the list starts: a whole entry, never a split one */
+						s->reg_n = 0;
+						s->enc_new |= pointer_encoding(get_u32(s->reg));
+					}
+				}
 			s->skip -= (uint32_t)n;
 			data += n;
 			len -= n;
-			if (!s->skip)
+			if (!s->skip) {
 				s->extended = 0;
+				if (s->encodings) {
+					s->encodings = 0;
+					set_pointer_encodings(c, idx, s->enc_new);
+				}
+			}
 			continue;
 		}
 		size_t n = s->need - s->have;
@@ -520,6 +671,7 @@ static void slot_free(struct on_core *c, int idx)
 	s->state = S_FREE;
 	s->nheld = 0;
 	s->buttons = 0;
+	s->enc_bits = s->encodings = s->reg_n = 0;
 	s->len = s->head = 0;
 }
 
@@ -628,6 +780,8 @@ static void send_update(struct on_core *c, int idx, struct rect area)
 	queue(s, hdr, 4);
 	unsigned count = 0;
 	size_t row = (size_t)c->cfg.width * 4;
+	struct rect ar = { 0, 0, 0, 0 };
+	int arrow = gets_arrow(c, s) && pointer_rect(c, &ar); /* drawn into every rectangle it crosses */
 	for (int ty = area.y / ON_TILE; ty <= (area.y + area.h - 1) / ON_TILE; ty++)
 		for (int tx = area.x / ON_TILE; tx <= (area.x + area.w - 1) / ON_TILE; tx++) {
 			if (!s->marks[ty * c->tw + tx])
@@ -649,6 +803,12 @@ static void send_update(struct on_core *c, int idx, struct rect area)
 			queue(s, r, 12);
 			for (int y = y0; y < y1; y++) {
 				const uint8_t *src = c->cur + y * row + (size_t)x0 * 4;
+				uint8_t ov[ON_TILE * 4];
+				if (arrow && y >= ar.y && y < ar.y + ar.h && x0 < ar.x + ar.w && ar.x < x1) {
+					memcpy(ov, src, (size_t)(x1 - x0) * 4);
+					draw_arrow_row(c, ov, x0, x1, y);
+					src = ov;
+				}
 				if (native(&s->fmt)) {
 					queue(s, src, (size_t)(x1 - x0) * 4);
 				} else {
@@ -817,6 +977,7 @@ struct on_core *on_core_new(const struct on_config *cfg)
 	c->th = (cfg->height + ON_TILE - 1) / ON_TILE;
 	c->ntiles = c->tw * c->th;
 	c->input_owner = -1;
+	c->pointer_on = 1;
 	c->cur = calloc((size_t)cfg->width * cfg->height, 4);
 	/* the largest update: a header, one rectangle header per tile, and the whole frame */
 	size_t cap = 4 + (size_t)c->ntiles * 12 + (size_t)cfg->width * cfg->height * 4 + 512;
@@ -859,6 +1020,8 @@ void on_client_stats(const struct on_core *c, int idx, struct on_client_stats *o
 	o->sent_seq = s->sent_seq;
 	o->queued = s->len;
 	o->input_owner = c->input_owner == idx;
+	o->pointer_encodings = s->enc_bits;
+	o->gets_arrow = gets_arrow(c, s);
 	o->marked_tiles = 0;
 	if (s->state == S_CLIENT)
 		for (int i = 0; i < c->ntiles; i++)

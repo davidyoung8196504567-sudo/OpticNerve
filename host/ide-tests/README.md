@@ -22,8 +22,13 @@ control** (never view-only: a tester has to interact with what they test). The v
 agent injects the input of the client that sends it, unless the other one is holding a key or a button. Keep your
 hands off the viewer while a test runs, or your mouse moves the Pi's pointer under the test. We use TigerVNC 1.16.2:
 `vncviewer64-1.16.2.exe AlwaysCursor=1 CursorType=System FullColor=1 AutoSelect=0 <Pi address>::5901`.
-Images captured from it match the Pi exactly. `AlwaysCursor=1 CursorType=System` shows this computer's pointer in the
-viewer, because the agent sends none (ON-AG-001 in [docs/ISSUES.md](../../docs/ISSUES.md)).
+`AlwaysCursor=1 CursorType=System` keeps this computer's pointer visible in the viewer (where you aim).
+
+The agent draws its own arrow into a viewer's picture where the Pi's pointer is (ON-AG-001 in
+[docs/ISSUES.md](../../docs/ISSUES.md)): at the last place the agent moved it, for you or for a test. It follows moves
+made through the agent, not moves of a mouse plugged into the Pi. Test connections never get the arrow, but **the
+images you capture from a viewer do**: switch it off before capturing, `python host/tools/opticnerve_deploy.py
+pointer off` (and `pointer on` afterwards). With it off, images captured from the viewer match the Pi exactly.
 
 ## Write a test
 

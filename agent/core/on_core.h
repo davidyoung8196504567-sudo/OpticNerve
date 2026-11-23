@@ -79,6 +79,19 @@ uint64_t on_want_capture(struct on_core *c);
  * clipped to the screen first; *w and *h are updated. Returns the number of bytes written, 0 if nothing is left. */
 size_t on_read_region(const struct on_core *c, int x, int y, int *w, int *h, uint8_t *rgb, size_t cap);
 
+/* The pointer arrow (ON-AG-001). A client whose SetEncodings asks for a pointer shape (Cursor -239, XCursor -240 or
+ * CursorWithAlpha -314) is a viewer for a person: while the arrow is on, the core draws an arrow of its own at the
+ * pointer's position into the Raw rectangles it sends that client, and only that client. Test tools (OculiX
+ * VNCScreen) ask for none of these and get the screen as it is. RFB means by these encodings that the client draws
+ * the pointer itself; drawing into Raw rectangles instead is still within the protocol (no rectangle type the client
+ * did not ask for), and it is what lets these viewers show where the target's pointer is.
+ * The position is the last one the core injected (from any client), or one the driver reports with
+ * on_pointer_at(); the core keeps its copy of the screen, its captures and on_read_region() without the arrow.
+ * on_set_pointer: 1 on (the default), 0 off. on_pointer: the current setting. */
+void on_set_pointer(struct on_core *c, int on);
+int on_pointer(const struct on_core *c);
+void on_pointer_at(struct on_core *c, int x, int y, on_time now);
+
 /* Reap, decide, reap. Returns when the core next needs to be called with nothing else having happened. */
 on_time on_schedule(struct on_core *c, on_time now);
 
@@ -119,6 +132,8 @@ struct on_client_stats {
 	int marked_tiles;
 	size_t queued;
 	int input_owner;           /* 1: this client's input is the one injected */
+	int pointer_encodings;     /* the pointer encodings its SetEncodings asked for: 1 Cursor, 2 XCursor, 4 CursorWithAlpha */
+	int gets_arrow;            /* 1: it is sent the arrow (it asked for a pointer encoding, and the arrow is on) */
 };
 void on_stats(const struct on_core *c, struct on_stats *s);
 void on_client_stats(const struct on_core *c, int slot, struct on_client_stats *s);

@@ -37,6 +37,8 @@ vnc = None
 local = System.getenv("ON_LOCAL_SCREEN")
 if local:
     scr = Screen(int(local))
+    # the viewer shows the agent's pointer arrow (ON-AG-001), which this screen's image searches would see
+    print("ON_LOCAL_SCREEN: switch the agent's pointer arrow off first (opticnerve_deploy.py pointer off)")
 else:
     host = cfg("ON_HOST")
     password = cfg("ON_VNC_PASSWORD")

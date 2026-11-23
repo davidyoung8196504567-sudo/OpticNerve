@@ -260,8 +260,40 @@ static int cmd_passwd(int argc, char **argv)
 	return 0;
 }
 
+/* pointer [on|off]: shows, or switches, the pointer arrow drawn for viewers (ON-AG-001). Any user may switch it, as
+ * any user may read the status: it changes only what viewers are shown. */
+static int cmd_pointer(int argc, char **argv)
+{
+	struct on_dev_pointer p = { -1, 0 };
+	if (argc == 1 && strcmp(argv[0], "on") == 0)
+		p.set = 1;
+	else if (argc == 1 && strcmp(argv[0], "off") == 0)
+		p.set = 0;
+	else if (argc != 0) {
+		fprintf(stderr, "usage: opticnerve pointer [on|off]\n");
+		return 2;
+	}
+	limit(LIMIT_S);
+	int fd = open_dev();
+	if (fd < 0)
+		return errno == EINTR ? not_answering() : 1;
+	int rc = devctl(fd, ON_DCMD_POINTER, &p, sizeof(p), NULL);
+	alarm(0);
+	close(fd);
+	if (rc == EINTR)
+		return not_answering();
+	if (rc != EOK) {
+		fprintf(stderr, "opticnerve: pointer: %s\n", strerror(rc));
+		return 1;
+	}
+	printf("pointer %s\n", p.on ? "on" : "off");
+	return 0;
+}
+
 static int run(const char *cmd, int argc, char **argv)
 {
+	if (strcmp(cmd, "pointer") == 0)
+		return cmd_pointer(argc, argv);
 	if (strcmp(cmd, "status") == 0)
 		return cmd_status();
 	if (strcmp(cmd, "wait") == 0)
@@ -285,7 +317,7 @@ static int run(const char *cmd, int argc, char **argv)
  */
 int cli_main(const char *cmd, int argc, char **argv)
 {
-	static const char *known[] = { "status", "wait", "current", "capture", "stop", "passwd" };
+	static const char *known[] = { "status", "wait", "current", "capture", "stop", "passwd", "pointer" };
 	int ok = 0;
 	for (size_t i = 0; i < sizeof(known) / sizeof(known[0]); i++)
 		ok |= strcmp(cmd, known[i]) == 0;
