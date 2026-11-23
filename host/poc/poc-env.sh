@@ -39,3 +39,22 @@ need_java() {
 	[ -x "$ON_JAVA" ] || { say "no Java at $ON_JAVA: set ON_JAVA in ~/.config/opticnerve/env" >&2; exit 1; }
 	[ -r "$ON_OCULIX_JAR" ] || { say "no OculiX jar at $ON_OCULIX_JAR: set ON_OCULIX_JAR" >&2; exit 1; }
 }
+# The IDE and test runs need OpenCV, which an OculiX "complete" jar carries for the systems it was built for
+# (<system>/libopencv_java*, e.g. linux-x86-64/ in a -complete-lux jar, darwin-aarch64/ in a -complete-mac one).
+# Without it OculiX logs a fatal error and finds no image, so refuse up front. The viewer does not need it.
+need_opencv() {
+	case "$(uname -s) $(uname -m)" in
+	"Linux x86_64") plat=linux-x86-64 ;; "Linux aarch64") plat=linux-aarch64 ;;
+	"Darwin arm64") plat=darwin-aarch64 ;; "Darwin x86_64") plat=darwin-x86-64 ;;
+	*) return 0 ;;   # a system OculiX names otherwise (Windows): not checked
+	esac
+	command -v python3 > /dev/null 2>&1 || return 0
+	python3 - "$ON_OCULIX_JAR" "$plat" <<'EOF' && return 0
+import sys, zipfile
+names = zipfile.ZipFile(sys.argv[1]).namelist()
+sys.exit(0 if any(n.startswith(sys.argv[2] + "/") and "opencv_java" in n for n in names) else 1)
+EOF
+	say "the OculiX jar $ON_OCULIX_JAR has no OpenCV for this computer ($plat/): use the jar built for it" \
+		"(on macOS a -complete-mac jar)" >&2
+	exit 1
+}

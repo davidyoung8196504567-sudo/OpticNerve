@@ -8,6 +8,7 @@
 # A name without a folder is looked for in ~/ide-tests. Run in a terminal without a test, it lists them to choose.
 POC=$(cd "$(dirname "$0")" && pwd); . "$POC/poc-env.sh"
 need_java
+need_opencv
 if oculix_running > /dev/null; then
 	echo "OculiX is running (the IDE, or another test): close it first; two at once crash each other" >&2; exit 1
 fi

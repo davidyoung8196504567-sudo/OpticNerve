@@ -25,6 +25,11 @@ agent with `ON_AGENT_BUILD` (a folder with `opticnerve` and `demo_panel`, for ex
 `transfer/opticnerve/agent-cd58741-aarch64le/` on the share), which `sut.sh install` checks against the builds
 recorded in `tests/regression/golden/agent_build.json` before it changes anything.
 
+`ide.sh` and `run-test.sh` check that the OculiX jar carries OpenCV for the computer they run on (`linux-x86-64/` in a
+`-complete-lux` jar, `darwin-aarch64/` in a `-complete-mac` one) and refuse a jar without it: OculiX would otherwise
+start, log a fatal error and find no image. The QTB-1 build exists only as `-complete-lux` jars; on the M4 Pro the
+`-complete-mac` jar of the same OculiX code (`870a7ff4`) is used. The viewer needs no OpenCV.
+
 1. Clone this repository, and get a JDK 17, the OculiX IDE jar (we use `oculixide-5.0.0-complete-lux.jar`, the
    QTB-1 build) and Python 3 with `cryptography` (`apt install python3-cryptography`; the viewer's password file).
    For a build of the agent on the tester, install the QNX SDP at the baseline in `sdp/`.

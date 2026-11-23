@@ -155,3 +155,49 @@ def test_install_shortcuts(system, need_sh, poc_env, tmp_path):
         assert len(list((home / ".local/share/applications").iterdir())) == 6
     rc, out = run([need_sh, str(POC / "install-shortcuts.sh"), "-remove"], env=env)
     assert rc == 0 and list((home / "Desktop").iterdir()) == [], out
+
+
+@pytest.fixture
+def system(tmp_path):
+    """Makes the PoC scripts see SYSTEM ("Linux x86_64", "Darwin arm64"): a stand-in uname, and a stand-in java."""
+    def make(env, name):
+        d = tmp_path / "sys-bin"
+        d.mkdir(exist_ok=True)
+        s, m = name.split()
+        (d / "uname").write_text(f'#!/bin/sh\ncase $1 in -m) echo {m} ;; *) echo {s} ;; esac\n', newline="\n")
+        (d / "uname").chmod(0o755)
+        (d / "java").write_text("#!/bin/sh\nexit 0\n", newline="\n")
+        (d / "java").chmod(0o755)
+        return dict(env, PATH=str(d) + os.pathsep + env["PATH"], ON_JAVA=str(d / "java"))
+    return make
+
+
+def jar(path, *natives):
+    import zipfile
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("org/sikuli/ide/Sikulix.class", b"")
+        for n in natives:
+            z.writestr(n, b"")
+    return path
+
+
+LUX = ("linux-x86-64/libopencv_java4140.so", "linux-aarch64/libopencv_java4140.so")
+MAC = ("darwin-aarch64/libopencv_java4140.dylib",)
+
+
+@pytest.mark.parametrize("name,natives,ok", [
+    ("Linux x86_64", LUX, True), ("Darwin arm64", LUX, False), ("Darwin arm64", MAC, True), ("Linux x86_64", MAC, False),
+])
+def test_need_opencv(name, natives, ok, need_sh, poc_env, system, tmp_path):
+    env = system(dict(poc_env, ON_OCULIX_JAR=str(jar(tmp_path / "oculix.jar", *natives))), name)
+    rc, out = run([need_sh, "-c", f'POC="{POC.as_posix()}"; . "$POC/poc-env.sh"; need_opencv && echo has-opencv'],
+                  env=env)
+    assert (rc == 0 and "has-opencv" in out) if ok else (rc == 1 and "has no OpenCV for this computer" in out), out
+
+
+@pytest.mark.parametrize("script", ["ide.sh", "run-test.sh"])
+def test_ide_and_run_test_refuse_a_jar_without_opencv(script, need_sh, poc_env, system, tmp_path):
+    """What the M4 Pro met: a Linux-only jar on a Mac. Refused before anything starts, instead of "IDE starting"."""
+    env = system(dict(poc_env, ON_OCULIX_JAR=str(jar(tmp_path / "oculix.jar", *LUX))), "Darwin arm64")
+    rc, out = run([need_sh, str(POC / script)], env=env, input="")
+    assert rc == 1 and "has no OpenCV for this computer (darwin-aarch64/)" in out and "starting" not in out, out

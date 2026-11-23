@@ -5,6 +5,7 @@
 #   sh host/poc/ide.sh
 POC=$(cd "$(dirname "$0")" && pwd); . "$POC/poc-env.sh"
 need_java
+need_opencv
 if oculix_running | grep -q ' -r '; then say "a test is running (run-test.sh): start the IDE when it has finished"; exit 1; fi
 if oculix_running > /dev/null; then say "the IDE is already running (its tray icon)"; exit 0; fi
 cd "$ON_TESTS" 2>/dev/null || cd "$HOME"
