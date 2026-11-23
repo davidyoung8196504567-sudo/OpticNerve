@@ -39,6 +39,7 @@ the settings: `python host/tools/vnc_snapshot.py - - frame.png`. That keeps the 
 | `ON_OBS_PASSWORD` | Its password | read from OBS's own settings |
 | `ON_JAVA`, `ON_OCULIX_JAR` | The PoC tester's JDK 17 `java` and OculiX IDE jar | `~/opticnerve-work/jdk/jdk17/bin/java`, `~/qtb1/oculixide-5.0.0-complete-lux.jar` |
 | `ON_TESTS`, `ON_LOGS` | The PoC tester's test folder and log folder | `~/ide-tests`, `~/ide-session` |
+| `ON_AGENT_BUILD` | A folder of prebuilt aarch64le binaries (`opticnerve`, `demo_panel`, `core_test`), for a tester without the QNX SDP (macOS); only builds recorded in `tests/regression/golden/agent_build.json` are installed or used | none: `agent/build/aarch64le` |
 
 `ON_SSH_HOST` follows `ON_HOST` unless it is set itself, so leave it out of the settings file unless SSH really goes
 elsewhere. Example, QEMU with user-mode networking and forwarded ports (VNC on 5901, SSH on 2222):
@@ -77,7 +78,7 @@ that the script reads with no parameter of its own.
 | `host/poc/ssh-pi.sh [HOST[:PORT]\|- [COMMAND...]]` | `HOST[:PORT]` or `-` | `ON_SSH_HOST`, `ON_SSH_PORT`, `ON_LOGIN_USER`; `ON_LOGIN_PASSWORD` for that address only | port 22 when `HOST` has none |
 | `host/poc/demo-panel.sh [start\|stop\|status]` | (none) | as `demo_panel.sh` | |
 | `host/poc/run-test.sh [TEST]` | (none) | `ON_JAVA`, `ON_OCULIX_JAR`, `ON_TESTS`, `ON_LOGS`; the test reads its own | |
-| `host/poc/sut.sh build\|install\|start\|stop\|status\|undo [HOST[:PORT]]` | `HOST[:PORT]` | `ON_SSH_HOST`, `ON_SSH_PORT`; then as `opticnerve_deploy.py` | port 22 when `HOST` has none |
+| `host/poc/sut.sh build\|install\|start\|stop\|status\|undo [HOST[:PORT]]` | `HOST[:PORT]` | `ON_SSH_HOST`, `ON_SSH_PORT`; then as `opticnerve_deploy.py`; `install` takes the binaries from `ON_AGENT_BUILD` when set | port 22 when `HOST` has none |
 
 Not changed: the experiments in `host/spikes/` (kept as they were run; they take the host and port on the command
 line), and `host/qemu/qemu-run-tcg.sh` (it starts QEMU, no address).

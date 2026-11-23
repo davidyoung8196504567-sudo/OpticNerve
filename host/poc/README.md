@@ -19,6 +19,12 @@ Logs go to `~/ide-session/`.
 
 ## Set up a tester
 
+The commands run on Linux (UBUNTU24, Ubuntu 24.04) and on macOS. On macOS the shortcuts are `<title>.command` files on
+the desktop (they open in Terminal), and with no QNX SDP there, `sut.sh build` is not available: install a prebuilt
+agent with `ON_AGENT_BUILD` (a folder with `opticnerve` and `demo_panel`, for example
+`transfer/opticnerve/agent-cd58741-aarch64le/` on the share), which `sut.sh install` checks against the builds
+recorded in `tests/regression/golden/agent_build.json` before it changes anything.
+
 1. Clone this repository, and get a JDK 17, the OculiX IDE jar (we use `oculixide-5.0.0-complete-lux.jar`, the
    QTB-1 build) and Python 3 with `cryptography` (`apt install python3-cryptography`; the viewer's password file).
    For a build of the agent on the tester, install the QNX SDP at the baseline in `sdp/`.

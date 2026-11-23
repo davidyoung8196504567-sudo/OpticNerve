@@ -7,11 +7,29 @@
 #   sh host/poc/sut.sh start|stop|status|undo [HOST[:PORT]]
 #
 # HOST and PORT are the target's SSH address, default ON_SSH_HOST (default ON_HOST) and ON_SSH_PORT (default 22),
-# from the environment or the settings file; a HOST given without :PORT means port 22. The agent listens on port 5901. The agent starts with -logintimeout=0 (no login limit, for testing). install replaces the running agent: it asks
+# from the environment or the settings file; a HOST given without :PORT means port 22. The agent listens on port
+# 5901 and starts with -logintimeout=0 (no login limit, for testing). install replaces the running agent: it asks
 # first when run in a terminal. Record the SHA-256 it prints in docs/CONFIG_MANAGEMENT.md. undo removes the agent
 # and the demo panel. Needs ON_LOGIN_PASSWORD (the target's login) and, for install, ON_VNC_PASSWORD.
+#
+# On a tester without the QNX SDP (macOS), install a prebuilt agent: ON_AGENT_BUILD is a folder holding opticnerve
+# and demo_panel for aarch64le (for example a copy from the share). install then checks that both are a build
+# recorded in tests/regression/golden/agent_build.json, and refuses anything else.
 POC=$(cd "$(dirname "$0")" && pwd); . "$POC/poc-env.sh"
-B=$ON_REPO/agent/build/aarch64le
+B=${ON_AGENT_BUILD:-$ON_REPO/agent/build/aarch64le}
+# Are the binaries in $B a recorded build? Prints which, or why not (exit 1).
+recorded() {
+	python3 - "$B" "$ON_REPO/tests/regression/golden/agent_build.json" <<'EOF'
+import hashlib, json, sys
+from pathlib import Path
+b, golden = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text())
+got = {n: hashlib.sha256((b / n).read_bytes()).hexdigest() for n in ("opticnerve", "demo_panel")}
+for tree, e in golden.items():
+    if all(e["aarch64le"].get(n) == h for n, h in got.items()):
+        sys.exit(print(f"a recorded build: agent/ as of commit {e['commit']}"))
+sys.exit(f"{b} is not a recorded build (tests/regression/golden/agent_build.json): not installing it")
+EOF
+}
 cmd=$1
 case $2 in '') ;; *:*) ON_SSH_HOST=${2%%:*} ON_SSH_PORT=${2#*:} ;; *) ON_SSH_HOST=$2 ON_SSH_PORT=22 ;; esac
 export ON_SSH_HOST ON_SSH_PORT
@@ -21,13 +39,16 @@ case $cmd in
 build)
 	python3 "$ON_REPO/sdp/check_sdp.py" "$QNX_SDP_DIR" || { echo "the SDP does not match the baseline: not building" >&2; exit 1; }
 	bash -c '. "$QNX_SDP_DIR/qnxsdp-env.sh" > /dev/null && make -C "$ON_REPO/agent" ARCH=aarch64le' || exit 1
-	sha256sum "$B/opticnerve" "$B/demo_panel" ;;
+	sha256 "$B/opticnerve" "$B/demo_panel" ;;
 install)
 	# everything that can be checked before the running agent is stopped
 	[ -n "$ON_LOGIN_PASSWORD" ] && [ -n "$ON_VNC_PASSWORD" ] || { echo "set ON_LOGIN_PASSWORD and ON_VNC_PASSWORD" >&2; exit 1; }
-	for f in opticnerve demo_panel; do [ -f "$B/$f" ] || { echo "no $B/$f: run sut.sh build first" >&2; exit 1; }; done
+	for f in opticnerve demo_panel; do
+		[ -f "$B/$f" ] || { echo "no $B/$f: run sut.sh build first, or set ON_AGENT_BUILD" >&2; exit 1; }
+	done
+	[ -z "$ON_AGENT_BUILD" ] || recorded || exit 1
 	echo "on $ON_SSH_HOST, replace the agent and the demo panel with:"
-	sha256sum "$B/opticnerve" "$B/demo_panel"
+	sha256 "$B/opticnerve" "$B/demo_panel"
 	if [ -t 0 ]; then printf 'install? [y/N] '; IFS= read -r a; [ "$a" = y ] || [ "$a" = Y ] || { echo "nothing changed"; exit 1; }; fi
 	pi 'true' || { echo "cannot log in to $ON_SSH_HOST:$ON_SSH_PORT: nothing changed" >&2; exit 1; }
 	sh "$ON_REPO/host/tools/demo_panel.sh" stop > /dev/null 2>&1

@@ -34,6 +34,7 @@
   .cols2 td { padding: 3px 5px; }
   .cols2 code { font-size: 8.2pt; white-space: normal; }
   .cols2 td:first-child code { white-space: nowrap; }
+  .page2 h2 code { text-transform: none; }
   footer { margin-top: 6px; color: var(--muted); font-size: 8pt; }
 </style>
 </head>
@@ -150,6 +151,66 @@
 </table>
 <p class="sub" style="margin:5px 0 0">"SSH settings": <code>ON_SSH_HOST</code>, <code>ON_SSH_PORT</code>, <code>ON_LOGIN_USER</code>. Paths are under <code>host/</code>. Full table: <code>docs/SETTINGS.md</code>.</p>
 </div>
+</div>
+
+</section>
+
+<section class="page2">
+<header>
+  <h1>Regression Tests</h1>
+  <span class="sub">Run after a code change. Details: <code>tests/regression/README.md</code></span>
+</header>
+<p class="sub" style="margin:0 0 4px">In a terminal: <code>cd ~/OpticNerve-main</code> (the repository's root), then one of these. On Windows, <code>python</code> instead of <code>python3</code>.</p>
+
+<table>
+  <tr><th></th><th>Task</th><th>Command</th><th>What it does</th></tr>
+  <tr><td class="n">1</td><td class="what">Host tests (no Pi)</td>
+      <td class="cmd"><code>python3 -m pytest</code></td>
+      <td>The default run, about 15 s. The settings readers, every script's parameters and refusals, that every script parses, the Java tests compile, and the agent builds to the recorded bytes. Nothing leaves this computer.</td></tr>
+  <tr><td class="n">2</td><td class="what">The Pi's tests</td>
+      <td class="cmd"><code>python3 -m pytest --pi -m pi</code></td>
+      <td>SSH, the agent's status, a frame, SSH through a port forward, the core test on the Pi, the robustness checks, the demo panel. Needs the agent running and the passwords in the settings.</td></tr>
+  <tr><td class="n">3</td><td class="what">Everything</td>
+      <td class="cmd"><code>python3 -m pytest --pi</code></td>
+      <td>Both of the above.</td></tr>
+  <tr><td class="n">4</td><td class="what">Quick run</td>
+      <td class="cmd"><code>python3 -m pytest -m "not slow"</code></td>
+      <td>Without the builds, compiles and long network checks.</td></tr>
+  <tr><td class="n">5</td><td class="what">One subject</td>
+      <td class="cmd"><code>python3 -m pytest -k settings</code><code>python3 -m pytest -k demo_panel</code></td>
+      <td>Only the tests whose names contain the word.</td></tr>
+  <tr><td class="n">6</td><td class="what">Record a new agent build</td>
+      <td class="cmd"><code>python3 tests/regression/record_build.py</code></td>
+      <td>After a reviewed agent change is committed: records its binaries' SHA-256, which every later build is compared with. Never to make a failing comparison pass.</td></tr>
+</table>
+
+<div class="cols">
+  <div>
+    <h2>Reading the result</h2>
+    <ul>
+      <li>The last line counts <b>passed</b>, <b>failed</b> and <b>skipped</b>.</li>
+      <li>A <b>skip</b> is not a failure: the summary says why (no Java, no QNX SDP, a viewer connected).</li>
+      <li>A failure prints what was expected and what came instead.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Rules</h2>
+    <ul>
+      <li class="warn"><b>One test at a time.</b> <code>-n</code> (parallel) is refused: the Pi's tests share one agent, one panel and one SSH login.</li>
+      <li>The Pi's tests never move the pointer or type.</li>
+      <li>The Pi's tests run only with <code>--pi</code>; then a Pi that can't be reached is a failure.</li>
+      <li>The robustness and demo panel tests are skipped while a viewer is connected; the panel test shows the panel for a few seconds.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>Needs</h2>
+    <ul>
+      <li>Python 3 with pytest, Pillow and cryptography.</li>
+      <li>For the Java compile: <code>javac</code> and <code>ON_OCULIX_JAR</code>.</li>
+      <li>For the build: the QNX SDP (<code>QNX_SDP_DIR</code>, default <code>~/qnx805</code>).</li>
+      <li>For <code>--pi</code>: the settings on page 2, with both passwords.</li>
+    </ul>
+  </div>
 </div>
 </section>
 </body>

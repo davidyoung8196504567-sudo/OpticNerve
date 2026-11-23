@@ -41,7 +41,7 @@ open(sys.argv[1], "wb").write(e.update(pw) + e.finalize())
 ' "$pwfile" || { rm -f "$pwfile"; exit 1; }
 fi
 log=$ON_LOGS/viewer-$(printf '%s' "$target" | tr -c 'A-Za-z0-9.-' '-').log
-setsid nohup "$ON_JAVA" -cp "$ON_OCULIX_JAR" com.tigervnc.vncviewer.VncViewer -AutoSelect=0 -FullColor=1 \
+detach "$ON_JAVA" -cp "$ON_OCULIX_JAR" com.tigervnc.vncviewer.VncViewer -AutoSelect=0 -FullColor=1 \
 	${pwfile:+-PasswordFile=$pwfile} "$target" > "$log" 2>&1 < /dev/null &
 vpid=$!
 echo "viewer starting on $target"

@@ -1,5 +1,5 @@
 """The settings file is read by four readers (docs/SETTINGS.md): host/tools/on_env.sh, host/tools/on_env.py, cfg() in
-the five Java tests and cfg() in the two OculiX IDE scripts. They must agree on every line, and on precedence: the
+the five Java tests and cfg() in the two OculiX IDE scripts. They must agree on every line, and on precedence (all four): the
 environment, then the file, then the default. The Java and IDE readers are tested from their own source text, so the
 copies in the tests are what is checked, not a re-typed version.
 """
@@ -94,13 +94,21 @@ def test_java_reader(sample, tmp_path):
     rc, out = run([JAVA, str(src), *NAMES], env=clean_env(ON_CONFIG=sample), timeout=180)
     assert rc == 0, out
     assert out.split("\n")[:len(NAMES)] == EXPECTED
+    # the environment wins over the file; an empty value in it counts as unset
+    rc, out = run([JAVA, str(src), "ON_A", "ON_B"], env=clean_env(ON_CONFIG=sample, ON_A="from-env", ON_B=""),
+                  timeout=180)
+    assert rc == 0 and out.split("\n")[:2] == ["from-env", "tab"], out
 
 
-def test_ide_reader(sample, monkeypatch):
-    class System:   # the two java.lang.System calls cfg() makes, as Jython would answer them
+def test_ide_reader(sample):
+    # The IDE scripts are Jython 2.7; their cfg() is run here under CPython 3, which treats its file reading and
+    # regular expression the same way. The two java.lang.System calls it makes are answered as Jython would.
+    env = {"ON_CONFIG": str(sample)}
+
+    class System:
         @staticmethod
         def getenv(n):
-            return {"ON_CONFIG": str(sample)}.get(n)
+            return env.get(n)
 
         @staticmethod
         def getProperty(n):
@@ -108,6 +116,8 @@ def test_ide_reader(sample, monkeypatch):
     space = {"System": System}
     exec(ide_block(IDE_SCRIPTS[1]), space)
     assert [space["cfg"](n) or "" for n in NAMES] == EXPECTED
+    env.update(ON_A="from-env", ON_B="")   # the environment wins; an empty value in it counts as unset
+    assert [space["cfg"](n) for n in ("ON_A", "ON_B")] == ["from-env", "tab"]
 
 
 def test_the_five_java_tests_carry_the_same_reader():
@@ -169,6 +179,6 @@ def test_the_template_parses_and_holds_no_password():
     assert b"\r" not in f.read_bytes(), "the template must stay LF (.gitattributes)"
     import on_env
     for line in f.read_text().splitlines():
-        m = on_env.LINE.match(line)
+        m = on_env.LINE.match(line.lstrip("#"))   # the commented-out examples too: a value typed there would ship
         if m and "PASSWORD" in m.group(1):
             assert not any(m.groups()[1:]), f"a password value in the template: {m.group(1)}"

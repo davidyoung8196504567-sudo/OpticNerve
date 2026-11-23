@@ -13,11 +13,12 @@ import os
 import py_compile
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from conftest import ROOT, SH, run
+from conftest import ROOT, SH, find_java, run
 
 GOLDEN = Path(__file__).parent / "golden" / "agent_build.json"
 BINARIES = ["opticnerve", "demo_panel", "core_test"]
@@ -58,6 +59,7 @@ def oculix_classpath():
     import on_env
     on_env.load()
     jars = [os.environ.get(v) for v in ("ON_TIGERVNC_JAR", "ON_OCULIX_JAR")]
+    jars.append(str(Path.home() / "qtb1/oculixide-5.0.0-complete-lux.jar"))   # the PoC tester's default (poc-env.sh)
     jars = [j for j in jars if j and Path(j).is_file()]
     if not any("oculix" in Path(j).name for j in jars):
         pytest.skip("set ON_OCULIX_JAR to an OculiX jar to compile the Java tests")
@@ -66,7 +68,7 @@ def oculix_classpath():
 
 @pytest.mark.slow
 def test_java_tests_compile(tmp_path):
-    javac = shutil.which("javac")
+    javac = find_java("javac")
     if not javac:
         pytest.skip("no javac on PATH")
     sources = [str(f) for f in tracked("host/demo/*.java")]
@@ -79,8 +81,11 @@ def sha256(f):
 
 
 def agent_tree():
-    """git's hash of agent/ as committed, or None when the working copy of agent/ differs from it."""
-    if subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", "agent"]).returncode:
+    """git's hash of agent/ as committed, or None when the working copy of agent/ differs from it (also by an
+    untracked file, which the scratch copy would carry into the build)."""
+    changed = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain", "--untracked-files=all", "--", "agent"],
+                             capture_output=True, text=True).stdout.strip()
+    if changed:
         return None
     return subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD:agent"], capture_output=True,
                           text=True).stdout.strip()
@@ -101,4 +106,10 @@ def test_agent_build_matches_the_recorded_bytes(agent_build):
     if tree not in golden:
         pytest.skip(f"no recorded build for agent/ tree {tree[:12]}: run tests/regression/record_build.py")
     want = golden[tree]["aarch64le"]
-    assert {b: sha256(agent_build / b) for b in BINARIES} == want
+    got = {b: sha256(agent_build / b) for b in BINARIES}
+    if got != want:
+        # Tell a different SDP from a different build: the bytes are only expected to match with the baseline SDP
+        sdp = os.environ.get("QNX_SDP_DIR") or str(Path.home() / "qnx805")
+        rc, out = run([sys.executable, str(ROOT / "sdp" / "check_sdp.py"), sdp], timeout=900)
+        verdict = "the SDP matches the baseline" if rc == 0 else "the SDP does NOT match the baseline"
+        pytest.fail(f"{verdict}; recorded {want}, built {got}\n{out[-1500:]}")
