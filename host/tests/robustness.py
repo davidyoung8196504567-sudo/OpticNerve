@@ -243,11 +243,14 @@ def stalled_client():
         n, dt = frame(s, w, h)
         worst = max(worst, dt)
     check("RB03 a stalled client does not delay another", worst < 2.0, f"slowest full frame {worst:.2f} s")
-    print("      waiting 32 s for the stall deadline (30 s)")
-    time.sleep(32)
+    # The agent counts the 30 s from the last time output to the client moved, not from when the client stopped
+    # reading: over Wi-Fi output kept moving into the stalled connection for about 5 s after it stopped reading. Reading
+    # before the agent has closed it ends the stall, so the wait leaves room for that.
+    print("      waiting 40 s for the stall deadline (30 s after output last moved)")
+    time.sleep(40)
+    drained = 0
     try:
         st.settimeout(5)
-        drained = 0
         while True:
             c = st.recv(65536)
             if not c:
@@ -255,7 +258,8 @@ def stalled_client():
             drained += len(c)
         check("RB03 the stalled client is closed after 30 s", True, f"closed after {drained} more bytes")
     except Exception as e:
-        check("RB03 the stalled client is closed after 30 s", isinstance(e, ConnectionResetError), repr(e))
+        check("RB03 the stalled client is closed after 30 s", isinstance(e, ConnectionResetError),
+              f"{e!r} after {drained} more bytes")
     st.close()
     n, dt = frame(s, w, h)
     check("RB03 the other client still works", n > 0, f"{dt:.2f} s")
