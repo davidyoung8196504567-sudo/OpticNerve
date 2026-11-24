@@ -102,7 +102,7 @@ def close_at_random_points(count=200, seed=1, wait_limit=35.0):
     A connection the agent turns away (closed at accept, or "server full") because the slots of earlier connections
     are still taken is tried again every 0.25 s, for up to wait_limit seconds. From some clients (macOS, with its
     default limit on resets) a connection closed by reset can stay open until the agent's keepalive ends it, about
-    10 s, and its slot with it. Every wait is reported; a slot that is not free within wait_limit is a failure."""
+    3 s, and its slot with it. Every wait is reported; a slot that is not free within wait_limit is a failure."""
     rnd = random.Random(seed)
     states = ["accept", "after version", "after security type", "after challenge", "after response",
               "after ClientInit", "mid request", "mid frame"]

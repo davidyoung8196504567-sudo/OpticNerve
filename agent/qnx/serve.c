@@ -496,7 +496,10 @@ static int on_listen(select_context_t *ctp, int fd, unsigned flags, void *handle
 		close(c);
 		return 0;
 	}
-	int one = 1, idle = 10, intvl = 5, cnt = 3;
+	/* keepalive: after 3 s with nothing received from the client a probe, then up to 2 more 5 s apart: a client that
+	 * vanished is noticed in about 18 s, a Wi-Fi gap of about 13 s is survived, and a connection a client closed by
+	 * reset but that stays open (macOS's limit on resets) ends at the first probe, which draws another reset */
+	int one = 1, idle = 3, intvl = 5, cnt = 3;
 	fcntl(c, F_SETFL, fcntl(c, F_GETFL) | O_NONBLOCK);
 	setsockopt(c, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
 	setsockopt(c, SOL_SOCKET, SO_KEEPALIVE, &one, sizeof(one)); /* a peer that vanishes is noticed (UBUNTU24 9) */
