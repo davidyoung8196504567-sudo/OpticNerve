@@ -81,6 +81,26 @@ def test_deploy_start_pointer_setting(setting, args, starts_with, safe_target):
     assert ("-nopointer" in line) == (starts_with is not None) and line.count("-nopointer") <= 1, line
 
 
+@pytest.mark.parametrize("setting,args,starts_with", [("0", [], "-nomouse"), ("1", [], None), (None, [], None),
+                                                       ("1", ["-nomouse"], "-nomouse")])
+def test_deploy_start_mouse_setting(setting, args, starts_with, safe_target):
+    """ON_AGENT_MOUSE=0 starts the agent with the mouse switch off (phase 2); the default is on."""
+    env = dict(safe_target, ON_LOGIN_PASSWORD="unused")
+    if setting is not None:
+        env["ON_AGENT_MOUSE"] = setting
+    rc, out = py(TOOLS / "opticnerve_deploy.py", "start", *args, env=env)
+    line = next((l for l in out.splitlines() if l.startswith("serve ")), "")
+    assert line, out
+    assert ("-nomouse" in line) == (starts_with is not None) and line.count("-nomouse") <= 1, line
+
+
+@pytest.mark.parametrize("args", [["start"], ["mouse", "maybe"]])
+def test_deploy_refuses_a_bad_mouse_setting(args, safe_target):
+    env = dict(safe_target, ON_LOGIN_PASSWORD="unused", ON_AGENT_MOUSE="yes")
+    rc, out = py(TOOLS / "opticnerve_deploy.py", *args, env=env)
+    assert rc != 0 and ("must be 0 or 1" in out or "mouse [on|off]" in out) and "serve " not in out, out
+
+
 @pytest.mark.parametrize("args", [["start"], ["pointer", "maybe"]])
 def test_deploy_refuses_a_bad_pointer_setting(args, safe_target):
     env = dict(safe_target, ON_LOGIN_PASSWORD="unused", ON_AGENT_POINTER="yes")

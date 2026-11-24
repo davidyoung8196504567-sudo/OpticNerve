@@ -311,6 +311,14 @@ void on_pointer_at(struct on_core *c, int x, int y, on_time now)
 	move_pointer(c, x, y);
 }
 
+int on_arrow_clients(const struct on_core *c)
+{
+	int n = 0;
+	for (int i = 0; i < ON_SLOTS; i++)
+		n += gets_arrow(c, &c->slots[i]);
+	return n;
+}
+
 /* --- input from a client ------------------------------------------------------------------------------------ */
 
 /* 4.8: the client that sends input owns it, unless the owner holds a key or a button: a press is never split from

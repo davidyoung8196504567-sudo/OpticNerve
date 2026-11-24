@@ -7,9 +7,10 @@ int cli_main(const char *cmd, int argc, char **argv);
 
 static const char usage[] =
 	"usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-nopointer]\n"
-	"                        [-v] [-foreground]                                                        (root)\n"
+	"                        [-nomouse] [-v] [-foreground]                                             (root)\n"
 	"       opticnerve status\n"
-	"       opticnerve pointer [on|off]\n"
+	"       opticnerve pointer [on|off]                                                   (root to switch)\n"
+	"       opticnerve mouse [on|off]                                                     (root to switch)\n"
 	"       opticnerve wait [-timeout=S] [-since=COUNT] [-quiet=MS]\n"
 	"       opticnerve current\n"
 	"       opticnerve capture X Y W H FILE\n"

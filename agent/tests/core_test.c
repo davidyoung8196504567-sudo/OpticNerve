@@ -11,6 +11,7 @@
 #include <string.h>
 #include "on_core.h"
 #include "on_des.h"
+#include "on_mouse.h"
 
 static int fails, checks;
 #define CHECK(cond, ...) do { checks++; if (!(cond)) { fails++; printf("FAIL %s:%d: ", __FILE__, __LINE__); \
@@ -1085,6 +1086,173 @@ static void test_pointer_arrow(void)
 	arrow_x = arrow_y = -1;
 }
 
+/* The level the driver holds the target's mouse by (phase 2): clients that get the arrow, counted anew each pass. */
+static void test_arrow_clients(void)
+{
+	core = new_core();
+	on_time t = 1000 * MS;
+	CHECK(on_arrow_clients(core) == 0, "no client: 0");
+	int a = client(31, t);
+	CHECK(on_arrow_clients(core) == 0, "a client before SetEncodings: 0");
+	static const int32_t cursor[] = { 0, -239 }, xcursor[] = { -240 }, tool[] = { 0, 1, -224 };
+	encodings(a, cursor, 2, 0, NULL, 0, t);
+	CHECK(on_arrow_clients(core) == 1, "a viewer asking for Cursor: 1, got %d", on_arrow_clients(core));
+	int b = client(32, t);
+	encodings(b, tool, 3, 0, NULL, 0, t);
+	CHECK(on_arrow_clients(core) == 1, "a test client beside it: still 1, got %d", on_arrow_clients(core));
+	encodings(b, xcursor, 1, 0, NULL, 0, t);
+	CHECK(on_arrow_clients(core) == 2, "the second asks for XCursor: 2, got %d", on_arrow_clients(core));
+	on_set_pointer(core, 0);
+	CHECK(on_arrow_clients(core) == 0, "arrow off: 0, got %d", on_arrow_clients(core));
+	on_set_pointer(core, 1);
+	CHECK(on_arrow_clients(core) == 2, "arrow on again: 2, got %d", on_arrow_clients(core));
+	encodings(b, NULL, 0, 0, NULL, 0, t);
+	CHECK(on_arrow_clients(core) == 1, "an empty list from the second: 1, got %d", on_arrow_clients(core));
+	on_closed(core, a, t);
+	CHECK(on_arrow_clients(core) == 0, "the viewer closes: 0 at once, got %d", on_arrow_clients(core));
+	on_schedule(core, t);
+	count_actions(ON_ACT_NONE);
+	CHECK(on_arrow_clients(core) == 0, "after the reap: 0, got %d", on_arrow_clients(core));
+	on_core_free(core);
+}
+
+/* The queue between libhiddi's thread and the loop, and the position (agent/core/on_mouse.c). */
+static void test_mouse(void)
+{
+	struct on_mouse_queue q;
+	memset(&q, 0, sizeof(q));
+	for (int i = 0; i < 3; i++)
+		on_mouse_add(&q, 1, -1, 0, 0, i);
+	CHECK(q.n == 1 && q.e[0].dx == 3 && q.e[0].dy == -3 && q.e[0].t == 0, "motion joins: n %d dx %d", q.n, q.e[0].dx);
+
+	/* a press and a release land where they happened, however late the loop drains */
+	on_mouse_queue_reset(&q);
+	static const int dx[] = { 1, 2, 3, 4, 5, 6 }, b[] = { 0, 1, 1, 1, 0, 0 };
+	for (int i = 0; i < 6; i++)
+		on_mouse_add(&q, dx[i], 0, 0, b[i], i);
+	int sum = 0, press_at = -1, release_at = -1, was = 0;
+	for (int i = 0; i < q.n; i++) {
+		sum += q.e[i].dx;
+		if (q.e[i].buttons && !was)
+			press_at = sum;
+		if (!q.e[i].buttons && was)
+			release_at = sum;
+		was = q.e[i].buttons;
+	}
+	CHECK(press_at == 3, "the press after 1+2 counts, got %d", press_at);
+	CHECK(release_at == 15, "the release after 1+2+3+4+5 counts, got %d", release_at);
+	CHECK(sum == 21 && q.n == 5, "all motion kept: %d in %d entries", sum, q.n);
+
+	/* a wheel notch is an entry of its own, and motion after it does not join it */
+	on_mouse_queue_reset(&q);
+	on_mouse_add(&q, 2, 0, 0, 0, 0);
+	on_mouse_add(&q, 0, 0, 1, 0, 1);
+	on_mouse_add(&q, 3, 0, 0, 0, 2);
+	CHECK(q.n == 3 && q.e[1].wheel == 1 && q.e[1].dx == 0 && q.e[2].dx == 3, "wheel apart: n %d", q.n);
+	on_mouse_add(&q, 0, 0, 3, 0, 3);
+	CHECK(q.n == 4 && q.e[3].wheel == 3, "a wheel of 3 kept as 3");
+
+	/* a full queue folds into its last entry */
+	on_mouse_queue_reset(&q);
+	uint64_t ov = q.overflows;
+	for (int i = 0; i < ON_MOUSE_QUEUE; i++)
+		on_mouse_add(&q, 1, 0, 0, i & 1, i);
+	CHECK(q.n == ON_MOUSE_QUEUE && q.overflows == ov, "full without overflow");
+	on_mouse_add(&q, 5, 7, 2, 4, 99);
+	CHECK(q.n == ON_MOUSE_QUEUE && q.overflows == ov + 1, "the next folds: overflows %llu",
+	      (unsigned long long)(q.overflows - ov));
+	struct on_mouse_entry *l = &q.e[ON_MOUSE_QUEUE - 1];
+	CHECK(l->dx == 6 && l->dy == 7 && l->wheel == 2 && l->buttons == 4 && !l->motion_only,
+	      "folded: dx %d dy %d wheel %d buttons %d", l->dx, l->dy, l->wheel, l->buttons);
+
+	CHECK(on_mouse_hid_button(1) == 1 && on_mouse_hid_button(2) == 4 && on_mouse_hid_button(3) == 2 &&
+	      on_mouse_hid_button(4) == 0, "HID 1/2/3 to RFB left/right/middle");
+
+	/* position: half pixels, 1.5 a count, coalesced or not; clamped; carries on from a viewer's position */
+	struct on_mouse_pos p = { W, H, 0, 0, 0 }, p2;
+	int x, y;
+	on_mouse_move(&p, 0, 0, &x, &y);
+	CHECK(x == W / 2 && y == H / 2, "unknown: starts at the middle, got %d,%d", x, y);
+	on_mouse_set(&p, 0, 0);
+	p2 = p;
+	for (int i = 0; i < 10; i++)
+		on_mouse_move(&p, 1, 1, &x, &y);
+	CHECK(x == 15 && y == 15, "ten single counts: 15 pixels, got %d,%d", x, y);
+	on_mouse_move(&p2, 10, 10, &x, &y);
+	CHECK(x == 15 && y == 15, "one count of ten: 15 pixels, got %d,%d", x, y);
+	on_mouse_move(&p, -1000, -1000, &x, &y);
+	CHECK(x == 0 && y == 0, "clamped at the top left, got %d,%d", x, y);
+	on_mouse_move(&p, 100000, 100000, &x, &y);
+	CHECK(x == W - 1 && y == H - 1, "clamped at the bottom right, got %d,%d", x, y);
+	on_mouse_move(&p, 1, 1, &x, &y);
+	CHECK(x == W - 1 && y == H - 1, "stays inside, got %d,%d", x, y);
+	on_mouse_set(&p, 50, 40);
+	on_mouse_move(&p, 2, -2, &x, &y);
+	CHECK(x == 53 && y == 37, "from a viewer's position, got %d,%d", x, y);
+}
+
+/* When the driver takes and gives back the mouse, and what one pointer event carries from both sources. */
+static void test_mouse_level(void)
+{
+	struct on_mouse_level l = { 0, 0, 0 };
+	on_time t = 5000 * MS, w;
+	CHECK(on_mouse_level(&l, t, 0, 0, 0, 0, &w) == ON_MOUSE_NONE && w == ON_NEVER, "no viewer: nothing");
+	CHECK(on_mouse_level(&l, t, 1, 0, 0, 0, &w) == ON_MOUSE_NONE && w == t + ON_MOUSE_DWELL,
+	      "a viewer arrives: wait the dwell, wake at its end");
+	CHECK(on_mouse_level(&l, t + 999 * MS, 1, 0, 0, 0, &w) == ON_MOUSE_NONE, "999 ms: still waiting");
+	CHECK(on_mouse_level(&l, t + 1000 * MS, 1, 0, 0, 0, &w) == ON_MOUSE_TAKE, "1 s: take");
+	CHECK(on_mouse_level(&l, t + 1100 * MS, 1, 1, 0, 0, &w) == ON_MOUSE_NONE && w == ON_NEVER, "held: nothing");
+
+	/* a viewer that comes and goes inside the dwell never takes it */
+	struct on_mouse_level f = { 0, 0, 0 };
+	on_mouse_level(&f, t, 1, 0, 0, 0, &w);
+	on_mouse_level(&f, t + 500 * MS, 0, 0, 0, 0, &w);
+	CHECK(on_mouse_level(&f, t + 1200 * MS, 1, 0, 0, 0, &w) == ON_MOUSE_NONE && w == t + 2200 * MS,
+	      "back after a gap: the dwell starts again");
+
+	/* a failed take is not tried again until no viewer has been there */
+	on_mouse_take_failed(&f);
+	CHECK(on_mouse_level(&f, t + 9000 * MS, 1, 0, 0, 0, &w) == ON_MOUSE_NONE && w == ON_NEVER, "blocked after a failure");
+	on_mouse_level(&f, t + 9100 * MS, 0, 0, 0, 0, &w);
+	on_mouse_level(&f, t + 9200 * MS, 1, 0, 0, 0, &w);
+	CHECK(on_mouse_level(&f, t + 10200 * MS, 1, 0, 0, 0, &w) == ON_MOUSE_TAKE, "tried again after the level dropped");
+
+	/* the viewer goes: let go at once with no button down */
+	CHECK(on_mouse_level(&l, t + 2000 * MS, 0, 1, 0, 0, &w) == ON_MOUSE_LET_GO, "viewer gone: let go");
+	/* with a button down: wait for it to come up, at most ON_MOUSE_LETGO_WAIT */
+	struct on_mouse_level b = { 0, 0, 0 };
+	CHECK(on_mouse_level(&b, t, 0, 1, 1, 0, &w) == ON_MOUSE_NONE && w == t + ON_MOUSE_LETGO_WAIT,
+	      "button down: wait, wake at the limit");
+	CHECK(on_mouse_level(&b, t + 1000 * MS, 0, 1, 0, 0, &w) == ON_MOUSE_LET_GO, "button up: let go");
+	struct on_mouse_level b2 = { 0, 0, 0 };
+	on_mouse_level(&b2, t, 0, 1, 1, 0, &w);
+	CHECK(on_mouse_level(&b2, t + 4999 * MS, 0, 1, 1, 0, &w) == ON_MOUSE_NONE, "still down before the limit: wait");
+	CHECK(on_mouse_level(&b2, t + 5000 * MS, 0, 1, 1, 0, &w) == ON_MOUSE_LET_GO, "at the limit: let go anyway");
+	/* a viewer coming back while the let-go waits keeps the mouse */
+	struct on_mouse_level b3 = { 0, 0, 0 };
+	on_mouse_level(&b3, t, 0, 1, 1, 0, &w);
+	CHECK(on_mouse_level(&b3, t + 100 * MS, 1, 1, 1, 0, &w) == ON_MOUSE_NONE && b3.letgo_since == 0,
+	      "viewer back: the wait is over, still held");
+	/* injections refused: let go at once, button or not, viewer or not; not taken again */
+	struct on_mouse_level x = { 0, 0, 0 };
+	CHECK(on_mouse_level(&x, t, 1, 1, 1, 1, &w) == ON_MOUSE_LET_GO, "failed: let go at once");
+	CHECK(on_mouse_level(&x, t + 5000 * MS, 1, 0, 0, 1, &w) == ON_MOUSE_NONE, "failed: not taken again");
+
+	/* one event, both sources: the held mouse's buttons stay down under a viewer's event, and the viewer's under the
+	 * mouse's (the driver ORs vnc_buttons into the mouse's events); a viewer's wheel is not kept as held */
+	int wheel;
+	CHECK(on_mouse_compose(0, 1, &wheel) == 1 && wheel == 0, "viewer move, mouse holds left: left stays down");
+	CHECK(on_mouse_compose(4, 1, &wheel) == 5 && wheel == 0, "viewer right + mouse left");
+	CHECK(on_mouse_compose(8, 0, &wheel) == 0 && wheel == -1, "viewer wheel up: -1, no button");
+	CHECK(on_mouse_compose(16 | 1, 0, &wheel) == 1 && wheel == 1, "viewer wheel down with left");
+	CHECK(on_mouse_compose(0, 0, &wheel) == 0 && wheel == 0, "nothing held");
+	struct on_mouse_entry e = { 3, 0, 1, 2, 0, 0 };
+	CHECK(on_mouse_compose_usb(1, &e, &wheel) == 3 && wheel == -1, "mouse middle + viewer left; HID notch up is -1");
+	e.wheel = -2;
+	e.buttons = 0;
+	CHECK(on_mouse_compose_usb(4 | 8, &e, &wheel) == 4 && wheel == 2, "viewer right stays, its wheel bit does not");
+}
+
 int main(void)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
@@ -1094,6 +1262,9 @@ int main(void)
 	test_handover();
 	test_pointer_parser();
 	test_pointer_arrow();
+	test_arrow_clients();
+	test_mouse();
+	test_mouse_level();
 	printf("%d checks, %d failed\n", checks, fails);
 	return fails != 0;
 }

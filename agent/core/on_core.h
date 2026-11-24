@@ -91,6 +91,8 @@ size_t on_read_region(const struct on_core *c, int x, int y, int *w, int *h, uin
 void on_set_pointer(struct on_core *c, int on);
 int on_pointer(const struct on_core *c);
 void on_pointer_at(struct on_core *c, int x, int y, on_time now);
+/* How many clients get the arrow now. The driver holds the target's own mouse while this is above 0 (phase 2). */
+int on_arrow_clients(const struct on_core *c);
 
 /* Reap, decide, reap. Returns when the core next needs to be called with nothing else having happened. */
 on_time on_schedule(struct on_core *c, on_time now);

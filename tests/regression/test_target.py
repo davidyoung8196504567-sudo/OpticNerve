@@ -4,8 +4,9 @@ arrow.
 
     python -m pytest --pi -m pi
 
-None of them moves the target's pointer or types, except the pointer arrow test, which is marked `watched` and runs
-only with --watched as well (one at a time, watched, when agreed):
+None of them moves the target's pointer or types, except the pointer arrow test and the mouse hold test, which are
+marked `watched` and run only with --watched as well (one at a time, watched, when agreed). Both connect a viewer
+that gets the arrow, so both take the target's own mouse from the person at it for a few seconds:
 
     python -m pytest --pi --watched -m watched
 
@@ -218,10 +219,15 @@ def shows_arrow(c, x0, y0):
     return 1
 
 
-def agent(command):
-    rc, out = pi_ssh(f"/data/opticnerve/bin/opticnerve {command}")
+def agent(command, root=False):
+    rc, out = pi_ssh(f"{'rs ' if root else ''}/data/opticnerve/bin/opticnerve {command}")
     assert rc == 0, out
     return out
+
+
+def status_value(status, name):
+    line = next((l for l in status.splitlines() if l.startswith(name + " ")), None)
+    return line.split(" ", 1)[1] if line else None
 
 
 def arrow_slots(status):
@@ -233,7 +239,8 @@ def arrow_slots(status):
 def test_pointer_arrow(target):
     """ON-AG-001: a viewer (asks for Cursor, -239) is sent the arrow where the pointer went, soon after it stops, also
     when its queue was full while the pointer moved; a test tool (asks for none) is not; `opticnerve pointer off`
-    takes it away and `on` brings it back; the status shows which client gets it. Moves the pointer by hand."""
+    takes it away and `on` brings it back; the status shows which client gets it. Moves the pointer by hand, and
+    (phase 2) holds the target's own mouse while the viewer is connected."""
     if connected_clients():
         pytest.skip("a client is connected to the agent: this test moves the target's pointer")
     if "pointer on" not in agent("status"):
@@ -286,18 +293,91 @@ def test_pointer_arrow(target):
         assert not shows_arrow(tool, x, y), "the test tool's frame has the arrow"
 
         # 4. the switch: off takes the arrow back from the viewer, on brings it back
-        assert agent("pointer off").strip() == "pointer off"
+        assert agent("pointer off", root=True).strip() == "pointer off"
         assert "pointer off" in agent("status") and arrow_slots(agent("status")) == (2, 0)
         viewer.request(1)
         viewer.update(2)
         assert not shows_arrow(viewer, x, y), "switched off: the viewer still shows the arrow"
-        assert agent("pointer on").strip() == "pointer on"
+        assert agent("pointer on", root=True).strip() == "pointer on"
         viewer.request(1)
         viewer.update(2)
         assert shows_arrow(viewer, x, y) and arrow_slots(agent("status")) == (2, 1), "switched on: no arrow"
     finally:
-        agent("pointer on")  # as the test found it (it runs only when the arrow was on)
+        agent("pointer on", root=True)  # as the test found it (it runs only when the arrow was on)
         viewer.s.close()
+        tool.s.close()
+
+
+def test_switches_need_root(target):
+    """Setting the pointer arrow or the mouse switch needs root (both change what a person at the target gets);
+    showing them does not. Changes nothing: the requests made as the login user are refused."""
+    status = agent("status")
+    if status_value(status, "mouse") is None:
+        pytest.skip("the agent predates the mouse switch")
+    for name in ("pointer", "mouse"):
+        before = status_value(status, name)
+        assert agent(name).strip() == f"{name} {before}", name
+        try:
+            rc, out = pi_ssh(f"/data/opticnerve/bin/opticnerve {name} {'off' if before == 'on' else 'on'}")
+            assert rc != 0 and "not permitted" in out, out
+            assert status_value(agent("status"), name) == before, f"{name} changed although the request was refused"
+        finally:
+            agent(f"{name} {before}", root=True)  # as found, should the refusal have failed
+
+
+def test_mouse_not_held_without_a_viewer(target):
+    """Phase 2: with no client that gets the arrow, the agent does not hold the target's own mouse."""
+    status = agent("status")
+    if status_value(status, "mouse") is None:
+        pytest.skip("the agent predates the mouse switch")
+    if arrow_slots(status)[1]:
+        pytest.skip("a viewer that gets the arrow is connected")
+    assert status_value(status, "mouse_held") == "0", status
+
+
+@pytest.mark.watched
+def test_mouse_held_while_a_viewer_is_connected(target):
+    """Phase 2: a viewer that gets the arrow (asks for Cursor) makes the agent take the target's own mouse after about
+    1 s; a test tool (asks for none) does not; `mouse off` gives it back with the viewer still there; the viewer
+    leaving gives it back. Takes the mouse from the person at the target for a few seconds."""
+    if connected_clients():
+        pytest.skip("a client is connected to the agent")
+    status = agent("status")
+    if status_value(status, "mouse") != "on" or "pointer on" not in status:
+        pytest.skip("the mouse switch or the pointer arrow is off, or the agent predates them")
+
+    def held_within(want, seconds):
+        end = time.time() + seconds
+        while time.time() < end:
+            if status_value(agent("status"), "mouse_held") == want:
+                return True
+            time.sleep(0.2)
+        return False
+
+    refused_before = status_value(status, "mouse_attach_failures")
+    tool = Client(target, [0])
+    viewer = None
+    try:
+        time.sleep(1.5)
+        assert status_value(agent("status"), "mouse_held") == "0", "a test tool alone made the agent take the mouse"
+        viewer = Client(target, [0, -239])
+        assert held_within("1", 3), "a viewer that gets the arrow: the mouse was not taken within 3 s"
+        st = agent("status")
+        assert status_value(st, "mouse_attach_failures") == refused_before, f"an attach was refused:\n{st}"
+        if status_value(st, "mouse_devices") == "0":
+            import warnings
+            warnings.warn("no mouse is plugged in to the target: the hold had nothing to hold")
+        assert agent("mouse off", root=True).strip() == "mouse off"
+        assert held_within("0", 2), "mouse off: still held"
+        assert agent("mouse on", root=True).strip() == "mouse on"
+        assert held_within("1", 3), "mouse on again with the viewer there: not taken"
+        viewer.s.close()
+        viewer = None
+        assert held_within("0", 7), "the viewer left: the mouse was not given back"
+    finally:
+        agent("mouse on", root=True)  # as the test found it (it runs only when the switch was on)
+        if viewer:
+            viewer.s.close()
         tool.s.close()
 
 

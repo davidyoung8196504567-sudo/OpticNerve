@@ -260,40 +260,44 @@ static int cmd_passwd(int argc, char **argv)
 	return 0;
 }
 
-/* pointer [on|off]: shows, or switches, the pointer arrow drawn for viewers (ON-AG-001). Any user may switch it, as
- * any user may read the status: it changes only what viewers are shown. */
-static int cmd_pointer(int argc, char **argv)
+/* pointer [on|off]: shows, or switches, the pointer arrow drawn for viewers (ON-AG-001).
+ * mouse [on|off]: shows, or switches, whether the agent may hold the target's own mouse while a viewer that gets the
+ * arrow is connected (phase 2). Any user may show either; switching needs root, since both change what a person at
+ * the target gets (the agent answers EPERM otherwise). */
+static int cmd_switch(const char *name, int dcmd, int argc, char **argv)
 {
-	struct on_dev_pointer p = { -1, 0 };
+	struct on_dev_pointer p = { -1, 0 }; /* struct on_dev_mouse has the same layout */
 	if (argc == 1 && strcmp(argv[0], "on") == 0)
 		p.set = 1;
 	else if (argc == 1 && strcmp(argv[0], "off") == 0)
 		p.set = 0;
 	else if (argc != 0) {
-		fprintf(stderr, "usage: opticnerve pointer [on|off]\n");
+		fprintf(stderr, "usage: opticnerve %s [on|off]\n", name);
 		return 2;
 	}
 	limit(LIMIT_S);
 	int fd = open_dev();
 	if (fd < 0)
 		return errno == EINTR ? not_answering() : 1;
-	int rc = devctl(fd, ON_DCMD_POINTER, &p, sizeof(p), NULL);
+	int rc = devctl(fd, dcmd, &p, sizeof(p), NULL);
 	alarm(0);
 	close(fd);
 	if (rc == EINTR)
 		return not_answering();
 	if (rc != EOK) {
-		fprintf(stderr, "opticnerve: pointer: %s\n", strerror(rc));
+		fprintf(stderr, "opticnerve: %s: %s\n", name, strerror(rc));
 		return 1;
 	}
-	printf("pointer %s\n", p.on ? "on" : "off");
+	printf("%s %s\n", name, p.on ? "on" : "off");
 	return 0;
 }
 
 static int run(const char *cmd, int argc, char **argv)
 {
 	if (strcmp(cmd, "pointer") == 0)
-		return cmd_pointer(argc, argv);
+		return cmd_switch("pointer", ON_DCMD_POINTER, argc, argv);
+	if (strcmp(cmd, "mouse") == 0)
+		return cmd_switch("mouse", ON_DCMD_MOUSE, argc, argv);
 	if (strcmp(cmd, "status") == 0)
 		return cmd_status();
 	if (strcmp(cmd, "wait") == 0)
@@ -317,7 +321,7 @@ static int run(const char *cmd, int argc, char **argv)
  */
 int cli_main(const char *cmd, int argc, char **argv)
 {
-	static const char *known[] = { "status", "wait", "current", "capture", "stop", "passwd", "pointer" };
+	static const char *known[] = { "status", "wait", "current", "capture", "stop", "passwd", "pointer", "mouse" };
 	int ok = 0;
 	for (size_t i = 0; i < sizeof(known) / sizeof(known[0]); i++)
 		ok |= strcmp(cmd, known[i]) == 0;

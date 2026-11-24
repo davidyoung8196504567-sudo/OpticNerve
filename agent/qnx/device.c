@@ -3,8 +3,9 @@
  * as everything else. read() gives the status text; devctl "wait" and "current" are answered later, with a deferred
  * reply, from device_pass(), which the loop runs after every event.
  *
- * Every caller may use the device (mode 666). Nothing here is privileged: stopping the agent and reloading its
- * password are signals, which the system allows to root only (design 4.11).
+ * Every caller may use the device (mode 666). Reading is open to all; setting the pointer arrow or the mouse switch
+ * needs root, since both change what a person at the target gets. Stopping the agent and reloading its password are
+ * signals, which the system allows to root only (design 4.11).
  */
 #define _QNX_SOURCE
 struct _iofunc_ocb;
@@ -103,13 +104,16 @@ static size_t status_text(char *b, size_t cap)
 	int idle = -1, power = -1;
 	if (info->display_state)
 		info->display_state(&idle, &power);
+	char mouse[512] = "";
+	if (info->mouse_text)
+		info->mouse_text(mouse, sizeof(mouse));
 	size_t n = (size_t)snprintf(b, cap,
 		"version %s\npid %d\ndisplay %dx%d\nport %d\n"
 		"compositions %llu\nsignalled %d\ncaptures %llu\ntimed_captures %llu\nupdates_from_timed_capture %llu\n"
 		"content %llu\nidle_state %d\npower_mode %d\nlogins_failed %llu\nlogins_timed_out %llu\n"
 		"refused_at_accept %llu\nserver_full %llu\n"
 		"cut_text_skipped %llu\nextended_cut_text %llu\nkeys_dropped %llu\npointer_dropped %llu\n"
-		"input_handovers %llu\nwaiters %d\nstatus_readers %d\npointer %s\n",
+		"input_handovers %llu\nwaiters %d\nstatus_readers %d\npointer %s\n%s",
 		info->version, (int)getpid(), info->width, info->height, info->port, (unsigned long long)st.signals,
 		st.signalled, (unsigned long long)st.captures, (unsigned long long)st.timed_captures,
 		(unsigned long long)st.updates_from_timed_capture, (unsigned long long)st.content, idle, power,
@@ -118,7 +122,7 @@ static size_t status_text(char *b, size_t cap)
 		(unsigned long long)st.server_full, (unsigned long long)st.cut_text_skipped,
 		(unsigned long long)st.extended_cut_text, (unsigned long long)st.keys_dropped,
 		(unsigned long long)st.pointer_dropped, (unsigned long long)st.input_handovers, nw, nt,
-		on_pointer(core) ? "on" : "off");
+		on_pointer(core) ? "on" : "off", mouse);
 	for (int i = 0; i < ON_SLOTS && n < cap; i++) {
 		struct on_client_stats cs;
 		on_client_stats(core, i, &cs);
@@ -241,18 +245,37 @@ static void reply_snapshot(struct waiter *w)
 	w->used = 0;
 }
 
+static int caller_is_root(resmgr_context_t *ctp)
+{
+	struct _client_info *ci = NULL;
+	if (iofunc_client_info_ext(ctp, 0, &ci, 0) != EOK || !ci)
+		return 0;
+	int root = ci->cred.euid == 0;
+	iofunc_client_info_ext_free(&ci);
+	return root;
+}
+
 static int dev_devctl(resmgr_context_t *ctp, io_devctl_t *msg, iofunc_ocb_t *ocb)
 {
 	int rc = iofunc_devctl_default(ctp, msg, ocb);
 	if (rc != _RESMGR_DEFAULT)
 		return rc;
-	if (msg->i.dcmd == ON_DCMD_POINTER) { /* answered at once; the loop's next pass sends what changes */
-		if (msg->i.nbytes < sizeof(struct on_dev_pointer))
+	if (msg->i.dcmd == ON_DCMD_POINTER || msg->i.dcmd == ON_DCMD_MOUSE) {
+		/* answered at once; the loop's next pass sends what changes, and takes or gives back the mouse */
+		if (msg->i.nbytes < sizeof(struct on_dev_pointer)) /* the same layout as struct on_dev_mouse */
 			return EINVAL;
 		int32_t set = ((struct on_dev_pointer *)_DEVCTL_DATA(msg->i))->set; /* read before the reply overwrites it */
-		if (set == 0 || set == 1)
-			on_set_pointer(core, set);
-		struct on_dev_pointer out = { set, on_pointer(core) };
+		if ((set == 0 || set == 1) && !caller_is_root(ctp))
+			return EPERM;
+		int on;
+		if (msg->i.dcmd == ON_DCMD_POINTER) {
+			if (set == 0 || set == 1)
+				on_set_pointer(core, set);
+			on = on_pointer(core);
+		} else {
+			on = info->mouse_switch ? info->mouse_switch(set) : 0;
+		}
+		struct on_dev_pointer out = { set, on };
 		memset(&msg->o, 0, sizeof(msg->o));
 		msg->o.nbytes = sizeof(out);
 		memcpy(_DEVCTL_DATA(msg->o), &out, sizeof(out));

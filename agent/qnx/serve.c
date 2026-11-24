@@ -3,10 +3,14 @@
  * select_attach(), Screen's composition signal, the timer and SIGTERM as pulses. The core (agent/core) decides; this
  * file only does what the core asks and tells it what happened.
  *
- *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-nopointer] [-v]
+ *   opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] [-logintimeout=S] [-nopointer] [-nomouse]
+ *                    [-v]
  *   -logintimeout=S is the time a viewer's user has to type the password (default 60, 0: no limit).
  *   -nopointer starts with the pointer arrow off (on_core.h; `opticnerve pointer on|off` switches it later).
- *   -v logs every connection and every injected event to standard error (key values included: test use only).
+ *   -nomouse starts with the mouse switch off: the agent never holds the target's own mouse (mouse.c;
+ *    `opticnerve mouse on|off` switches it later).
+ *   -v logs every connection and every injected event to standard error (key values included: test use only); moves
+ *    of the target's own mouse are logged as a count a second.
  *
  * Runs in the foreground and logs to standard error (detaching comes later). Needs root: the display manager and
  * input provider context types.
@@ -31,6 +35,8 @@
 #include "on_des.h"
 #include "on_dev.h"
 #include "device.h"
+#include "mouse.h"
+#include <pthread.h>
 #include <sys/procmgr.h>
 
 #define ON_VERSION "0.1.0"
@@ -38,6 +44,7 @@
 #define PULSE_SCREEN (_PULSE_CODE_MINAVAIL + 1)
 #define PULSE_TERM (_PULSE_CODE_MINAVAIL + 2)
 #define PULSE_HUP (_PULSE_CODE_MINAVAIL + 3)
+#define PULSE_HID (_PULSE_CODE_MINAVAIL + 4) /* libhiddi's thread: the target's mouse has moves queued */
 
 static dispatch_t *dpp;
 static struct on_core *core;
@@ -54,6 +61,14 @@ static uint8_t *pixels, *staging; /* the pixmap's memory, and the copy of each c
 static int pstride;
 static int dsize[2], ptr_x, ptr_y, verbose;
 
+/* The target's own mouse (phase 2): held while a viewer that gets the arrow is connected and the switch is on. */
+static int mouse_on = 1, mouse_failed;
+static int vnc_buttons, usb_held;  /* buttons down from the VNC side, and from the held mouse as last injected */
+static int inject_failures;
+static struct on_mouse_level mlevel;
+static struct on_mouse_pos mpos;
+static uint64_t usb_moves;
+
 static on_time now_ns(void)
 {
 	struct timespec ts;
@@ -63,7 +78,9 @@ static on_time now_ns(void)
 
 static void die(const char *what)
 {
-	fprintf(stderr, "opticnerve: %s: %s\n", what, strerror(errno));
+	int e = errno;
+	mouse_abandon(); /* give the target's mouse back; Screen may be gone, so nothing is injected */
+	fprintf(stderr, "opticnerve: %s: %s\n", what, strerror(e));
 	exit(1);
 }
 
@@ -256,7 +273,9 @@ static void inject_key(uint32_t sym, int down)
 	screen_destroy_event(ev);
 }
 
-static void inject_pointer(int x, int y, int mask)
+/* One pointer event. mask: buttons as an RFB mask (1 left, 2 middle, 4 right); wheel: notches, -1 up. x < 0 keeps
+ * the position. Returns 0 if Screen took it. */
+static int inject_pointer(int x, int y, int mask, int wheel, int log)
 {
 	if (x >= 0) {
 		ptr_x = x;
@@ -264,11 +283,10 @@ static void inject_pointer(int x, int y, int mask)
 	}
 	int buttons = ((mask & 1) ? SCREEN_LEFT_MOUSE_BUTTON : 0) | ((mask & 2) ? SCREEN_MIDDLE_MOUSE_BUTTON : 0) |
 		      ((mask & 4) ? SCREEN_RIGHT_MOUSE_BUTTON : 0);
-	int wheel = (mask & 8) ? -1 : (mask & 16) ? 1 : 0;
 	screen_event_t ev;
 	int type = SCREEN_EVENT_POINTER, flags = SCREEN_FLAG_POSITION_VALID, pos[2] = { ptr_x, ptr_y };
 	if (screen_create_event(&ev) != 0)
-		return;
+		return -1;
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_TYPE, &type);
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_FLAGS, &flags); /* without it the position arrives as 0,0 (S7) */
 	screen_set_event_property_iv(ev, SCREEN_PROPERTY_POSITION, pos);
@@ -280,10 +298,104 @@ static void inject_pointer(int x, int y, int mask)
 		screen_set_event_property_iv(ev, SCREEN_PROPERTY_MOUSE_WHEEL, &wheel);
 	int rc = screen_inject_event(disp, ev);
 	screen_flush_context(sctx, 0); /* deliver now; whether Screen would hold it otherwise is not tested */
-	if (verbose)
+	if (verbose && log)
 		fprintf(stderr, "%s pointer %d,%d buttons 0x%x: %s\n", stamp(), ptr_x, ptr_y, (unsigned)buttons,
 			rc ? strerror(errno) : "ok");
 	screen_destroy_event(ev);
+	return rc;
+}
+
+/* --- the target's own mouse (phase 2, mouse.c) ------------------------------------------------------------------ */
+
+#define MOUSE_FAILURES 50 /* injections refused in a row: the mouse is given back until switched again */
+
+/* Injects what the held mouse queued. Each move Screen took also moves the viewers' arrow. */
+static void mouse_drain_inject(void)
+{
+	struct on_mouse_entry e[ON_MOUSE_QUEUE];
+	int n = mouse_drain(e, ON_MOUSE_QUEUE);
+	for (int i = 0; i < n && mouse_holding(); i++) {
+		int x, y;
+		on_mouse_move(&mpos, e[i].dx, e[i].dy, &x, &y);
+		int wheel, mask = on_mouse_compose_usb(vnc_buttons, &e[i], &wheel);
+		usb_held = e[i].buttons;
+		if (inject_pointer(x, y, mask, wheel, 0) == 0) {
+			inject_failures = 0;
+			on_pointer_at(core, x, y, now_ns());
+			usb_moves++;
+		} else if (++inject_failures >= MOUSE_FAILURES && !mouse_failed) {
+			mouse_failed = 1; /* latched: mouse_pass() lets go; `opticnerve mouse on` clears it */
+			fprintf(stderr, "opticnerve: %d moves of the target's mouse refused in a row: giving it back\n",
+				MOUSE_FAILURES);
+		}
+	}
+}
+
+static void mouse_give_back(void)
+{
+	mouse_let_go();
+	if (usb_held) /* the last event injected had a button of the mouse down: release it where the pointer is */
+		inject_pointer(-1, -1, vnc_buttons, 0, 1);
+	usb_held = 0;
+}
+
+/* The level check, once a round: hold the mouse while a viewer that gets the arrow is connected (on_mouse_level()).
+ * Returns when it next needs to run with nothing else happening. */
+static on_time mouse_pass(on_time now)
+{
+	static on_time next_log;
+	static uint64_t logged_moves;
+	if (mouse_holding())
+		mouse_drain_inject();
+	if (verbose && usb_moves != logged_moves && now >= next_log) {
+		fprintf(stderr, "%s target mouse: %llu moves injected so far\n", stamp(), (unsigned long long)usb_moves);
+		logged_moves = usb_moves;
+		next_log = now + 1000000000LL;
+	}
+	on_time wake;
+	int want = mouse_on && on_arrow_clients(core) > 0;
+	switch (on_mouse_level(&mlevel, now, want, mouse_holding(), usb_held, mouse_failed, &wake)) {
+	case ON_MOUSE_TAKE: {
+		int rc = mouse_take();
+		if (rc != 0) {
+			on_mouse_take_failed(&mlevel); /* tried again only after no arrow viewer has been there */
+			fprintf(stderr, "opticnerve: the target's mouse could not be taken: %s\n", strerror(rc));
+		} else {
+			inject_failures = 0;
+		}
+		break;
+	}
+	case ON_MOUSE_LET_GO:
+		mouse_give_back();
+		break;
+	default:
+		break;
+	}
+	return wake;
+}
+
+static int mouse_switch(int set)
+{
+	if (set == 0 || set == 1) {
+		mouse_on = set;
+		mouse_failed = 0;
+		inject_failures = 0;
+		mlevel.take_blocked = 0;
+	}
+	return mouse_on;
+}
+
+static void mouse_text(char *b, size_t cap)
+{
+	struct mouse_stats ms;
+	mouse_stats(&ms);
+	snprintf(b, cap, "mouse %s\nmouse_held %d\nmouse_devices %d\nmouse_takes %llu\nmouse_let_gos %llu\n"
+		 "mouse_take_failures %llu\nmouse_attach_failures %llu\nmouse_reports %llu\nmouse_overflows %llu\n"
+		 "mouse_left_to_system %llu\nmouse_failed %d\n",
+		 mouse_on ? "on" : "off", ms.holding, ms.devices, (unsigned long long)ms.takes,
+		 (unsigned long long)ms.let_gos, (unsigned long long)ms.take_failures,
+		 (unsigned long long)ms.attach_failures, (unsigned long long)ms.reports, (unsigned long long)ms.overflows,
+		 (unsigned long long)ms.left_to_system, mouse_failed);
 }
 
 /* --- sockets -------------------------------------------------------------------------------------------------- */
@@ -483,7 +595,15 @@ static void take_actions(void)
 			inject_key(a.keysym, a.down);
 			break;
 		case ON_ACT_POINTER:
-			inject_pointer(a.x, a.y, a.buttons);
+			/* the held mouse's buttons stay down under a viewer's move, as the viewer's stay down under the
+			 * mouse's (mouse_drain_inject) */
+			{
+				int wheel, mask = on_mouse_compose(a.buttons, usb_held, &wheel);
+				vnc_buttons = a.buttons & 7;
+				if (a.x >= 0)
+					on_mouse_set(&mpos, a.x, a.y);
+				inject_pointer(a.x, a.y, mask, wheel, 1);
+			}
 			break;
 		default:
 			break;
@@ -495,6 +615,8 @@ static void take_actions(void)
 static void run_pass(void)
 {
 	int pending = 0;
+	if (mouse_holding())
+		mouse_drain_inject(); /* the target's mouse first: captures below may take tens of ms */
 	for (int i = 0; i < ON_SLOTS; i++) /* the rest of what read_slot() left at its limit */
 		if (more[i] && fds[i] >= 0) {
 			read_slot(i);
@@ -512,6 +634,9 @@ static void run_pass(void)
 		on_time dw = device_pass(now_ns());
 		if (dw < wake)
 			wake = dw;
+		on_time mw = mouse_pass(now_ns());
+		if (mw < wake)
+			wake = mw;
 		on_stats(core, &st);
 		if ((pending || emptied) && wake > now_ns() + 1000000)
 			wake = now_ns() + 1000000; /* input still waiting, or a queue just emptied: decide again in 1 ms */
@@ -570,13 +695,15 @@ int serve_main(int argc, char **argv)
 			continue; /* seconds to type the password, at most 999999; 0: no limit */
 		else if (strcmp(argv[i], "-nopointer") == 0)
 			pointer = 0;
+		else if (strcmp(argv[i], "-nomouse") == 0)
+			mouse_on = 0;
 		else if (strcmp(argv[i], "-v") == 0)
 			verbose = 1;
 		else if (strcmp(argv[i], "-foreground") == 0)
 			foreground = 1;
 		else {
 			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] "
-					"[-logintimeout=S] [-nopointer] [-v] [-foreground]\n");
+					"[-logintimeout=S] [-nopointer] [-nomouse] [-v] [-foreground]\n");
 			return 2;
 		}
 	}
@@ -592,10 +719,16 @@ int serve_main(int argc, char **argv)
 	if (!(dpp = dispatch_create()))
 		die("dispatch_create");
 	if (pulse_attach(dpp, 0, PULSE_TIMER, on_pulse, NULL) < 0 || pulse_attach(dpp, 0, PULSE_SCREEN, on_pulse, NULL) < 0 ||
-	    pulse_attach(dpp, 0, PULSE_TERM, on_pulse, NULL) < 0 || pulse_attach(dpp, 0, PULSE_HUP, on_pulse, NULL) < 0)
+	    pulse_attach(dpp, 0, PULSE_TERM, on_pulse, NULL) < 0 || pulse_attach(dpp, 0, PULSE_HUP, on_pulse, NULL) < 0 ||
+	    pulse_attach(dpp, 0, PULSE_HID, on_pulse, NULL) < 0)
 		die("pulse_attach");
 	if ((coid = message_connect(dpp, MSG_FLAG_SIDE_CHANNEL)) < 0)
 		die("message_connect");
+	/* after procmgr_daemon: libhiddi's thread is created at the first take, in this process */
+	struct sched_param sp;
+	int policy;
+	pthread_getschedparam(pthread_self(), &policy, &sp);
+	mouse_init(coid, PULSE_HID, sp.sched_priority, now_ns);
 	struct sigevent tev;
 	SIGEV_PULSE_INIT(&tev, coid, SIGEV_PULSE_PRIO_INHERIT, PULSE_TIMER, 0);
 	if (timer_create(CLOCK_MONOTONIC, &tev, &timer) != 0)
@@ -634,7 +767,9 @@ int serve_main(int argc, char **argv)
 	if (select_attach(dpp, NULL, listen_fd, SELECT_FLAG_READ | SELECT_FLAG_REARM, on_listen, NULL) != 0)
 		die("select_attach listen");
 
-	struct device_info di = { ON_VERSION, dsize[0], dsize[1], port, now_ns, display_state };
+	mpos.width = dsize[0];
+	mpos.height = dsize[1];
+	struct device_info di = { ON_VERSION, dsize[0], dsize[1], port, now_ns, display_state, mouse_switch, mouse_text };
 	device_init(dpp, core, &di);
 
 	dispatch_context_t *ctp = dispatch_context_alloc(dpp);
@@ -677,6 +812,8 @@ int serve_main(int argc, char **argv)
 			on_closed(core, i, now_ns());
 	on_schedule(core, now_ns());
 	take_actions(); /* releases held keys and buttons, closes sockets */
+	if (mouse_holding())
+		mouse_give_back();
 	close(listen_fd);
 	screen_destroy_pixmap(pixmap);
 	free(staging);

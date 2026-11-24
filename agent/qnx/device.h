@@ -10,6 +10,8 @@ struct device_info {
 	int width, height, port;
 	on_time (*now)(void);
 	void (*display_state)(int *idle, int *power); /* read from Screen on request */
+	int (*mouse_switch)(int set);                 /* the mouse switch: set 1 on, 0 off, -1 leave it; returns it */
+	void (*mouse_text)(char *b, size_t cap);      /* the mouse lines of the status text */
 };
 
 void device_init(dispatch_t *dpp, struct on_core *core, const struct device_info *info);

@@ -56,8 +56,11 @@ differ, the test runs `sdp/check_sdp.py` and says whether the SDP still matches 
 SDP from a changed build. `record_build.py` refuses to record over an entry with other bytes.
 
 Tests that drive the screen (`host/demo/DemoTest.java` and the others, the IDE tests) are not here: they move the
-target's pointer, so they are run one at a time, watched, when agreed. The same holds for the one test here that
-moves the pointer, `test_pointer_arrow` (ON-AG-001: a viewer that asks for a pointer shape is sent the agent's arrow
-where the pointer stopped, within 0.3 s, also after its queue was full; a test tool is not; `opticnerve pointer
-off` and `on`): marked `watched`, it runs only when asked for, `python -m pytest --pi --watched -m watched`, and
-skips while any client is connected.
+target's pointer, so they are run one at a time, watched, when agreed. The same holds for the two tests here that
+move the pointer or take the mouse: `test_pointer_arrow` (ON-AG-001: a viewer that asks for a pointer shape is sent
+the agent's arrow where the pointer stopped, within 0.3 s, also after its queue was full; a test tool is not;
+`opticnerve pointer off` and `on`) and `test_mouse_held_while_a_viewer_is_connected` (phase 2: such a viewer makes
+the agent take the target's own mouse, a test tool does not, `opticnerve mouse off` and the viewer leaving give it
+back). Marked `watched`, they run only when asked for, `python -m pytest --pi --watched -m watched`, and skip while
+any client is connected. `test_switches_need_root` and `test_mouse_not_held_without_a_viewer` change nothing and run
+with `--pi`.
