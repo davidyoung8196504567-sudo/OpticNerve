@@ -9,6 +9,8 @@
  * below).
  *
  * Buttons: "+1" adds one to the counter, "RESET" sets it to 0, clears the text line and turns the lamp green, "LAMP" switches the lamp between green and red.
+ * An X in the top right corner of the title bar closes the panel, as in a windowed GUI: a press must start on it,
+ * the box is red while the pointer is on it with the button held, and only a release on it closes.
  * Keys: letters, digits and space are added to the text line; Backspace deletes; Return clears it.
  *
  * Build (baseline SDP-BL-006): qcc -Vgcc_ntoaarch64le -std=c11 -Wall -Wextra -Werror -O2 -o demo_panel demo_panel.c
@@ -105,7 +107,11 @@ struct button {
 static const struct button BUTTONS[3] = {
 	{ 160, 700, 420, 200, "+1" }, { 750, 700, 420, 200, "RESET" }, { 1340, 700, 420, 200, "LAMP" } };
 
-static int counter, lamp_red;
+/* The close box: the right end of the title bar, square. */
+#define TITLE_H 110
+#define CLOSE_X (W - TITLE_H)
+
+static int counter, lamp_red, close_pressed, close_lit; /* close_lit: pressed and the pointer on the box */
 static char line[25];
 
 static double now_s(void)
@@ -152,8 +158,15 @@ static void draw(void)
 {
 	char buf[64];
 	fill(0, 0, W, H, 0x1c2430);                                   /* background */
-	fill(0, 0, W, 110, 0x0a3d62);                                 /* title bar */
+	fill(0, 0, W, TITLE_H, 0x0a3d62);                             /* title bar */
 	text(60, 27, 8, "OPTICNERVE DEMO PANEL", 0xffffff);
+	if (close_lit)
+		fill(CLOSE_X, 0, TITLE_H, TITLE_H, 0xe81123);
+	for (int d = 0; d < 40; d++) { /* the X: two strokes 40 px across, 4 px thick, in the middle of the close box */
+		int x0 = CLOSE_X + (TITLE_H - 40) / 2, y0 = (TITLE_H - 40) / 2;
+		fill(x0 + d - 1, y0 + d - 1, 4, 4, 0xffffff);
+		fill(x0 + 39 - d - 1, y0 + d - 1, 4, 4, 0xffffff);
+	}
 	text(160, 200, 8, "COUNT", 0x9fb3c8);
 	snprintf(buf, sizeof(buf), "%d", counter);
 	fill(160, 280, 700, 180, 0x0f1720);
@@ -223,8 +236,8 @@ int main(int argc, char **argv)
 	screen_event_t ev;
 	screen_create_event(&ev);
 	double t0 = now_s(), drawn = 0, moved = 0; /* when the panel was last drawn, when the pointer last moved */
-	int pressed = -1, last_buttons = 0, move_pending = 0;
-	while (!secs || now_s() - t0 < secs) {
+	int pressed = -1, last_buttons = 0, move_pending = 0, closed = 0;
+	while (!closed && (!secs || now_s() - t0 < secs)) {
 		/* wait for events, but wake for a move not drawn yet (when its 1/MARKER_HZ s is up) or to hide the ring */
 		double due = now_s() + 0.5;
 		if (move_pending && drawn + 1.0 / MARKER_HZ < due)
@@ -252,13 +265,31 @@ int main(int argc, char **argv)
 				moved = now_s();
 				changed = show_marker; /* a press or a release is drawn at once */
 			}
+			int was_down = last_buttons & SCREEN_LEFT_MOUSE_BUTTON;
 			last_buttons = buttons;
 			int down = buttons & SCREEN_LEFT_MOUSE_BUTTON;
-			if (down && pressed < 0) {
+			int in_close = p[0] >= CLOSE_X && p[0] < W && p[1] >= 0 && p[1] < TITLE_H;
+			if (down && pressed < 0 && !close_pressed) {
 				for (int i = 0; i < 3; i++)
 					if (p[0] >= BUTTONS[i].x && p[0] < BUTTONS[i].x + BUTTONS[i].w && p[1] >= BUTTONS[i].y &&
 					    p[1] < BUTTONS[i].y + BUTTONS[i].h)
 						pressed = i;
+				if (in_close && !was_down) { /* the press itself, not a held button slid onto the box */
+					close_pressed = close_lit = 1;
+					changed = 1;
+				}
+			} else if (down && close_pressed) { /* slid off: no longer red; back on: red again */
+				if (in_close != close_lit) {
+					close_lit = in_close;
+					changed = 1;
+				}
+			} else if (!down && close_pressed) { /* released inside: close; anywhere else: nothing */
+				close_pressed = close_lit = 0;
+				changed = 1;
+				if (in_close) {
+					printf("closed from the panel\n");
+					closed = 1;
+				}
 			} else if (!down && pressed >= 0) { /* acts on release, as a button does */
 				if (pressed == 0)
 					counter++;

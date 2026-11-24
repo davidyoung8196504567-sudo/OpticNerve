@@ -167,8 +167,9 @@ Every request has a time limit: an agent that does not answer makes a command pr
 Video: [OpticNerve demo on YouTube](https://www.youtube.com/watch?v=0gq-p9oGIgE) (no sound); the same recording is
 in [`demo-recording/`](demo-recording/).
 
-`agent/demo/demo_panel.c` is a small instrument panel for the target (three buttons, a counter, a lamp, a text line),
-and `host/demo/DemoTest.java` is the OculiX test that drives it through the agent:
+`agent/demo/demo_panel.c` is a small instrument panel for the target (three buttons, a counter, a lamp, a text line;
+the X at the top right of its title bar closes it), and `host/demo/DemoTest.java` is the OculiX test that drives it
+through the agent:
 
 ```
 java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out [-slow] [-fail] [-brief] [-repeat=N] [-cols=N]

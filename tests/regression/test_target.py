@@ -4,9 +4,10 @@ arrow.
 
     python -m pytest --pi -m pi
 
-None of them moves the target's pointer or types, except the pointer arrow test and the mouse hold test, which are
-marked `watched` and run only with --watched as well (one at a time, watched, when agreed). Both connect a viewer
-that gets the arrow, so both take the target's own mouse from the person at it for a few seconds:
+None of them moves the target's pointer or types, except the pointer arrow test, the mouse hold test and the demo
+panel's close X test, which are marked `watched` and run only with --watched as well (one at a time, watched, when
+agreed). The first two connect a viewer that gets the arrow, so they take the target's own mouse from the person at
+it for a few seconds:
 
     python -m pytest --pi --watched -m watched
 
@@ -396,3 +397,75 @@ def test_demo_panel_start_and_stop(target):
     finally:
         rc, out = run(panel + ["stop"], timeout=60)
     assert rc == 0 and "demo panel stopped" in out, out
+
+
+PANELS_WITHOUT_X = {   # demo_panel builds for aarch64le from before ON-AG-002 (golden/agent_build.json)
+    "02b51069d163c06305f39199522a61c2e64d3977300096db0098a11462d71ba2",
+    "f2ded66d37dfbe89347e6d62e6b73c848afe55fe6bca7a9029983ba508fb211c"}
+
+
+@pytest.mark.watched
+def test_demo_panel_close_x(target):
+    """ON-AG-002: the X at the top right of the panel's title bar closes it, as in a windowed GUI. A press there turns
+    the box red; sliding off takes the red away and a release there leaves the panel open; a click closes it. Moves
+    and clicks the target's pointer."""
+    panel = [SH, str(TOOLS / "demo_panel.sh")]
+    if connected_clients():
+        pytest.skip("a client is connected to the agent: someone may be looking at the screen")
+    rc, out = run(panel + ["status"])
+    if "demo panel running" in out:
+        pytest.skip("a demo panel is running: someone may be using it")
+    sys.path.insert(0, str(TOOLS))
+    from hand import Hand
+    title, red, white = (0x62, 0x3d, 0x0a), (0x23, 0x11, 0xe8), (255, 255, 255)   # B, G, R as the client keeps them
+    rc, out = pi_ssh("(sha256sum demo_panel 2>/dev/null || openssl dgst -sha256 -r demo_panel) | cut -d' ' -f1")
+    assert rc == 0, out
+    if out.strip() in PANELS_WITHOUT_X:
+        pytest.skip(f"the panel on the target is a build from before the close X ({out.strip()[:8]})")
+    tool = None
+    try:
+        rc, out = run(panel + ["start", "120"], timeout=60)
+        assert rc == 0 and "demo panel started" in out, out
+        tool = Client(target, [0])   # a test tool: no arrow drawn into its frames, and the target's mouse not taken
+
+        def frame():
+            tool.request(0)
+            assert tool.update(10), "no frame"
+
+        def running():
+            return "demo panel running" in run(panel + ["status"])[1]
+
+        frame()
+        bx, by = tool.w - 55, 55     # the middle of the X, where its two strokes cross
+        assert (tool.pixel(bx, by), tool.pixel(tool.w - 100, 10)) == (white, title),             f"no close X: {tool.pixel(bx, by)} at the X, {tool.pixel(tool.w - 100, 10)} in its box"
+        hand = Hand(tool.s.sendall, tool.w, tool.h, f"{target['host']}:{target['vnc_port']}")
+
+        # 1. pressed: the box turns red; slid off: no longer red; released there: the panel stays
+        hand.move(bx, by)
+        hand.buttons = 1
+        hand._pointer(bx, by)
+        time.sleep(0.5)
+        frame()
+        assert tool.pixel(tool.w - 100, 10) == red, "pressed: the close box is not red"
+        hand.move(tool.w - 400, 300)
+        time.sleep(0.5)
+        frame()
+        assert tool.pixel(tool.w - 100, 10) == title, "slid off with the button held: the close box is still red"
+        hand.buttons = 0
+        hand._pointer(*hand.pos)
+        time.sleep(1)
+        assert running(), "a press on the X released outside it closed the panel"
+        frame()
+        assert tool.pixel(tool.w - 100, 10) == title, "released outside: the close box is red"
+
+        # 2. a click on the X: the panel closes
+        hand.click(bx, by)
+        end = time.time() + 5
+        while running() and time.time() < end:
+            time.sleep(0.5)
+        assert not running(), "a click on the X did not close the panel within 5 s"
+        assert "closed from the panel" in pi_ssh("cat demo.log")[1]
+    finally:
+        if tool:
+            tool.s.close()
+        run(panel + ["stop"], timeout=60)
