@@ -11,7 +11,7 @@ ARCH ?= aarch64le x86_64
 CFLAGS = -std=c11 -Wall -Wextra -Werror -O2 -Icore
 CORE = core/on_core.c core/on_des.c core/on_mouse.c
 
-all: $(foreach a,$(ARCH),build/$(a)/core_test build/$(a)/opticnerve build/$(a)/demo_panel)
+all: $(foreach a,$(ARCH),build/$(a)/core_test build/$(a)/opticnerve build/$(a)/demo_panel build/$(a)/launch_panel)
 
 build/%/core_test: tests/core_test.c $(CORE) core/on_core.h core/on_des.h core/on_mouse.h
 	mkdir -p $(dir $@)
@@ -23,9 +23,13 @@ build/%/opticnerve: qnx/main.c qnx/serve.c qnx/device.c qnx/cli.c qnx/mouse.c qn
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ qnx/main.c qnx/serve.c qnx/device.c qnx/cli.c qnx/mouse.c $(CORE) \
 		-Wl,-Bstatic -lhiddi -Wl,-Bdynamic -lscreen -lsocket
 
-build/%/demo_panel: demo/demo_panel.c
+build/%/demo_panel: demo/demo_panel.c demo/panel_draw.h
 	mkdir -p $(dir $@)
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ demo/demo_panel.c -lscreen
+
+build/%/launch_panel: demo/launch_panel.c demo/panel_draw.h
+	mkdir -p $(dir $@)
+	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ demo/launch_panel.c -lscreen -limg
 
 clean:
 	rm -rf build

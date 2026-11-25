@@ -2,6 +2,8 @@
 """Install, start, stop and remove the OpticNerve agent on the QNX target, and record each step.
 
     python host/tools/opticnerve_deploy.py install [BINARY]   copy the agent to /data/opticnerve/ and set its password
+                                                              (and the launcher panel, launch_panel, when BINARY's
+                                                              folder has one)
     python host/tools/opticnerve_deploy.py start [OPTION...]  start `opticnerve serve` as root (port 5901), with
                                                               serve's options, e.g. -logintimeout=0 (no login limit)
     python host/tools/opticnerve_deploy.py status             print the agent's status text
@@ -67,14 +69,22 @@ def install(binary):
     if not pw or "'" in pw or "\n" in pw:
         sys.exit("set ON_VNC_PASSWORD (without quotes or newlines)")
     want = sha256(binary)
+    panel = binary.parent / "launch_panel"   # the launcher panel, from the same build, when there is one
     remote(f"mkdir -p {STAGE} && chmod 700 {STAGE}")
     copy(binary, f"{STAGE}/opticnerve")
+    if panel.is_file():
+        copy(panel, f"{STAGE}/launch_panel")
+    PANEL = f"""rs slay -f launch_panel 2>/dev/null || true   # a running launcher panel is replaced, not copied over
+        rs cp {STAGE}/launch_panel {DEST}/bin/launch_panel
+        rs chown root:root {DEST}/bin/launch_panel
+        rs chmod 755 {DEST}/bin/launch_panel""" if panel.is_file() else ""
     out = remote(f"""
         set -e
         rs mkdir -p {DEST}/bin {DEST}/etc {DEST}/var
         rs cp {STAGE}/opticnerve {DEST}/bin/opticnerve
         rs chown root:root {DEST}/bin/opticnerve
         rs chmod 755 {DEST}/bin/opticnerve
+        {PANEL}
         umask 077
         printf '%s\\n' '{pw}' > {STAGE}/pw
         rs sh -c '{DEST}/bin/opticnerve passwd -passfile={DEST}/etc/vncpasswd < {STAGE}/pw'
@@ -87,6 +97,13 @@ def install(binary):
     if got != want:
         sys.exit(f"installed file differs: want {want}, target has {got!r}\n{out}")
     print(f"installed {DEST}/bin/opticnerve (root, 755), SHA-256 {want}")
+    if panel.is_file():
+        p_want = sha256(panel)
+        p_got = remote(f"sha256sum {DEST}/bin/launch_panel 2>/dev/null || openssl dgst -sha256 -r {DEST}/bin/launch_panel")
+        p_got = p_got.split()[0] if p_got else ""
+        if p_got != p_want:
+            sys.exit(f"installed launch_panel differs: want {p_want}, target has {p_got!r}")
+        print(f"installed {DEST}/bin/launch_panel (root, 755), SHA-256 {p_want}")
     print(f"password file {DEST}/etc/vncpasswd (root, 600); its content is not recorded")
     print(f"undo: python host/tools/opticnerve_deploy.py undo")
 
@@ -133,8 +150,16 @@ def stop():
 
 def undo():
     stop()
+    if (TOOLS / "launch_panel.sh").is_file():   # the launcher panel and the apps it started
+        try:
+            r = subprocess.run(["bash", str(TOOLS / "launch_panel.sh"), "stop", "-apps"], capture_output=True,
+                               text=True, timeout=120)
+            print((r.stdout + r.stderr).strip())
+        except (OSError, subprocess.TimeoutExpired) as e:
+            print(f"launcher panel not stopped: {e}")
     out = remote(f"""
         rs slay -f opticnerve 2>/dev/null
+        rs slay -f launch_panel 2>/dev/null
         rs rm -rf {DEST} {STAGE}
         ls -d {DEST} 2>&1
         test -e /dev/opticnerve && echo 'device still there' || echo 'device gone'

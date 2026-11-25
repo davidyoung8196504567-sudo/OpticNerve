@@ -116,8 +116,8 @@ def agent_build(tmp_path_factory):
         pre = os.environ.get("ON_AGENT_BUILD")
         if not pre:
             pytest.skip(f"no QNX SDP at {sdp} (set QNX_SDP_DIR) and no prebuilt agent (ON_AGENT_BUILD)")
-        names = ("opticnerve", "demo_panel", "core_test")
-        got = {n: hashlib.sha256((Path(pre) / n).read_bytes()).hexdigest() for n in names}
+        names = ("opticnerve", "demo_panel", "core_test", "launch_panel")   # launch_panel: recorded builds since ON-AG-003
+        got = {n: hashlib.sha256((Path(pre) / n).read_bytes()).hexdigest() for n in names if (Path(pre) / n).is_file()}
         golden = json.loads((Path(__file__).parent / "golden" / "agent_build.json").read_text())
         assert any(e["aarch64le"] == got for e in golden.values()), f"{pre} is not a recorded build: {got}"
         return Path(pre)

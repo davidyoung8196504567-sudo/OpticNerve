@@ -13,8 +13,8 @@
 # and the demo panel. Needs ON_LOGIN_PASSWORD (the target's login) and, for install, ON_VNC_PASSWORD.
 #
 # On a tester without the QNX SDP (macOS), install a prebuilt agent: ON_AGENT_BUILD is a folder holding opticnerve
-# and demo_panel for aarch64le (for example a copy from the share). install then checks that both are a build
-# recorded in tests/regression/golden/agent_build.json, and refuses anything else.
+# and demo_panel for aarch64le, and launch_panel in builds that have it (for example a copy from the share). install
+# then checks that they are a build recorded in tests/regression/golden/agent_build.json, and refuses anything else.
 POC=$(cd "$(dirname "$0")" && pwd); . "$POC/poc-env.sh"
 B=${ON_AGENT_BUILD:-$ON_REPO/agent/build/aarch64le}
 # Are the binaries in $B a recorded build? Prints which, or why not (exit 1).
@@ -23,7 +23,8 @@ recorded() {
 import hashlib, json, sys
 from pathlib import Path
 b, golden = Path(sys.argv[1]), json.loads(Path(sys.argv[2]).read_text())
-got = {n: hashlib.sha256((b / n).read_bytes()).hexdigest() for n in ("opticnerve", "demo_panel")}
+got = {n: hashlib.sha256((b / n).read_bytes()).hexdigest() for n in ("opticnerve", "demo_panel", "launch_panel")
+       if (b / n).is_file()}   # launch_panel: in builds since ON-AG-003
 for tree, e in golden.items():
     if all(e["aarch64le"].get(n) == h for n, h in got.items()):
         sys.exit(print(f"a recorded build: agent/ as of commit {e['commit']}"))
@@ -39,7 +40,7 @@ case $cmd in
 build)
 	python3 "$ON_REPO/sdp/check_sdp.py" "$QNX_SDP_DIR" || { echo "the SDP does not match the baseline: not building" >&2; exit 1; }
 	bash -c '. "$QNX_SDP_DIR/qnxsdp-env.sh" > /dev/null && make -C "$ON_REPO/agent" ARCH=aarch64le' || exit 1
-	sha256 "$B/opticnerve" "$B/demo_panel" ;;
+	sha256 "$B/opticnerve" "$B/demo_panel" "$B/launch_panel" ;;
 install)
 	# everything that can be checked before the running agent is stopped
 	[ -n "$ON_LOGIN_PASSWORD" ] && [ -n "$ON_VNC_PASSWORD" ] || { echo "set ON_LOGIN_PASSWORD and ON_VNC_PASSWORD" >&2; exit 1; }
@@ -47,8 +48,9 @@ install)
 		[ -f "$B/$f" ] || { echo "no $B/$f: run sut.sh build first, or set ON_AGENT_BUILD" >&2; exit 1; }
 	done
 	[ -z "$ON_AGENT_BUILD" ] || recorded || exit 1
-	echo "on $ON_SSH_HOST, replace the agent and the demo panel with:"
-	sha256 "$B/opticnerve" "$B/demo_panel"
+	echo "on $ON_SSH_HOST, replace the agent and the demo panel (and the launcher panel, if built) with:"
+	if [ -f "$B/launch_panel" ]; then sha256 "$B/opticnerve" "$B/demo_panel" "$B/launch_panel"
+	else sha256 "$B/opticnerve" "$B/demo_panel"; fi
 	if [ -t 0 ]; then printf 'install? [y/N] '; IFS= read -r a; [ "$a" = y ] || [ "$a" = Y ] || { echo "nothing changed"; exit 1; }; fi
 	pi 'true' || { echo "cannot log in to $ON_SSH_HOST:$ON_SSH_PORT: nothing changed" >&2; exit 1; }
 	sh "$ON_REPO/host/tools/demo_panel.sh" stop > /dev/null 2>&1

@@ -175,6 +175,14 @@ through the agent:
 java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out [-slow] [-fail] [-brief] [-repeat=N] [-cols=N]
 ```
 
+`agent/demo/launch_panel.c` is the launcher panel: a full-screen panel with a tile for each app of the quick-start
+image's launcher configuration (Developer Desktop, Terminal, Readme, GTK4 Demo, Gears, Maze) and one for GTK4 Widget
+Factory. A click on a tile, from a viewer or a test, starts that app, as often as needed; Alt+Tab switches between
+the apps and the panel, and Alt+Tab+Del with Tab held closes the app selected; these keys come from a script or the
+target's own keyboard (a viewer on a laptop keeps Alt+Tab for the laptop). A tile shows RUNNING while an app the
+panel started from it runs. It is installed with the agent and started over SSH before a test run:
+`sh host/tools/launch_panel.sh start` (`stop`, `stop -apps`, `status`).
+
 Every test and tool that sends input does it the way a hand does: the pointer glides to its target along a slightly
 curved path at about 60 pointer events a second (0.5 to 0.8 s), rests, and clicks with the button held 50 to 90 ms;
 keys come 60 to 180 ms apart (`host/tools/hand.py`, and the same model in each Java test and OculiX script). There is
@@ -215,7 +223,8 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
 - **Who can do what on the target:** the agent runs as root. Any user who can log in to the target can read its
   status and capture the screen through `/dev/opticnerve` without the VNC password; input needs a VNC connection and
   the password. Switching the pointer arrow or the mouse hold, stopping the agent and setting its password are root
-  only. This fits a single-user test target.
+  only. The launcher panel runs as root too, so any client with the VNC password can start the image's apps from it
+  while it is up. This fits a single-user test target.
 - **Input:** the agent injects input through Screen. It reaches application windows (the demo panel, a Terminal,
   the GTK apps) and the quick-start image's launcher: a click on a launcher tile opens its application
   (`host/demo/GtkDemoTest.java`), and Alt+Tab switches from the Developer Desktop to the launcher (both checked on

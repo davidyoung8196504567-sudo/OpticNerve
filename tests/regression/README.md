@@ -56,12 +56,15 @@ differ, the test runs `sdp/check_sdp.py` and says whether the SDP still matches 
 SDP from a changed build. `record_build.py` refuses to record over an entry with other bytes.
 
 Tests that drive the screen (`host/demo/DemoTest.java` and the others, the IDE tests) are not here: they move the
-target's pointer, so they are run one at a time, watched, when agreed. The same holds for the three tests here that
-move the pointer or take the mouse: `test_pointer_arrow` (ON-AG-001: a viewer that asks for a pointer shape is sent
-the agent's arrow where the pointer stopped, within 0.3 s, also after its queue was full; a test tool is not;
-`opticnerve pointer off` and `on`) and `test_mouse_held_while_a_viewer_is_connected` (phase 2: such a viewer makes the
-agent take the target's own mouse, a test tool does not, `opticnerve mouse off` and the viewer leaving give it back)
-and `test_demo_panel_close_x` (ON-AG-002: a press on the panel's X turns it red, sliding off before the release leaves
-the panel open, a click closes it; skips with a panel build from before the X). Marked `watched`, they run only when
-asked for, `python -m pytest --pi --watched -m watched`, and skip while any client is connected.
-`test_switches_need_root` and `test_mouse_not_held_without_a_viewer` change nothing and run with `--pi`.
+target's pointer, so they are run one at a time, watched, when agreed. The same holds for the tests here that move the
+pointer or take the mouse: `test_pointer_arrow` (ON-AG-001: a viewer that asks for a pointer shape is sent the agent's
+arrow where the pointer stopped, within 0.3 s, also after its queue was full; a test tool is not; `opticnerve pointer
+off` and `on`) and `test_mouse_held_while_a_viewer_is_connected` (phase 2: such a viewer makes the agent take the
+target's own mouse, a test tool does not, `opticnerve mouse off` and the viewer leaving give it back) and
+`test_demo_panel_close_x` (ON-AG-002: a press on the panel's X turns it red, sliding off before the release leaves the
+panel open, a click closes it; skips with a panel build from before the X) and `test_launch_panel` (ON-AG-003: a click
+on a launcher panel tile opens its app, Alt+Tab+Del aimed at the app closes it and the panel is in front again, and a
+second click opens it again, for Terminal and Gears; `stop` leaves a started app running, `stop -apps` ends it; the
+close X ends the panel). Marked `watched`, they run only when asked for, `python -m pytest --pi --watched -m watched`,
+and skip while any client is connected. `test_switches_need_root`, `test_mouse_not_held_without_a_viewer` and
+`test_launch_panel_reads_the_configuration` change nothing and run with `--pi`.

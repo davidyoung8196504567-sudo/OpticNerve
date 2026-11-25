@@ -1,12 +1,12 @@
 """The target's tests (marker `pi`, run with --pi): SSH, the agent, a frame, SSH through a port forward (SSH on another
-address and port than VNC), the core's own test on the target, the robustness checks, the demo panel and the pointer
-arrow.
+address and port than VNC), the core's own test on the target, the robustness checks, the demo panel, the pointer
+arrow and the launcher panel.
 
     python -m pytest --pi -m pi
 
-None of them moves the target's pointer or types, except the pointer arrow test, the mouse hold test and the demo
-panel's close X test, which are marked `watched` and run only with --watched as well (one at a time, watched, when
-agreed). The first two connect a viewer that gets the arrow, so they take the target's own mouse from the person at
+None of them moves the target's pointer or types, except the pointer arrow test, the mouse hold test, the demo
+panel's close X test and the launcher panel test, which are marked `watched` and run only with --watched as well (one
+at a time, watched, when agreed). The first two connect a viewer that gets the arrow, so they take the target's own mouse from the person at
 it for a few seconds:
 
     python -m pytest --pi --watched -m watched
@@ -469,3 +469,219 @@ def test_demo_panel_close_x(target):
         if tool:
             tool.s.close()
         run(panel + ["stop"], timeout=60)
+
+
+LAUNCH = "/data/opticnerve/bin/launch_panel"
+LAUNCH_TILES = ["Developer Desktop", "Terminal", "Readme", "GTK4Demo", "Gears", "Maze", "Widget Factory"]
+
+
+def launch_panel_installed():
+    rc, out = pi_ssh(f"test -x {LAUNCH} && echo yes")
+    return "yes" in out
+
+
+def test_launch_panel_reads_the_configuration(target):
+    """ON-AG-003, LP02 (the panel's configuration reader): the launcher panel's tiles from a configuration (`launch_panel -list`, no screen): the image's own,
+    then a prepared one with the cases its reader must handle. Changes nothing on the screen."""
+    if not launch_panel_installed():
+        pytest.skip("no launcher panel on the target (install the agent with opticnerve_deploy.py install)")
+    rc, out = pi_ssh(f"{LAUNCH} -list")
+    assert rc == 0, out
+    names = [l.split("|")[0].split(" ", 2)[2] for l in out.splitlines() if "|" in l]
+    assert names == LAUNCH_TILES, out
+    work = f"ontest-lp-{uuid.uuid4().hex[:12]}"
+    long_line = "Comment=" + "x" * 503 + "Exec=/bin/evil"   # 511 bytes, then a key that must not be read
+    files = {
+        "desktop.conf": "# a comment\nLogoText=x\n[Launcher]\nDesktopFileName=b.desktop\nRow=2\nOrder=1\n"
+                        "[Launcher]\n DesktopFileName = a.desktop \r\nRow=1\nOrder=2\n"
+                        "[Launcher]\nDesktopFileName=a2.desktop\nRow=1\nOrder=1\n"
+                        "[Launcher]\nDesktopFileName=a3.desktop\nRow=1\nOrder=1\n"
+                        "[Launcher]\nDesktopFileName=long.desktop\n[Launcher]\nDesktopFileName=missing.desktop\n"
+                        "[Launcher]\nDesktopFileName=../x.desktop\n[Launcher]\nDesktopFileName=noexec.desktop\n"
+                        "[Other]\nDesktopFileName=b.desktop\n",
+        "a.desktop": f"[Desktop Entry]\nName=Alpha\nName[de]=Alfa\nExec=/bin/alpha %U\n{long_line}\nIcon=/i/a.png\n"
+                     "[Desktop Action x]\nExec=/bin/wrong\n",
+        "a2.desktop": "[Desktop Entry]\nName=Beta\nExec=echo 50%%\n",
+        "a3.desktop": "[Desktop Entry]\nName=Gamma\nExec=/bin/gamma\n",
+        "b.desktop": "[Desktop Entry]\nName=Delta\nExec=GDK_BACKEND=qnx /bin/delta\n",
+        "long.desktop": "[Desktop Entry]\nName=Long\nExec=/bin/" + "y" * 300 + "\n",
+        "noexec.desktop": "[Desktop Entry]\nName=NoExec\n",
+    }
+    make = " && ".join(f"printf '%s' '{c}' > {work}/{n}" for n, c in files.items())
+    rc, out = pi_ssh(f"mkdir {work} && {make}")
+    assert rc == 0, out
+    try:
+        rc, out = pi_ssh(f"{LAUNCH} -list -noextra -conf {work}")
+        assert rc == 0, out
+        assert [l for l in out.splitlines() if "|" in l] == [
+            "1 1 Beta|echo 50%|", "1 1 Gamma|/bin/gamma|", "1 2 Alpha|/bin/alpha|/i/a.png",
+            "2 1 Delta|GDK_BACKEND=qnx /bin/delta|"], out
+        for why in ("long.desktop: Exec over 255 bytes", "missing.desktop", "../x.desktop is not a file name",
+                    "noexec.desktop: no Name or no Exec", "a line of 511 bytes or more"):
+            assert why in out, f"{why!r} not reported:\n{out}"
+    finally:
+        rc, out = pi_ssh(f"rm -r {work} && ! test -e {work}")
+        assert rc == 0, f"could not remove {work} on the target: {out}"
+
+
+def apps_running(*names):
+    """The pids of the target's processes whose name (as pidin shows it, e.g. usr/bin/st) is one of names."""
+    rows = (l.split() for l in pi_ssh("rs pidin -f an")[1].splitlines())
+    return [r[0] for r in rows if len(r) >= 2 and r[1] in names]
+
+
+def close_selected_app(target, looks_like, frames):
+    """Alt+Tab+Del from a test tool, aimed: hold Alt, press Tab one at a time and, with Tab still down, take a frame
+    (frames/tabN.png); the window switcher shows the selected window in the middle of its strip; press Del only when
+    that thumbnail looks_like(mean_rgb) the app, else go on, at most 6 Tabs. Returns (Del sent, the means seen)."""
+    from PIL import Image
+    alt, tab, dele = 0xffe9, 0xff09, 0xffff
+    c = Client(target, [0])
+
+    def key(sym, down):
+        c.s.sendall(c.struct.pack(">BBxxI", 4, down, sym))
+        time.sleep(0.15)
+    sent, seen, tab_down = False, [], False
+    frames.mkdir(parents=True, exist_ok=True)
+    try:
+        key(alt, 1)
+        for n in range(1, 7):
+            key(tab, 1)
+            tab_down = True
+            time.sleep(0.6)
+            path = frames / f"tab{n}.png"
+            rc, out = run([sys.executable, str(TOOLS / "vnc_snapshot.py"), "-", "-", str(path)], timeout=60)
+            assert rc == 0, out
+            box = Image.open(path).convert("RGB").crop((800, 475, 1110, 605)).resize((32, 16))
+            px = [box.getpixel((x, y)) for y in range(box.height) for x in range(box.width)]
+            rgb = tuple(round(sum(p[k] for p in px) / len(px)) for k in range(3))
+            seen.append(rgb)
+            if looks_like(rgb):
+                key(dele, 1)
+                key(dele, 0)
+                time.sleep(0.6)
+                sent = True
+            key(tab, 0)
+            tab_down = False
+            if sent:
+                break
+    finally:
+        try:
+            if tab_down:
+                key(tab, 0)
+            key(alt, 0)
+        finally:
+            time.sleep(1.5)
+            c.s.close()
+    return sent, seen
+
+
+@pytest.mark.watched
+def test_launch_panel(target, tmp_path):
+    """ON-AG-003, LP03 (each tile opens its app as often as needed), LP06 (running apps listed, never blocking) and
+    LP07 (stop and the close X): the launcher panel, driven by a test tool as an OculiX test drives it. A click on the
+    Terminal tile opens a Terminal, Alt+Tab+Del (aimed at it) closes it and the panel is in front again, and the next
+    click opens it again; the same for Gears; while an app runs the panel lists it, and when it has closed no more; a
+    click on a tile whose app runs starts a second one; `stop` leaves a started app running and `stop -apps` ends it;
+    the close X ends the panel. Moves and clicks the target's pointer and types (1920x1080 only)."""
+    if connected_clients():
+        pytest.skip("a client is connected to the agent: someone may be looking at the screen")
+    if not launch_panel_installed():
+        pytest.skip("no launcher panel on the target (install the agent with opticnerve_deploy.py install)")
+    for script, name in (("demo_panel.sh", "demo panel"), ("launch_panel.sh", "launcher panel")):
+        if f"{name} running" in run([SH, str(TOOLS / script), "status"])[1]:
+            pytest.skip(f"a {name} is running: someone may be using it")
+    if apps_running("usr/bin/st", "usr/bin/gles3-gears"):
+        pytest.skip("a Terminal or Gears is open on the target")
+    probe = Client(target, [0])
+    probe.s.close()
+    if (probe.w, probe.h) != (1920, 1080):
+        pytest.skip(f"the switcher and close X positions are those of 1920x1080, not {probe.w}x{probe.h}")
+    sys.path.insert(0, str(TOOLS))
+    from hand import Hand
+    panel = [SH, str(TOOLS / "launch_panel.sh")]
+    title = (0x62, 0x3d, 0x0a)   # B, G, R of the panel's title bar, as the client keeps them
+    apps = {"Terminal": ("usr/bin/st", lambda rgb: max(rgb) < 25),                                 # a black window
+            "Gears": ("usr/bin/gles3-gears", lambda rgb: rgb[2] > 150 and rgb[2] > 2 * max(rgb[:2]))}   # mostly blue
+
+    def click(name_or_xy):
+        tool = Client(target, [0])
+        Hand(tool.s.sendall, tool.w, tool.h, f"{target['host']}:{target['vnc_port']}").click(*name_or_xy)
+        time.sleep(0.3)   # the release is injected before the connection goes
+        tool.s.close()
+
+    def panel_in_front():
+        c = Client(target, [0])
+        c.request(0)
+        assert c.update(10), "no frame"
+        front = c.pixel(100, 30) == title
+        c.s.close()
+        return front
+
+    try:
+        rc, out = run(panel + ["start"], timeout=60)
+        assert rc == 0 and "launcher panel started" in out, out
+        where = {}
+        for l in pi_ssh("rs cat /data/opticnerve/var/launch.log")[1].splitlines():   # "tile NAME at X,Y size WxH"
+            if l.startswith("tile ") and " at " in l:
+                name, rest = l[5:].rsplit(" at ", 1)
+                xy, size = rest.split(" size ")
+                (x, y), (w, h) = map(int, xy.split(",")), map(int, size.split("x"))
+                where[name] = (x + w // 2, y + h // 2)   # the last start's positions win
+        assert set(LAUNCH_TILES) <= set(where), where
+        assert panel_in_front(), "the launcher panel is not on the screen"
+        for name, (proc, looks_like) in apps.items():
+            for n in (1, 2):   # opens it as often as needed
+                click(where[name])
+                end = time.time() + 10
+                while not apps_running(proc) and time.time() < end:
+                    time.sleep(0.5)
+                assert apps_running(proc), f"{name}, click {n}: the app did not start within 10 s"
+                time.sleep(2)
+                status = run(panel + ["status"])[1]
+                assert f"started by it: {name}" in status, status
+                sent, seen = close_selected_app(target, looks_like, tmp_path / f"{name}-{n}")
+                assert sent, f"{name}, click {n}: never selected in the window switcher (middle means {seen})"
+                end = time.time() + 10
+                while apps_running(proc) and time.time() < end:
+                    time.sleep(0.5)
+                assert not apps_running(proc), f"{name}, click {n}: still running after Alt+Tab+Del"
+                assert panel_in_front(), f"{name}, click {n}: the panel is not in front after the app closed"
+                time.sleep(1)   # the panel looks at its apps every 0.5 s
+                status = run(panel + ["status"])[1]
+                assert f"started by it: {name}" not in status, f"{name}, click {n}: still listed\n{status}"
+                time.sleep(3)   # past the panel's guard against a second start within 3 s
+
+        # a running tile never blocks: Gears, then (past the guard, with Alt+Tab back to the panel) Gears again
+        click(where["Gears"])
+        time.sleep(4)
+        assert len(apps_running("usr/bin/gles3-gears")) == 1, "Gears did not start"
+        c = Client(target, [0])   # Alt+Tab once: the window behind Gears, the panel, comes to the front
+        for sym, down in ((0xffe9, 1), (0xff09, 1), (0xff09, 0), (0xffe9, 0)):
+            c.s.sendall(c.struct.pack(">BBxxI", 4, down, sym))
+            time.sleep(0.2)
+        time.sleep(1.5)
+        c.s.close()
+        assert panel_in_front(), "Alt+Tab from Gears did not bring the panel to the front"
+        click(where["Gears"])
+        time.sleep(4)
+        assert len(apps_running("usr/bin/gles3-gears")) == 2, "a click on a running tile did not start a second app"
+        assert run(panel + ["status"])[1].count("started by it: Gears") == 2
+
+        # stop leaves the apps running; stop -apps ends them
+        rc, out = run(panel + ["stop"], timeout=60)
+        assert rc == 0 and "launcher panel stopped" in out, out
+        assert len(apps_running("usr/bin/gles3-gears")) == 2, "stopping the panel ended the apps it started"
+        rc, out = run(panel + ["stop", "-apps"], timeout=60)
+        assert out.count("ended Gears") == 2 and "still runs" not in out, out
+        assert not apps_running("usr/bin/gles3-gears"), out
+
+        # the close X ends the panel
+        rc, out = run(panel + ["start"], timeout=60)
+        assert rc == 0, out
+        click((1920 - 55, 55))
+        time.sleep(2)
+        assert "no launcher panel" in run(panel + ["status"])[1]
+        assert "closed from the panel" in pi_ssh("rs tail -3 /data/opticnerve/var/launch.log")[1]
+    finally:
+        run(panel + ["stop", "-apps"], timeout=60)

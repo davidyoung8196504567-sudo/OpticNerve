@@ -13,7 +13,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 GOLDEN = Path(__file__).parent / "golden" / "agent_build.json"
-BINARIES = ["opticnerve", "demo_panel", "core_test"]
+BINARIES = ["opticnerve", "demo_panel", "core_test", "launch_panel"]
 
 
 def main():

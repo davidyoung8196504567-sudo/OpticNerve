@@ -21,7 +21,7 @@ import pytest
 from conftest import ROOT, SH, find_java, run
 
 GOLDEN = Path(__file__).parent / "golden" / "agent_build.json"
-BINARIES = ["opticnerve", "demo_panel", "core_test"]
+BINARIES = ["opticnerve", "demo_panel", "core_test", "launch_panel"]
 
 
 def tracked(*patterns):
