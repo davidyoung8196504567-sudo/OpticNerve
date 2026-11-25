@@ -524,6 +524,30 @@ def test_launch_panel_reads_the_configuration(target):
         assert rc == 0, f"could not remove {work} on the target: {out}"
 
 
+def hand_on(target, c):
+    """A hand (host/tools/hand.py) that sends on the client c: the one way tests send input."""
+    sys.path.insert(0, str(TOOLS))
+    from hand import Hand
+    return Hand(c.s.sendall, c.w, c.h, f"{target['host']}:{target['vnc_port']}")
+
+
+def press_in_turn(h, steps):
+    """Sends (keysym, down, wait after) steps with the hand h; whatever it pressed and did not release is released,
+    also when a step fails or the run is interrupted."""
+    down = []
+    try:
+        for sym, d, wait in steps:
+            h.key(sym, d)
+            if d:
+                down.append(sym)
+            elif sym in down:
+                down.remove(sym)
+            time.sleep(wait)
+    finally:
+        for sym in reversed(down):
+            h.key(sym, False)
+
+
 def apps_running(*names):
     """The pids of the target's processes whose name (as pidin shows it, e.g. usr/bin/st) is one of names."""
     rows = (l.split() for l in pi_ssh("rs pidin -f an")[1].splitlines())
@@ -537,9 +561,10 @@ def close_selected_app(target, looks_like, frames):
     from PIL import Image
     alt, tab, dele = 0xffe9, 0xff09, 0xffff
     c = Client(target, [0])
+    h = hand_on(target, c)
 
     def key(sym, down):
-        c.s.sendall(c.struct.pack(">BBxxI", 4, down, sym))
+        h.key(sym, bool(down))
         time.sleep(0.15)
     sent, seen, tab_down = False, [], False
     frames.mkdir(parents=True, exist_ok=True)
@@ -576,14 +601,32 @@ def close_selected_app(target, looks_like, frames):
     return sent, seen
 
 
-@pytest.mark.watched
-def test_launch_panel(target, tmp_path):
-    """ON-AG-003, LP03 (each tile opens its app as often as needed), LP06 (running apps listed, never blocking) and
-    LP07 (stop and the close X): the launcher panel, driven by a test tool as an OculiX test drives it. A click on the
-    Terminal tile opens a Terminal, Alt+Tab+Del (aimed at it) closes it and the panel is in front again, and the next
-    click opens it again; the same for Gears; while an app runs the panel lists it, and when it has closed no more; a
-    click on a tile whose app runs starts a second one; `stop` leaves a started app running and `stop -apps` ends it;
-    the close X ends the panel. Moves and clicks the target's pointer and types (1920x1080 only)."""
+PANEL_TITLE = (0x62, 0x3d, 0x0a)   # B, G, R of the launcher panel's title bar, as the client keeps them
+
+
+def launch_panel_in_front(target):
+    c = Client(target, [0])
+    c.request(0)
+    assert c.update(10), "no frame"
+    front = c.pixel(100, 30) == PANEL_TITLE
+    c.s.close()
+    return front
+
+
+def launch_tile_centres():
+    """Where the launcher panel's tiles are, from its log ("tile NAME at X,Y size WxH"; the last start's win)."""
+    where = {}
+    for l in pi_ssh("rs cat /data/opticnerve/var/launch.log")[1].splitlines():
+        if l.startswith("tile ") and " at " in l:
+            name, rest = l[5:].rsplit(" at ", 1)
+            xy, size = rest.split(" size ")
+            (x, y), (w, h) = map(int, xy.split(",")), map(int, size.split("x"))
+            where[name] = (x + w // 2, y + h // 2)
+    return where
+
+
+def launch_panel_skips(target):
+    """The reasons a watched launcher panel test does not run now, as pytest.skip does."""
     if connected_clients():
         pytest.skip("a client is connected to the agent: someone may be looking at the screen")
     if not launch_panel_installed():
@@ -597,37 +640,38 @@ def test_launch_panel(target, tmp_path):
     probe.s.close()
     if (probe.w, probe.h) != (1920, 1080):
         pytest.skip(f"the switcher and close X positions are those of 1920x1080, not {probe.w}x{probe.h}")
-    sys.path.insert(0, str(TOOLS))
-    from hand import Hand
+
+
+def tool_click(target, xy):
+    tool = Client(target, [0])
+    hand_on(target, tool).click(*xy)
+    time.sleep(0.3)   # the release is injected before the connection goes
+    tool.s.close()
+
+
+@pytest.mark.watched
+def test_launch_panel(target, tmp_path):
+    """ON-AG-003, LP03 (each tile opens its app as often as needed), LP06 (running apps listed, never blocking) and
+    LP07 (stop and the close X): the launcher panel, driven by a test tool as an OculiX test drives it. A click on the
+    Terminal tile opens a Terminal, Alt+Tab+Del (aimed at it) closes it and the panel is in front again, and the next
+    click opens it again; the same for Gears; while an app runs the panel lists it, and when it has closed no more; a
+    click on a tile whose app runs starts a second one; `stop` leaves a started app running and `stop -apps` ends it;
+    the close X ends the panel. Moves and clicks the target's pointer and types (1920x1080 only)."""
+    launch_panel_skips(target)
     panel = [SH, str(TOOLS / "launch_panel.sh")]
-    title = (0x62, 0x3d, 0x0a)   # B, G, R of the panel's title bar, as the client keeps them
     apps = {"Terminal": ("usr/bin/st", lambda rgb: max(rgb) < 25),                                 # a black window
             "Gears": ("usr/bin/gles3-gears", lambda rgb: rgb[2] > 150 and rgb[2] > 2 * max(rgb[:2]))}   # mostly blue
 
-    def click(name_or_xy):
-        tool = Client(target, [0])
-        Hand(tool.s.sendall, tool.w, tool.h, f"{target['host']}:{target['vnc_port']}").click(*name_or_xy)
-        time.sleep(0.3)   # the release is injected before the connection goes
-        tool.s.close()
+    def click(xy):
+        tool_click(target, xy)
 
     def panel_in_front():
-        c = Client(target, [0])
-        c.request(0)
-        assert c.update(10), "no frame"
-        front = c.pixel(100, 30) == title
-        c.s.close()
-        return front
+        return launch_panel_in_front(target)
 
     try:
         rc, out = run(panel + ["start"], timeout=60)
         assert rc == 0 and "launcher panel started" in out, out
-        where = {}
-        for l in pi_ssh("rs cat /data/opticnerve/var/launch.log")[1].splitlines():   # "tile NAME at X,Y size WxH"
-            if l.startswith("tile ") and " at " in l:
-                name, rest = l[5:].rsplit(" at ", 1)
-                xy, size = rest.split(" size ")
-                (x, y), (w, h) = map(int, xy.split(",")), map(int, size.split("x"))
-                where[name] = (x + w // 2, y + h // 2)   # the last start's positions win
+        where = launch_tile_centres()
         assert set(LAUNCH_TILES) <= set(where), where
         assert panel_in_front(), "the launcher panel is not on the screen"
         for name, (proc, looks_like) in apps.items():
@@ -657,11 +701,11 @@ def test_launch_panel(target, tmp_path):
         time.sleep(4)
         assert len(apps_running("usr/bin/gles3-gears")) == 1, "Gears did not start"
         c = Client(target, [0])   # Alt+Tab once: the window behind Gears, the panel, comes to the front
-        for sym, down in ((0xffe9, 1), (0xff09, 1), (0xff09, 0), (0xffe9, 0)):
-            c.s.sendall(c.struct.pack(">BBxxI", 4, down, sym))
-            time.sleep(0.2)
-        time.sleep(1.5)
-        c.s.close()
+        try:
+            press_in_turn(hand_on(target, c), ((0xffe9, True, 0.2), (0xff09, True, 0.2), (0xff09, False, 0.2),
+                                               (0xffe9, False, 1.5)))
+        finally:
+            c.s.close()
         assert panel_in_front(), "Alt+Tab from Gears did not bring the panel to the front"
         click(where["Gears"])
         time.sleep(4)
@@ -685,3 +729,172 @@ def test_launch_panel(target, tmp_path):
         assert "closed from the panel" in pi_ssh("rs tail -3 /data/opticnerve/var/launch.log")[1]
     finally:
         run(panel + ["stop", "-apps"], timeout=60)
+
+
+def chord_close_selected_app(target, looks_like, frames):
+    """The key chord as a viewer sends it, aimed (ON-AG-004): hold Q 0.4 s, hold N (its auto-repeat, sent by hand as
+    a second N down after 0.5 s, opens the switcher), take a frame, and if the middle thumbnail looks_like(mean_rgb)
+    the app press X; else let N go and press it again (one step each), at most 6. Q up ends the chord. Returns (X
+    sent, the means seen)."""
+    from PIL import Image
+    c = Client(target, [0])
+    h = hand_on(target, c)
+    strip = (300, 475, 1620, 605)   # the switcher's strip of thumbnails, at 1920x1080
+
+    def key(ch, down):
+        h.key(ord(ch), bool(down))
+        time.sleep(0.15)
+
+    def frame(path):
+        rc, out = run([sys.executable, str(TOOLS / "vnc_snapshot.py"), "-", "-", str(path)], timeout=60)
+        assert rc == 0, out
+        return Image.open(path).convert("RGB")
+
+    def mean(img, box):
+        small = img.crop(box).resize((32, 16))
+        px = [small.getpixel((x, y)) for y in range(small.height) for x in range(small.width)]
+        return tuple(round(sum(p[k] for p in px) / len(px)) for k in range(3))
+    sent, seen, n_down, q_down = False, [], False, False
+    frames.mkdir(parents=True, exist_ok=True)
+    before = mean(frame(frames / "before.png"), strip)
+    try:
+        key("q", 1)
+        q_down = True
+        time.sleep(0.4)
+        for n in range(1, 7):
+            key("n", 1)
+            n_down = True
+            if n == 1:
+                time.sleep(0.5)
+                key("n", 1)   # the repeat of a held key: the chord begins with N still down
+            time.sleep(0.6)
+            img = frame(frames / f"n{n}.png")
+            rgb, open_ = mean(img, (800, 475, 1110, 605)), mean(img, strip) != before
+            seen.append((rgb, "switcher" if open_ else "no switcher"))
+            if open_ and looks_like(rgb):
+                key("x", 1)
+                key("x", 0)
+                time.sleep(0.6)
+                sent = True
+            key("n", 0)
+            n_down = False
+            if sent:
+                break
+    finally:
+        try:
+            if n_down:
+                key("n", 0)
+            if q_down:
+                key("q", 0)
+        finally:
+            time.sleep(1.5)
+            c.s.close()
+    return sent, seen
+
+
+def type_text(target, text, rollover):
+    """Types text and Return through the agent, as a person: with rollover, each key goes down 40 ms before the key
+    before it goes up (then the hand's gap to the next); without, each key goes down and up in turn."""
+    c = Client(target, [0])
+    h = hand_on(target, c)
+    try:
+        if not rollover:
+            h.keys([ord(ch) for ch in text] + [0xff0d])
+        else:
+            prev = None
+            for sym in [ord(ch) for ch in text] + [0xff0d]:
+                if prev == sym:
+                    h.key(prev, False)
+                    prev = None
+                h.key(sym, True)
+                time.sleep(0.04)
+                if prev is not None:
+                    h.key(prev, False)
+                prev = sym
+            h.key(prev, False)
+        time.sleep(0.5)
+    finally:
+        c.s.close()
+
+
+@pytest.mark.watched
+def test_key_chord(target, tmp_path):
+    """ON-AG-004, KC01 (typing is unchanged with the chord on) and KC02 (the chord switches and closes apps): with the
+    launcher panel up and a Terminal opened from it, a command with q, n and x typed with rollover and without reaches
+    the Terminal as typed; Q held with N tapped brings the panel to the front and again the Terminal (Alt+Tab); Q held,
+    N held and X (aimed at the Terminal with the switcher's frame) closes it and the panel is in front. Moves and
+    clicks the target's pointer and types (1920x1080 only)."""
+    launch_panel_skips(target)
+    status = agent("status")
+    if status_value(status, "chord") != "on":
+        pytest.skip(f"the agent's key chord is not on (chord {status_value(status, 'chord')!r})")
+    chords = int(status_value(status, "chords"))
+    panel = [SH, str(TOOLS / "launch_panel.sh")]
+    out_file = "/data/home/qnxuser/on_chord.txt"
+
+    def chord_tap():
+        """Q held 0.4 s, N tapped, Q let go: one Alt+Tab. The connection's slot shows no chord state after it."""
+        c = Client(target, [0])
+        try:
+            press_in_turn(hand_on(target, c), ((ord("q"), True, 0.4), (ord("n"), True, 0.1), (ord("n"), False, 0.6),
+                                               (ord("q"), False, 1.5)))
+            slots = [l for l in agent("status").splitlines() if l.startswith("slot ")]
+            assert slots and not any(" chord_" in l for l in slots), f"a slot still in a chord: {slots}"
+        finally:
+            c.s.close()
+
+    try:
+        pi_ssh(f"rs rm -f {out_file}")
+        rc, out = run(panel + ["start"], timeout=60)
+        assert rc == 0 and "launcher panel started" in out, out
+        where = launch_tile_centres()
+        assert "Terminal" in where, where
+        tool_click(target, where["Terminal"])
+        end = time.time() + 10
+        while not apps_running("usr/bin/st") and time.time() < end:
+            time.sleep(0.5)
+        assert apps_running("usr/bin/st"), "the Terminal did not start within 10 s"
+        time.sleep(2)
+
+        # KC01: typing, with and without rollover
+        type_text(target, f"echo qnxuser qnx >> {out_file}", rollover=True)
+        type_text(target, f"echo qnx quiet next >> {out_file}", rollover=False)
+        # Q held back, then N 0.2 s later with Q let go first (a roll after the hold), and N 0.05 s later (too soon)
+        c = Client(target, [0])
+        try:
+            h = hand_on(target, c)
+            h.keys([ord(ch) for ch in "echo "])
+            time.sleep(0.3)
+            q, n = ord("q"), ord("n")
+            press_in_turn(h, ((q, True, 0.2), (n, True, 0.04), (q, False, 0.04), (n, False, 0.3)))
+            h.key(ord("x"))
+            time.sleep(0.3)
+            press_in_turn(h, ((q, True, 0.05), (n, True, 0.04), (n, False, 0.04), (q, False, 0.3)))
+            h.keys([ord(ch) for ch in f" >> {out_file}"] + [0xff0d])
+            time.sleep(0.5)
+        finally:
+            c.s.close()
+        time.sleep(1)
+        rc, got = pi_ssh(f"cat {out_file}")
+        assert rc == 0 and got.splitlines() == ["qnxuser qnx", "qnx quiet next", "qnxqn"], \
+            f"typed text arrived as {got!r}"
+
+        # KC02: Q+N switches: the panel comes to the front, then the Terminal again
+        chord_tap()
+        assert launch_panel_in_front(target), "Q held with N tapped did not bring the panel to the front"
+        chord_tap()
+        assert not launch_panel_in_front(target), "Q held with N tapped did not bring the Terminal back"
+
+        # KC02: Q+N+X closes the app selected
+        sent, seen = chord_close_selected_app(target, lambda rgb: max(rgb) < 25, tmp_path / "close")
+        assert sent, f"the Terminal was never selected in the window switcher (middle means {seen})"
+        end = time.time() + 10
+        while apps_running("usr/bin/st") and time.time() < end:
+            time.sleep(0.5)
+        assert not apps_running("usr/bin/st"), "the Terminal still runs after Q+N+X"
+        assert launch_panel_in_front(target), "the panel is not in front after the Terminal closed"
+        status = agent("status")
+        assert int(status_value(status, "chords")) == chords + 3, status
+    finally:
+        run(panel + ["stop", "-apps"], timeout=60)
+        pi_ssh(f"rs rm -f {out_file}")

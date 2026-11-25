@@ -18,9 +18,14 @@
 #define MAX_CUT_TEXT (1u << 20)
 #define FAIL_LINGER 2000000000LL /* 4.7: after a failure message, wait this long for the client to close */
 #define ACTIONS 512
+#define CHORD_MAX 5000000000LL /* a Q held longer than this before N is not the start of a chord */
+#define KEY_ALT 0xffe9u
+#define KEY_TAB 0xff09u
+#define KEY_DELETE 0xffffu
 
 enum slot_state { S_FREE, S_HANDSHAKE, S_CLIENT, S_FAILING, S_CLOSING };
 enum hs_stage { H_VERSION, H_SECTYPE, H_AUTH, H_INIT };
+enum chord_state { CH_NONE, CH_Q, CH_QN, CH_ON }; /* the key chord: none, Q held back, Q and N held back, Alt down */
 
 struct rect { int x, y, w, h; };
 
@@ -53,6 +58,13 @@ struct slot {
 	int incr_timed;           /* a timed capture was taken while this incremental request waited */
 	uint32_t held[ON_HELD_KEYS];
 	int nheld, buttons;
+	/* the key chord (on_core.h, ON-AG-004) */
+	enum chord_state chord;
+	uint32_t chord_q, chord_n; /* the Q and N held back, as the client sent them (either case) */
+	on_time chord_t0;         /* when that Q went down */
+	int n_down, x_down;       /* in the chord: N, X are down (a repeated down is the same press) */
+	int tab_on, del_on;       /* in the chord: Tab, Delete are down on the target */
+	int tail_q, tail_n, tail_x; /* after the chord: Q, N, X still down; their downs are ignored until their up */
 	int sent_mask;            /* the button mask of this client's last pointer event, injected or not */
 	uint64_t requests, updates, sent_seq;
 };
@@ -82,7 +94,9 @@ static void push(struct on_core *c, struct on_action a)
 {
 	if (c->act_len == ACTIONS)
 		return; /* not reached: a pass queues at most 6 slots x (32 keys + 2) releases, and the driver takes the
-			 * actions of each input buffer it hands to on_input() before the next (agent/qnx/serve.c) */
+			 * actions of each input buffer it hands to on_input() before the next (agent/qnx/serve.c); a
+			 * key event yields at most 4 actions (a key that ends a chord: Delete, Tab and Alt up, then the key),
+			 * and a read can begin at most one chord (Q and N in one read have one time: too close) */
 	c->act[(c->act_head + c->act_len++) % ACTIONS] = a;
 }
 
@@ -305,6 +319,8 @@ void on_set_pointer(struct on_core *c, int on)
 
 int on_pointer(const struct on_core *c) { return c->pointer_on; }
 
+int on_chord(const struct on_core *c) { return c->cfg.chord_hold > 0; }
+
 void on_pointer_at(struct on_core *c, int x, int y, on_time now)
 {
 	(void)now;
@@ -328,15 +344,16 @@ static int take_input(struct on_core *c, int idx)
 	int o = c->input_owner;
 	if (o == idx)
 		return 1;
-	if (o >= 0 && (c->slots[o].nheld || c->slots[o].buttons))
-		return 0;
+	if (o >= 0 && (c->slots[o].nheld || c->slots[o].buttons || c->slots[o].chord))
+		return 0; /* a key held back for the chord counts as held */
 	if (o >= 0)
 		c->st.input_handovers++;
 	c->input_owner = idx;
 	return 1;
 }
 
-static void key_event(struct on_core *c, int idx, uint32_t sym, int down)
+/* A key event as the client sent it, injected (the path every key takes, chord or not). */
+static void pass_key(struct on_core *c, int idx, uint32_t sym, int down)
 {
 	struct slot *s = &c->slots[idx];
 	int at = -1;
@@ -362,10 +379,174 @@ static void key_event(struct on_core *c, int idx, uint32_t sym, int down)
 	push(c, (struct on_action){ .type = ON_ACT_KEY, .slot = idx, .keysym = sym, .down = down });
 }
 
+/* --- the QNX key chord (on_core.h, ON-AG-004) ------------------------------------------------------------------ */
+
+static int is_key(uint32_t sym, char lower) { return sym == (uint32_t)lower || sym == (uint32_t)(lower - 'a' + 'A'); }
+
+/* The keys held back, injected as they were typed (their releases come later, as usual). */
+static void chord_flush(struct on_core *c, int idx)
+{
+	struct slot *s = &c->slots[idx];
+	enum chord_state was = s->chord;
+	s->chord = CH_NONE;
+	if (was == CH_Q || was == CH_QN)
+		pass_key(c, idx, s->chord_q, 1);
+	if (was == CH_QN)
+		pass_key(c, idx, s->chord_n, 1);
+}
+
+/* Q and N held back are a chord: Alt down, Tab down. */
+static void chord_begin(struct on_core *c, int idx)
+{
+	struct slot *s = &c->slots[idx];
+	s->chord = CH_ON;
+	s->n_down = 1;
+	s->x_down = s->del_on = 0;
+	c->st.chords++;
+	pass_key(c, idx, KEY_ALT, 1);
+	pass_key(c, idx, KEY_TAB, 1);
+	s->tab_on = 1;
+}
+
+/* Q went up (q_up), or another key ended the chord: Delete, Tab, then Alt up. Q, N and X still down are ignored
+ * until their up. */
+static void chord_end(struct on_core *c, int idx, int q_up)
+{
+	struct slot *s = &c->slots[idx];
+	if (s->del_on)
+		pass_key(c, idx, KEY_DELETE, 0);
+	if (s->tab_on)
+		pass_key(c, idx, KEY_TAB, 0);
+	pass_key(c, idx, KEY_ALT, 0);
+	s->tail_q = !q_up;
+	s->tail_n = s->n_down;
+	s->tail_x = s->x_down;
+	s->chord = CH_NONE;
+	s->n_down = s->x_down = s->tab_on = s->del_on = 0;
+}
+
+static void key_event(struct on_core *c, int idx, uint32_t sym, int down, on_time now)
+{
+	struct slot *s = &c->slots[idx];
+	if (c->cfg.chord_hold <= 0) {
+		pass_key(c, idx, sym, down);
+		return;
+	}
+	if (s->tail_q && is_key(sym, 'q')) {
+		s->tail_q = down;
+		return;
+	}
+	if (s->tail_n && is_key(sym, 'n')) {
+		s->tail_n = down;
+		return;
+	}
+	if (s->tail_x && is_key(sym, 'x')) {
+		s->tail_x = down;
+		return;
+	}
+	switch (s->chord) {
+	case CH_NONE:
+		if (down && is_key(sym, 'q') && !s->nheld && !s->buttons) {
+			if (!take_input(c, idx)) {
+				c->st.keys_dropped++;
+				return;
+			}
+			s->chord = CH_Q;
+			s->chord_q = sym;
+			s->chord_t0 = now;
+			return;
+		}
+		break;
+	case CH_Q:
+		if (is_key(sym, 'q')) {
+			if (down)
+				return; /* auto-repeat */
+			chord_flush(c, idx); /* a q typed: down and up now */
+			pass_key(c, idx, s->chord_q, 0);
+			return;
+		}
+		if (down && is_key(sym, 'n') && now - s->chord_t0 >= c->cfg.chord_hold && now - s->chord_t0 <= CHORD_MAX) {
+			s->chord = CH_QN;
+			s->chord_n = sym;
+			return;
+		}
+		if (!down)
+			return; /* a key it does not hold (it held none at Q down): nothing to release */
+		chord_flush(c, idx);
+		break;
+	case CH_QN:
+		if (is_key(sym, 'q')) {
+			if (down)
+				return;
+			chord_flush(c, idx); /* Q up first: a roll, q and n typed */
+			pass_key(c, idx, s->chord_q, 0);
+			return;
+		}
+		if (is_key(sym, 'n')) {
+			chord_begin(c, idx); /* N up, or a repeated N down (N held): the chord */
+			if (!down) {
+				s->n_down = s->tab_on = 0;
+				pass_key(c, idx, KEY_TAB, 0);
+			}
+			return;
+		}
+		if (down && is_key(sym, 'x')) {
+			chord_begin(c, idx);
+			s->x_down = s->del_on = 1;
+			pass_key(c, idx, KEY_DELETE, 1);
+			return;
+		}
+		if (!down)
+			return;
+		chord_flush(c, idx);
+		break;
+	case CH_ON:
+		if (is_key(sym, 'q')) {
+			if (!down)
+				chord_end(c, idx, 1);
+			return; /* a repeated Q down: nothing */
+		}
+		if (is_key(sym, 'n')) {
+			if (down && !s->n_down) {
+				s->n_down = s->tab_on = 1;
+				pass_key(c, idx, KEY_TAB, 1);
+			} else if (!down && s->n_down) {
+				s->n_down = 0;
+				if (s->tab_on)
+					pass_key(c, idx, KEY_TAB, 0);
+				s->tab_on = 0;
+			}
+			return;
+		}
+		if (is_key(sym, 'x')) {
+			if (down && !s->x_down) {
+				s->x_down = 1;
+				if (s->tab_on) { /* Delete only with Tab held; an X without it types nothing */
+					s->del_on = 1;
+					pass_key(c, idx, KEY_DELETE, 1);
+				}
+			} else if (!down && s->x_down) {
+				s->x_down = 0;
+				if (s->del_on)
+					pass_key(c, idx, KEY_DELETE, 0);
+				s->del_on = 0;
+			}
+			return;
+		}
+		if (!down)
+			return; /* an up of a key it does not hold: the chord goes on */
+		chord_end(c, idx, 0); /* any other key down ends the chord, then goes as usual */
+		break;
+	}
+	pass_key(c, idx, sym, down);
+}
+
 static void pointer_event(struct on_core *c, int idx, int buttons, int x, int y)
 {
 	struct slot *s = &c->slots[idx];
 	int was = s->sent_mask;
+	if ((s->chord == CH_Q || s->chord == CH_QN) && buttons != was)
+		chord_flush(c, idx); /* a click while Q is held back: the keys first, as typed; a plain move keeps them */
 	s->sent_mask = buttons;
 	/* a button this client pressed while another owned input stays dropped until it is let go: taking over in the
 	 * middle of that drag would put a press down where the user never pressed */
@@ -445,7 +626,7 @@ static void client_message(struct on_core *c, int idx, on_time now)
 		break;
 	}
 	case 4:
-		key_event(c, idx, get_u32(m + 4), m[1] != 0);
+		key_event(c, idx, get_u32(m + 4), m[1] != 0, now);
 		break;
 	case 5:
 		pointer_event(c, idx, m[1], (int)get_u16(m + 2), (int)get_u16(m + 4));
@@ -669,6 +850,14 @@ static void slot_free(struct on_core *c, int idx)
 {
 	struct slot *s = &c->slots[idx];
 	if (c->input_owner == idx) {
+		static const uint32_t order[3] = { KEY_DELETE, KEY_TAB, KEY_ALT };
+		for (int k = 0; k < 3 && s->chord == CH_ON; k++) /* Delete, Tab, then Alt up, as Q up does; then the rest */
+			for (int i = 0; i < s->nheld; i++)
+				if (s->held[i] == order[k]) {
+					push(c, (struct on_action){ .type = ON_ACT_KEY, .slot = idx, .keysym = order[k], .down = 0 });
+					s->held[i] = s->held[--s->nheld];
+					break;
+				}
 		for (int i = 0; i < s->nheld; i++)
 			push(c, (struct on_action){ .type = ON_ACT_KEY, .slot = idx, .keysym = s->held[i], .down = 0 });
 		if (s->buttons)
@@ -679,6 +868,8 @@ static void slot_free(struct on_core *c, int idx)
 	s->state = S_FREE;
 	s->nheld = 0;
 	s->buttons = 0;
+	s->chord = CH_NONE; /* a key held back is dropped: it was never injected */
+	s->n_down = s->x_down = s->tab_on = s->del_on = s->tail_q = s->tail_n = s->tail_x = 0;
 	s->enc_bits = s->encodings = s->reg_n = 0;
 	s->len = s->head = 0;
 }
@@ -1030,6 +1221,7 @@ void on_client_stats(const struct on_core *c, int idx, struct on_client_stats *o
 	o->input_owner = c->input_owner == idx;
 	o->pointer_encodings = s->enc_bits;
 	o->gets_arrow = gets_arrow(c, s);
+	o->chord = (int)s->chord;
 	o->marked_tiles = 0;
 	if (s->state == S_CLIENT)
 		for (int i = 0; i < c->ntiles; i++)

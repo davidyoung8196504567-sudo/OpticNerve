@@ -24,7 +24,8 @@
  * launch_panel.sh stop -apps; a new panel keeps the entries of groups that still run. An X in the top right corner of
  * the title bar ends the panel; apps it started keep running. Alt+Tab switches between apps and Alt+Tab+Del, with Tab
  * held, closes the one selected (the window manager's keys; shown on the panel). A viewer on a laptop keeps Alt+Tab
- * for the laptop: these keys come from a script or the target's own keyboard. The display must be at least
+ * for the laptop: from a viewer, the agent's key chord stands in for them (hold Q and tap N; hold Q and N, then press
+ * X; agent/core/on_core.h). The display must be at least
  * 1760x1000 (two lines of tiles and the hint).
  *
  * Build (baseline SDP-BL-006): see agent/Makefile (-lscreen -limg).
@@ -459,7 +460,7 @@ static void draw(void)
 	if (!ntiles)
 		text(160, 300, 8, "NO TILES IN DESKTOP.CONF", 0xffd166);
 	static const char *const hint[2] = { "ALT+TAB SWITCHES APPS    ALT+TAB+DEL WITH TAB HELD CLOSES THE SELECTED APP",
-		"FROM A SCRIPT OR THE TARGET KEYBOARD: A VIEWER ON A LAPTOP KEEPS ALT+TAB FOR THE LAPTOP" };
+		"FROM A VIEWER: HOLD Q AND TAP N TO SWITCH    HOLD Q AND N THEN PRESS X TO CLOSE" };
 	for (int i = 0; i < 2; i++) {
 		int n = (int)strlen(hint[i]), sc = n * 7 * 3 - 6 <= W - 40 ? 3 : 2;
 		text((W - (n * 7 * sc - 2 * sc)) / 2, H - 70 + i * 32, sc, hint[i], 0x9fb3c8);

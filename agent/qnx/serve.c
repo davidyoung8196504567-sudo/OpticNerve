@@ -443,7 +443,8 @@ static void close_fd(int slot)
 static void read_slot(int slot)
 {
 	/* 2048 bytes: at most 342 actions per read (341 PointerEvents of 6 bytes, plus one message carried over from the
-	 * previous read). The core's queue (512) is empty when read_slot() starts and is emptied after each read, so it
+	 * previous read), and a few more for the key chord (on_core.c, push(): at most 4 for a key event, and the keys
+	 * held back for it once). The core's queue (512) is empty when read_slot() starts and is emptied after each read, so it
 	 * cannot overflow here; the releases of a closing client are queued later, by reap(), after it was emptied. */
 	uint8_t buf[2048];
 	more[slot] = 0;
@@ -681,7 +682,7 @@ static int read_password(const char *path, uint8_t pw[8])
 
 int serve_main(int argc, char **argv)
 {
-	int display_no = 1, port = 5901, holdoff_ms = 33, foreground = 0, pointer = 1;
+	int display_no = 1, port = 5901, holdoff_ms = 33, foreground = 0, pointer = 1, chord = 1;
 	long login_s = 60;
 	char *end;
 	for (int i = 0; i < argc; i++) {
@@ -700,13 +701,15 @@ int serve_main(int argc, char **argv)
 			pointer = 0;
 		else if (strcmp(argv[i], "-nomouse") == 0)
 			mouse_on = 0;
+		else if (strcmp(argv[i], "-nochord") == 0)
+			chord = 0;
 		else if (strcmp(argv[i], "-v") == 0)
 			verbose = 1;
 		else if (strcmp(argv[i], "-foreground") == 0)
 			foreground = 1;
 		else {
 			fprintf(stderr, "usage: opticnerve serve [-display=N] [-port=P] [-passfile=PATH] [-holdoff=MS] "
-					"[-logintimeout=S] [-nopointer] [-nomouse] [-v] [-foreground]\n");
+					"[-logintimeout=S] [-nopointer] [-nomouse] [-nochord] [-v] [-foreground]\n");
 			return 2;
 		}
 	}
@@ -745,7 +748,8 @@ int serve_main(int argc, char **argv)
 	gethostname(host, sizeof(host));
 	snprintf(name, sizeof(name), "OpticNerve %s %s:%d", ON_VERSION, host, display_no);
 	struct on_config cfg = { dsize[0], dsize[1], name, 10000000000LL, 30000000000LL,
-				 (on_time)holdoff_ms * 1000000, 2000000000LL, (on_time)login_s * 1000000000LL };
+				 (on_time)holdoff_ms * 1000000, 2000000000LL, (on_time)login_s * 1000000000LL,
+				 chord ? 150000000LL : 0 }; /* the key chord: Q down 150 ms before N (DESIGN_KEYCHORD 7) */
 	if (!(core = on_core_new(&cfg)))
 		die("on_core_new");
 	on_set_pointer(core, pointer);

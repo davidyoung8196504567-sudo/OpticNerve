@@ -42,7 +42,19 @@ struct on_config {
 	on_time timed_capture;      /* 4.5: a capture when an incremental request has waited this long */
 	on_time auth_timeout;       /* I6: from the challenge, the time to answer it (a person typing a password); then
 				     * the login fails with the reason "login timed out". 0: no limit (test benches) */
+	on_time chord_hold;         /* the QNX key chord (below): how long Q must be down before N; 0: no chord */
 };
+
+/* The QNX key chord (ON-AG-004). A viewer on a laptop cannot send Alt+Tab (the laptop keeps it), so a client may hold
+ * Q and tap N instead: the core injects Alt down while Q is held and a Tab for each N, and Delete for an X pressed
+ * while N is held (Alt+Tab+Del with Tab held closes the selected window). A Q down from a client that holds nothing
+ * is held back until the next key tells what it is. The chord is decided by order: N down at least chord_hold (and at
+ * most 5 s) after Q down, then N up, X down or a repeated N down while Q is still down. Q up first is typing: the keys
+ * held back are injected as typed. A repeated N, X or Q down within the chord is one press; any other key down ends
+ * the chord and is then handled as usual (an up of a key the client does not hold changes nothing). Design: private
+ * docs/DESIGN_KEYCHORD.md, section 8.
+ * on_chord: 1 if the chord is on (chord_hold above 0). */
+int on_chord(const struct on_core *c);
 
 /* The VNC password, already reduced to the 8 bytes VncAuth uses. have_key 0 means: refuse every login. */
 void on_set_key(struct on_core *c, const uint8_t key[8], int have_key);
@@ -123,6 +135,7 @@ struct on_stats {
 	uint64_t content;          /* content number of the last capture that changed something */
 	uint64_t logins_failed, logins_timed_out, refused_at_accept, server_full;
 	uint64_t cut_text_skipped, extended_cut_text, keys_dropped;
+	uint64_t chords;           /* key chords begun (ON-AG-004) */
 	uint64_t pointer_dropped, input_handovers; /* 4.8: another client's pointer events while the owner held something,
 						    * or of a drag begun while input was elsewhere; input passed from one
 						    * client to another */
@@ -136,6 +149,7 @@ struct on_client_stats {
 	int input_owner;           /* 1: this client's input is the one injected */
 	int pointer_encodings;     /* the pointer encodings its SetEncodings asked for: 1 Cursor, 2 XCursor, 4 CursorWithAlpha */
 	int gets_arrow;            /* 1: it is sent the arrow (it asked for a pointer encoding, and the arrow is on) */
+	int chord;                 /* the key chord: 0 none, 1 Q held back, 2 Q and N held back, 3 in the chord (Alt down) */
 };
 void on_stats(const struct on_core *c, struct on_stats *s);
 void on_client_stats(const struct on_core *c, int slot, struct on_client_stats *s);

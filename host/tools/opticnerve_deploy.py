@@ -110,9 +110,9 @@ def install(binary):
 
 def start(options):
     for o in options:   # serve's own options only; -foreground would block this step, -passfile is set here
-        if not re.fullmatch(r"-(display|port|holdoff|logintimeout)=[0-9]{1,6}|-v|-nopointer|-nomouse", o):
+        if not re.fullmatch(r"-(display|port|holdoff|logintimeout)=[0-9]{1,6}|-v|-nopointer|-nomouse|-nochord", o):
             sys.exit(f"not a serve option: {o!r} (-display=N -port=P -holdoff=MS -logintimeout=S -nopointer "
-                     f"-nomouse -v)")
+                     f"-nomouse -nochord -v)")
     for name, opt in (("ON_AGENT_POINTER", "-nopointer"), ("ON_AGENT_MOUSE", "-nomouse")):
         value = os.environ.get(name) or "1"   # empty means unset, as in on_env
         if value not in ("0", "1"):

@@ -36,7 +36,7 @@ static uint8_t frame[W * H * 4];
 
 static struct on_core *new_core(void)
 {
-	struct on_config cfg = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS };
+	struct on_config cfg = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS, 0 };
 	struct on_core *c = on_core_new(&cfg);
 	uint8_t pw[8];
 	on_vnc_password((const char *)pw_text, pw);
@@ -229,7 +229,7 @@ static void test_handshake(void)
 	on_core_free(core);
 
 	/* auth_timeout 0 (serve -logintimeout=0): no limit on answering the challenge */
-	struct on_config cfg0 = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 0 };
+	struct on_config cfg0 = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 0, 0 };
 	core = on_core_new(&cfg0);
 	uint8_t pw0[8];
 	on_vnc_password((const char *)pw_text, pw0);
@@ -1024,7 +1024,7 @@ static void test_pointer_arrow(void)
 	on_core_free(core);
 
 	/* the edges, at a size made of whole tiles (128 x 128: 2 x 2): the arrow is cut, no tile outside is marked */
-	struct on_config cfg = { 128, 128, "edges", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS };
+	struct on_config cfg = { 128, 128, "edges", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS, 0 };
 	core = on_core_new(&cfg);
 	uint8_t pw[8];
 	on_vnc_password((const char *)pw_text, pw);
@@ -1253,6 +1253,225 @@ static void test_mouse_level(void)
 	CHECK(on_mouse_compose_usb(4 | 8, &e, &wheel) == 4 && wheel == 2, "viewer right stays, its wheel bit does not");
 }
 
+/* --- the QNX key chord (ON-AG-004) ------------------------------------------------------------------------------- */
+
+static void key(int s, uint32_t sym, int down, on_time t)
+{
+	on_input(core, s, (const uint8_t[]){ 4, (uint8_t)down, 0, 0, (uint8_t)(sym >> 24), (uint8_t)(sym >> 16),
+					 (uint8_t)(sym >> 8), (uint8_t)sym }, 8, t);
+}
+
+/* Keys sent as "qv" (q down) and "q^" (q up), one character for the key: a letter as itself, A Alt, T Tab, D Delete,
+ * S Shift, C Control. Each is sent at time *t, then *t moves on by the number after it in ms ("qv200 nv q^"). */
+static void keys(int s, const char *script, on_time *t)
+{
+	for (const char *p = script; *p;) {
+		while (*p == ' ')
+			p++;
+		if (!*p)
+			break;
+		char k = *p++;
+		int down = *p++ == 'v';
+		uint32_t sym = k == 'A' ? 0xffe9 : k == 'T' ? 0xff09 : k == 'D' ? 0xffff : k == 'S' ? 0xffe1
+			       : k == 'C' ? 0xffe3 : (uint32_t)(unsigned char)k;
+		key(s, sym, down, *t);
+		int ms = 0;
+		while (*p >= '0' && *p <= '9')
+			ms = ms * 10 + (*p++ - '0');
+		*t += ms * MS;
+	}
+}
+
+/* The key actions queued, in the same notation, space-separated; other actions as "P" (pointer) and "X" (close). */
+static const char *injected(void)
+{
+	static char b[512];
+	size_t n = 0;
+	struct on_action a;
+	b[0] = 0;
+	while (on_next_action(core, &a) && n < sizeof(b) - 4) {
+		if (a.type == ON_ACT_KEY) {
+			uint32_t k = a.keysym;
+			b[n++] = k == 0xffe9 ? 'A' : k == 0xff09 ? 'T' : k == 0xffff ? 'D' : k == 0xffe1 ? 'S' : k == 0xffe3 ? 'C'
+				 : (char)k;
+			b[n++] = a.down ? 'v' : '^';
+		} else if (a.type == ON_ACT_POINTER || a.type == ON_ACT_CLOSE)
+			b[n++] = a.type == ON_ACT_POINTER ? 'P' : 'X';
+		else
+			continue;
+		b[n++] = ' ';
+	}
+	if (n)
+		n--;
+	b[n] = 0;
+	return b;
+}
+
+static struct on_core *chord_core(on_time hold)
+{
+	struct on_config cfg = { W, H, "OpticNerve test", 10000 * MS, 30000 * MS, 33 * MS, 2000 * MS, 60000 * MS, hold };
+	struct on_core *c = on_core_new(&cfg);
+	uint8_t pw[8];
+	on_vnc_password((const char *)pw_text, pw);
+	on_set_key(c, pw, 1);
+	return c;
+}
+
+static int chord_of(int s)
+{
+	struct on_client_stats cs;
+	on_client_stats(core, s, &cs);
+	return cs.chord;
+}
+
+/* One script against the core with the chord on; the key actions it gives. */
+static const char *chord_run(const char *script)
+{
+	static char out[512];
+	on_core_free(core);
+	core = chord_core(150 * MS);
+	on_time t = 1000 * MS;
+	int s = client(3, t);
+	injected();
+	keys(s, script, &t);
+	snprintf(out, sizeof(out), "%s", injected());
+	return out;
+}
+
+#define CHORD(script, want, what) do { const char *got_ = chord_run(script); \
+	CHECK(strcmp(got_, want) == 0, "%s: %s gives \"%s\", want \"%s\"", what, script, got_, want); } while (0)
+
+static void test_chord(void)
+{
+	core = NULL;
+	/* typing: what step 0 saw (2026-11-25), and rollover */
+	CHORD("qv70 q^178 nv117 n^190 xv113 x^", "qv q^ nv n^ xv x^", "fast \"qnx\" without overlap types qnx");
+	CHORD("qv100 nv40 q^30 xv20 n^30 x^", "qv nv q^ xv n^ x^", "\"qnx\" rolled, N 100 ms after Q, types qnx");
+	CHORD("qv200 nv40 q^30 xv20 n^30 x^", "qv nv q^ xv n^ x^", "Q up before N up is a roll even after 200 ms");
+	CHORD("qv149 nv n^ q^", "qv nv n^ q^", "N 149 ms after Q: typed");
+	CHORD("qv500 qv50 qv50 q^", "qv q^", "Q alone, auto-repeated: one q, at its release");
+	CHORD("Qv80 Q^", "Qv Q^", "Q with Caps Lock: Q, the same keysym down and up");
+	CHORD("Cv qv q^ C^", "Cv qv q^ C^", "Ctrl+Q passes at once");
+	CHORD("Sv Qv Q^ S^", "Sv Qv Q^ S^", "Shift+Q passes at once");
+	CHORD("qv20 av a^ q^", "qv av a^ q^", "another key while Q is held back: q, then that key");
+	CHORD("av qv300 nv n^ q^ a^", "av qv nv n^ q^ a^", "Q while another key is held: no chord, typed");
+	CHORD("qv6000 nv n^ q^", "qv nv n^ q^", "N more than 5 s after Q: typed");
+
+	/* the chord: Q held, N tapped (Alt+Tab); N held then X (Alt+Tab+Del with Tab held) */
+	CHORD("qv150 nv100 n^200 q^", "Av Tv T^ A^", "Q held 150 ms, N tapped: Alt+Tab, Alt up at Q up");
+	CHORD("qv300 nv80 n^100 nv80 n^100 q^", "Av Tv T^ Tv T^ A^", "each further N is one Tab");
+	CHORD("qv300 nv500 nv40 nv40 n^100 q^", "Av Tv T^ A^", "N held (auto-repeat) begins the chord; its repeats are one Tab");
+	CHORD("qv300 nv80 n^200 nv300 xv80 x^50 n^100 q^", "Av Tv T^ Tv Dv D^ T^ A^",
+	      "Q held, N tapped, then N held and X: Delete with Tab held");
+	CHORD("qv300 nv200 xv x^ n^ q^", "Av Tv Dv D^ T^ A^", "X while the first N is held: Alt, Tab and Delete");
+	CHORD("qv300 nv80 n^ nv xv500 xv40 xv40 x^ n^ q^", "Av Tv T^ Tv Dv D^ T^ A^", "X held: one Delete");
+	CHORD("qv300 nv80 n^ xv x^ q^", "Av Tv T^ A^", "X with N up types nothing and sends no Delete");
+	CHORD("qv300 nv80 n^ nv xv q^50 nv40 xv40 n^ x^ av a^", "Av Tv T^ Tv Dv D^ T^ A^ av a^",
+	      "Q up with N and X down: Delete, Tab, Alt up; N and X repeats after it type nothing");
+	CHORD("qv300 nv80 n^ av a^ q^", "Av Tv T^ A^ av a^", "another key ends the chord, then types");
+	CHORD("qv300 nv80 n^ qv qv q^", "Av Tv T^ A^", "Q repeats in the chord: nothing");
+	CHORD("qv300 Nv80 N^ Q^", "Av Tv T^ A^", "Caps Lock: Q and N in capitals");
+	CHORD("qv300 nv80 n^ q^ qv100 q^", "Av Tv T^ A^ qv q^", "after the chord, q types again");
+	CHORD("qv300 nv av a^ n^ q^", "qv nv av a^ n^ q^", "Q and N held back, then another key: q, n, then the key");
+	CHORD("qv300 nv80 n^ nv xv av nv xv n^ x^ a^ qv qv q^ qv q^", "Av Tv T^ Tv Dv D^ T^ A^ av a^ qv q^",
+	      "another key ends the chord with Q, N and X down: their repeats and ups type nothing; then q types");
+	CHORD("qv300 nv80 n^ b^ q^", "Av Tv T^ A^", "an up of a key not held does not end the chord");
+	CHORD("qv b^ q^", "qv q^", "an up of a key not held keeps Q held back");
+	CHORD("qv300 nv b^ n^ q^", "Av Tv T^ A^", "an up of a key not held keeps Q and N held back");
+
+	on_time t = 1000 * MS;
+	struct on_stats st;
+	on_core_free(core);
+	core = chord_core(150 * MS);
+	int v = client(3, t), p = client(4, t);
+	injected();
+	keys(v, "qv300 nv80 n^ q^", &t);
+	on_stats(core, &st);
+	CHECK(strcmp(injected(), "Av Tv T^ A^") == 0 && st.chords == 1 && on_chord(core), "a chord is counted");
+
+	/* Q and N in one input buffer: one time, so N is not 150 ms after Q: typed */
+	on_input(core, v, (const uint8_t[]){ 4, 1, 0, 0, 0, 0, 0, 'q', 4, 1, 0, 0, 0, 0, 0, 'n' }, 16, t);
+	keys(v, "n^ q^", &t);
+	CHECK(strcmp(injected(), "qv nv n^ q^") == 0, "Q and N read together are typed");
+
+	/* the core's last schedule long before: the time is that of the input */
+	on_schedule(core, t);
+	t += 5000 * MS;
+	keys(v, "qv200 nv80 n^ q^", &t);
+	CHECK(strcmp(injected(), "Av Tv T^ A^") == 0, "the hold is measured from the key events' own times");
+
+	/* pointer: a move keeps Q held back; a click first types it */
+	keys(v, "qv200", &t);
+	pointer_to(v, 30, 30, t);
+	keys(v, "nv80 n^ q^", &t);
+	CHECK(strcmp(injected(), "Av Tv T^ A^") == 0 && chord_of(v) == 0, "a pointer move during a held-back Q keeps the chord");
+	keys(v, "qv100", &t);
+	on_input(core, v, (const uint8_t[]){ 5, 1, 0, 30, 0, 30 }, 6, t);
+	on_input(core, v, (const uint8_t[]){ 5, 0, 0, 30, 0, 30 }, 6, t);
+	keys(v, "q^", &t);
+	CHECK(strcmp(injected(), "qv P P q^") == 0, "a click while Q is held back: q first, then the click");
+	keys(v, "qv200 nv", &t);
+	on_input(core, v, (const uint8_t[]){ 5, 1, 0, 30, 0, 30 }, 6, t);
+	on_input(core, v, (const uint8_t[]){ 5, 0, 0, 30, 0, 30 }, 6, t);
+	keys(v, "n^ q^", &t);
+	CHECK(strcmp(injected(), "qv nv P P n^ q^") == 0, "a click while Q and N are held back: q, n first");
+
+	/* input ownership: a held-back Q holds input like a key; another client's keys wait */
+	keys(v, "qv", &t);
+	on_stats(core, &st);
+	uint64_t dropped = st.keys_dropped;
+	keys(p, "av a^", &t);
+	on_stats(core, &st);
+	CHECK(strcmp(injected(), "") == 0 && st.keys_dropped == dropped + 1 && chord_of(v) == 1,
+	      "while v's Q is held back, p's key is dropped and counted");
+	keys(v, "q^", &t);
+	CHECK(strcmp(injected(), "qv q^") == 0, "v's q is typed at its release");
+	keys(v, "qv200 nv", &t);
+	keys(p, "av a^", &t);
+	keys(v, "n^", &t);
+	keys(p, "bv b^", &t);
+	keys(v, "q^", &t);
+	on_stats(core, &st);
+	CHECK(strcmp(injected(), "Av Tv T^ A^") == 0 && st.keys_dropped == dropped + 3,
+	      "while v holds Q and N back, and in its chord, p's keys are dropped and counted");
+	dropped = st.keys_dropped;
+	keys(v, "av", &t);
+	injected();
+	keys(p, "qv400 nv n^ q^", &t);
+	on_stats(core, &st);
+	CHECK(strcmp(injected(), "") == 0 && chord_of(p) == 0 && st.keys_dropped == dropped + 2,
+	      "p's Q and N while v holds a key: dropped and counted as any key; their releases count nothing");
+	keys(v, "a^", &t);
+	injected();
+
+	/* disconnect: in the chord, Delete, Tab, Alt up then close; with Q held back, nothing injected */
+	keys(v, "qv300 nv200 xv", &t);
+	CHECK(strcmp(injected(), "Av Tv Dv") == 0 && chord_of(v) == 3, "in the chord");
+	on_closed(core, v, t);
+	on_schedule(core, t);
+	CHECK(strcmp(injected(), "D^ T^ A^ X") == 0, "a disconnect in the chord releases Delete, Tab, then Alt");
+	keys(p, "qv300 nv", &t);
+	CHECK(chord_of(p) == 2, "Q and N held back");
+	on_closed(core, p, t);
+	on_schedule(core, t);
+	CHECK(strcmp(injected(), "X") == 0, "a disconnect with Q and N held back injects nothing");
+	v = client(5, t);
+	injected();
+	keys(v, "qv80 q^", &t);
+	CHECK(strcmp(injected(), "qv q^") == 0 && chord_of(v) == 0, "a reused slot starts without a chord");
+
+	/* chord_hold 0: today's behaviour */
+	on_core_free(core);
+	core = chord_core(0);
+	v = client(3, t);
+	injected();
+	keys(v, "qv300 nv80 n^200 nv300 xv80 x^ n^ q^ qv500 qv50 q^", &t);
+	on_stats(core, &st);
+	CHECK(strcmp(injected(), "qv nv n^ nv xv x^ n^ q^ qv qv q^") == 0 && st.chords == 0 && !on_chord(core),
+	      "chord off: every key passes at once, as before");
+	on_core_free(core);
+}
+
 int main(void)
 {
 	setvbuf(stdout, NULL, _IOLBF, 0);
@@ -1265,6 +1484,7 @@ int main(void)
 	test_arrow_clients();
 	test_mouse();
 	test_mouse_level();
+	test_chord();
 	printf("%d checks, %d failed\n", checks, fails);
 	return fails != 0;
 }

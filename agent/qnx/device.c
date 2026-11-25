@@ -92,6 +92,9 @@ static const char *state_name(int s)
 	return s >= 0 && s < 4 ? n[s] : "?";
 }
 
+/* A slot's key chord state (on_core.h), as the end of its status line. */
+static const char *const chord_name[4] = { "", " chord_q", " chord_qn", " chord_on" };
+
 static size_t status_text(char *b, size_t cap)
 {
 	struct on_stats st;
@@ -113,7 +116,7 @@ static size_t status_text(char *b, size_t cap)
 		"content %llu\nidle_state %d\npower_mode %d\nlogins_failed %llu\nlogins_timed_out %llu\n"
 		"refused_at_accept %llu\nserver_full %llu\n"
 		"cut_text_skipped %llu\nextended_cut_text %llu\nkeys_dropped %llu\npointer_dropped %llu\n"
-		"input_handovers %llu\nwaiters %d\nstatus_readers %d\npointer %s\n%s",
+		"input_handovers %llu\nwaiters %d\nstatus_readers %d\npointer %s\nchord %s\nchords %llu\n%s",
 		info->version, (int)getpid(), info->width, info->height, info->port, (unsigned long long)st.signals,
 		st.signalled, (unsigned long long)st.captures, (unsigned long long)st.timed_captures,
 		(unsigned long long)st.updates_from_timed_capture, (unsigned long long)st.content, idle, power,
@@ -122,17 +125,17 @@ static size_t status_text(char *b, size_t cap)
 		(unsigned long long)st.server_full, (unsigned long long)st.cut_text_skipped,
 		(unsigned long long)st.extended_cut_text, (unsigned long long)st.keys_dropped,
 		(unsigned long long)st.pointer_dropped, (unsigned long long)st.input_handovers, nw, nt,
-		on_pointer(core) ? "on" : "off", mouse);
+		on_pointer(core) ? "on" : "off", on_chord(core) ? "on" : "off", (unsigned long long)st.chords, mouse);
 	for (int i = 0; i < ON_SLOTS && n < cap; i++) {
 		struct on_client_stats cs;
 		on_client_stats(core, i, &cs);
 		if (!cs.state)
 			continue;
 		n += (size_t)snprintf(b + n, cap - n,
-			"slot %d %s requests %llu updates %llu sent_seq %llu marked_tiles %d queued %zu pointer_encodings %d%s%s\n",
+			"slot %d %s requests %llu updates %llu sent_seq %llu marked_tiles %d queued %zu pointer_encodings %d%s%s%s\n",
 			i, state_name(cs.state), (unsigned long long)cs.requests, (unsigned long long)cs.updates,
 			(unsigned long long)cs.sent_seq, cs.marked_tiles, cs.queued, cs.pointer_encodings,
-			cs.input_owner ? " input_owner" : "", cs.gets_arrow ? " arrow" : "");
+			cs.input_owner ? " input_owner" : "", cs.gets_arrow ? " arrow" : "", chord_name[cs.chord & 3]);
 	}
 	return n < cap ? n : cap - 1;
 }
