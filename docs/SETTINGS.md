@@ -32,8 +32,8 @@ the settings: `python host/tools/vnc_snapshot.py - - frame.png`. That keeps the 
 | `ON_LOGIN_USER` | The SSH login on the target, also used for `sudo` | `qnxuser` |
 | `ON_LOGIN_PASSWORD` | That login's password | none: needed for SSH |
 | `ON_VNC_PASSWORD` | The agent's VNC password | none: needed for VNC |
-| `ON_AGENT_POINTER` | `0`: `opticnerve_deploy.py start` starts the agent with the pointer arrow off (`-nopointer`); `1`: on. Switch it on the running agent with `opticnerve_deploy.py pointer on\|off` | `1` |
-| `ON_AGENT_MOUSE` | `0`: `opticnerve_deploy.py start` starts the agent with the mouse hold off (`-nomouse`): it never holds the target's own mouse; `1`: it holds it while a viewer that gets the arrow is connected. Switch it on the running agent with `opticnerve_deploy.py mouse on\|off` | `1` |
+| `ON_AGENT_POINTER` | `0`: `opticnerve_deploy.py start` (and `boot on`) starts the agent with the pointer arrow off (`-nopointer`); `1`: on. Switch it on the running agent with `opticnerve_deploy.py pointer on\|off` | `1` |
+| `ON_AGENT_MOUSE` | `0`: `opticnerve_deploy.py start` (and `boot on`) starts the agent with the mouse hold off (`-nomouse`): it never holds the target's own mouse; `1`: it holds it while a viewer that gets the arrow is connected. Switch it on the running agent with `opticnerve_deploy.py mouse on\|off` | `1` |
 | `ON_QEMU_HOST` | The Linux host running the QEMU guest (`host/qemu/tunnel.sh`) | `10.30.1.104` |
 | `ON_GUEST` | The QEMU guest's address on that host | `192.168.122.146` |
 | `ON_UBUNTU_PASSWORD` | The `tester` login on `ON_QEMU_HOST` | none |
@@ -58,7 +58,7 @@ that the script reads with no parameter of its own.
 | Script | Parameter | Setting it maps to | Default |
 |---|---|---|---|
 | `host/tools/pi_ssh.sh 'COMMANDS'` | (none) | `ON_SSH_HOST`, `ON_SSH_PORT`, `ON_LOGIN_USER`, `ON_LOGIN_PASSWORD` | see above |
-| `host/tools/opticnerve_deploy.py install\|start\|status\|pointer\|mouse\|stop\|undo` | (none) | `ON_SSH_HOST`, `ON_SSH_PORT`, `ON_LOGIN_USER`, `ON_LOGIN_PASSWORD`; `ON_VNC_PASSWORD` for `install`; `ON_AGENT_POINTER` and `ON_AGENT_MOUSE` for `start` | see above |
+| `host/tools/opticnerve_deploy.py install\|start\|boot\|status\|pointer\|mouse\|stop\|undo` | (none) | `ON_SSH_HOST`, `ON_SSH_PORT`, `ON_LOGIN_USER`, `ON_LOGIN_PASSWORD`; `ON_VNC_PASSWORD` for `install`; `ON_AGENT_POINTER` and `ON_AGENT_MOUSE` for `start` and `boot on` | see above |
 | `host/tools/demo_panel.sh start\|stop\|status` | (none) | as `pi_ssh.sh` | see above |
 | `host/tools/vnc_snapshot.py HOST PASSWORD OUT.png` | `HOST[:PORT]` or `-` | `-`: `ON_HOST`, `ON_VNC_PORT` | port 5900 when `HOST` has none |
 | | `PASSWORD` or `-` | `-`: `ON_VNC_PASSWORD` | |

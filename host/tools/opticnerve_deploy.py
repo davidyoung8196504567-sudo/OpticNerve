@@ -6,15 +6,23 @@
                                                               folder has one, with its demo tile's icon in share/)
     python host/tools/opticnerve_deploy.py start [OPTION...]  start `opticnerve serve` as root (port 5901), with
                                                               serve's options, e.g. -logintimeout=0 (no login limit)
+    python host/tools/opticnerve_deploy.py boot on [OPTION...] start the agent at boot, with serve's options as for
+                                                              start: adds two lines to the image's
+                                                              /system/etc/startup/post_startup.sh (a backup kept as
+                                                              post_startup.sh.orig-opticnerve) and writes
+                                                              /data/opticnerve/etc/boot.sh; starts nothing now
+    python host/tools/opticnerve_deploy.py boot off           no start at boot: takes the two lines out, deletes boot.sh
+    python host/tools/opticnerve_deploy.py boot               say whether the agent starts at boot, and how
     python host/tools/opticnerve_deploy.py status             print the agent's status text
     python host/tools/opticnerve_deploy.py pointer [on|off]   show or switch the pointer arrow drawn for viewers
     python host/tools/opticnerve_deploy.py mouse [on|off]     show or switch whether the agent may hold the target's
                                                               own mouse while a viewer that gets the arrow is connected
     python host/tools/opticnerve_deploy.py stop               stop the agent (opticnerve stop, as root)
-    python host/tools/opticnerve_deploy.py undo               stop the agent and delete /data/opticnerve/
+    python host/tools/opticnerve_deploy.py undo               stop the agent, boot off, and delete /data/opticnerve/
 
 BINARY defaults to agent/build/aarch64le/opticnerve. Everything on the target lives in one folder,
-/data/opticnerve/ (bin/, etc/, var/, share/); nothing else on the target is changed, and `vncserv` is not touched.
+/data/opticnerve/ (bin/, etc/, var/, share/); nothing else on the target is changed (with `boot on`: two lines in
+the image's post_startup.sh, and its backup), and `vncserv` is not touched.
 Each step prints what it changed and the SHA-256 of each file it put there, for the record in
 docs/CONFIG_MANAGEMENT.md.
 
@@ -25,7 +33,7 @@ agent with the pointer arrow off, -nopointer; default 1, on), ON_AGENT_MOUSE (0:
 switch off, -nomouse; default 1, on). Switching either on a running agent needs root, so `pointer` and `mouse` run
 it with sudo. Passwords go to the target on SSH's standard input only, never on a command line. Needs bash, ssh and scp on PATH.
 """
-import hashlib, os, re, subprocess, sys
+import hashlib, os, re, subprocess, sys, tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -123,7 +131,8 @@ def install(binary):
     print(f"undo: python host/tools/opticnerve_deploy.py undo")
 
 
-def start(options):
+def serve_options(options):
+    """serve's options from the command line and ON_AGENT_POINTER / ON_AGENT_MOUSE, as " -a -b" (checked)."""
     for o in options:   # serve's own options only; -foreground would block this step, -passfile is set here
         if not re.fullmatch(r"-(display|port|holdoff|logintimeout)=[0-9]{1,6}|-v|-nopointer|-nomouse|-nochord", o):
             sys.exit(f"not a serve option: {o!r} (-display=N -port=P -holdoff=MS -logintimeout=S -nopointer "
@@ -134,7 +143,11 @@ def start(options):
             sys.exit(f"{name} must be 0 or 1, not {value!r}")
         if value == "0" and opt not in options:
             options = list(options) + [opt]
-    opts = "".join(" " + o for o in options)
+    return "".join(" " + o for o in options)
+
+
+def start(options):
+    opts = serve_options(options)
     print(f"serve -passfile={DEST}/etc/vncpasswd{opts}")
     out = remote(f"""
         test -x {DEST}/bin/opticnerve || {{ echo 'not installed'; exit 1; }}
@@ -143,6 +156,100 @@ def start(options):
         {DEST}/bin/opticnerve status | head -4
     """)
     print(out)
+
+
+# Start at boot: the image starts its services from POST as root, after Screen is up. `boot on` adds HOOK's two lines
+# before its last step (a backup kept as POST_BACKUP) and writes BOOT, which starts the agent with the options given;
+# `boot off` takes the two lines out again (marked by HOOK_MARK) and deletes BOOT. While /data/opticnerve is gone the
+# line does nothing.
+POST = "/system/etc/startup/post_startup.sh"
+POST_BACKUP = f"{POST}.orig-opticnerve"
+BOOT = f"{DEST}/etc/boot.sh"
+HOOK_MARK = "# OpticNerve agent at boot"
+HOOK = f"{HOOK_MARK} (host/tools/opticnerve_deploy.py boot on|off)\\n[ -x {BOOT} ] && {BOOT} &\\n"
+
+
+def boot_state():
+    return remote(f"""
+        echo "hook lines in {POST}: $(grep -c '^{HOOK_MARK}' {POST})"
+        grep 'exec ' {BOOT} 2>/dev/null || echo 'no boot script'
+    """, check=False)
+
+
+# Puts the candidate $C (in STAGE) in place of POST, only when it is whole: it still has the image's last two steps,
+# it has the lines it should ($N), and it parses. Then .new and a rename, so POST is the old file or the new, never half.
+PUT_POST = f"""
+    grep -q '^echo Process count' $C && grep -q '^exit 0' $C || {{ echo "{POST}: candidate incomplete, not installed"; exit 1; }}
+    test $(( $(wc -l < $C) )) -eq "$N" || {{ echo "{POST}: candidate has $(( $(wc -l < $C) )) lines, not $N: not installed"; exit 1; }}
+    sh -n $C
+    rs cp $C {POST}.new
+    rs chown root:root {POST}.new; rs chmod 555 {POST}.new
+    rs mv {POST}.new {POST}
+    sync
+"""
+WITHOUT_HOOK = f"grep -v '{HOOK_MARK}' {POST} | grep -v '^\\[ -x {BOOT} \\]'"
+
+
+def boot(args):
+    if not args:
+        print(boot_state())
+        return
+    if args[0] == "on":
+        opts = serve_options(args[1:])
+        log = f"{DEST}/var/serve.log"
+        with tempfile.TemporaryDirectory() as tmp:   # boot.sh is written here and copied to the target
+            script = Path(tmp) / "boot.sh"
+            script.write_text(
+                "#!/bin/sh\n"
+                f"# Starts the OpticNerve agent at boot (as root), from the line `opticnerve_deploy.py boot on` added to\n"
+                f"# {POST}. Written by that step; `boot off` deletes it.\n"
+                f"waitfor /dev/screen/ 30 || {{ echo \"boot: $(date): no /dev/screen, agent not started\" >> {log}; exit 1; }}\n"
+                "test -e /dev/opticnerve && exit 0   # an agent runs already\n"
+                f"echo \"boot: $(date): serve{opts}\" >> {log}\n"
+                f"cd / && exec {DEST}/bin/opticnerve serve -passfile={DEST}/etc/vncpasswd{opts} < /dev/null > /dev/null "
+                f"2>> {log}\n",
+                newline="\n")
+            remote(f"mkdir -p {STAGE} && chmod 700 {STAGE}")
+            copy(script, f"{STAGE}/boot.sh")
+        out = remote(f"""
+            set -e
+            test -x {DEST}/bin/opticnerve || {{ echo 'not installed'; exit 1; }}
+            sh -n {STAGE}/boot.sh
+            rs cp {STAGE}/boot.sh {BOOT}.new
+            rs chown root:root {BOOT}.new; rs chmod 755 {BOOT}.new
+            rs mv {BOOT}.new {BOOT}
+            # the backup is the file without our lines: taken afresh whenever it has none (a later edit by anyone kept)
+            test "$(grep -c '^{HOOK_MARK}' {POST})" -ne 0 || rs cp -p {POST} {POST_BACKUP}
+            # the hook goes before the image's last step (its process count), once
+            {WITHOUT_HOOK} > {STAGE}/without
+            awk -v hook='{HOOK}' '/^echo Process count/ && !done {{ printf "%s", hook; done = 1 }} {{ print }}
+                END {{ if (!done) exit 1 }}' {STAGE}/without > {STAGE}/post || {{ echo 'no "echo Process count" in {POST}: no hook added'; exit 1; }}
+            C={STAGE}/post; N=$(( $(wc -l < {STAGE}/without) + 2 ))
+            {PUT_POST}
+            rm -rf {STAGE}
+            diff {POST_BACKUP} {POST} || true
+        """)
+        print(out)
+        print(f"boot on: {POST} starts {BOOT} (serve -passfile={DEST}/etc/vncpasswd{opts}); backup {POST_BACKUP}")
+    elif args == ["off"]:
+        out = remote(f"""
+            set -e
+            rs rm -f {BOOT}
+            if [ "$(grep -c '^{HOOK_MARK}' {POST})" -eq 0 ]; then echo '{POST}: no hook, not changed'; exit 0; fi
+            mkdir -p {STAGE} && chmod 700 {STAGE}
+            {WITHOUT_HOOK} > {STAGE}/post
+            C={STAGE}/post; N=$(( $(wc -l < {POST}) - 2 ))
+            {PUT_POST}
+            rm -rf {STAGE}
+            if rs test -f {POST_BACKUP}; then
+                if diff {POST_BACKUP} {POST} > /dev/null; then rs rm {POST_BACKUP}; echo '{POST}: as before boot on'
+                else echo '{POST}: differs from {POST_BACKUP} (changed since boot on): backup kept'; fi
+            fi
+        """)
+        print(out)
+        print(f"boot off: {POST} no longer starts the agent; a running agent keeps running")
+    else:
+        sys.exit("usage: opticnerve_deploy.py boot [on [OPTION...] | off]")
 
 
 def status():
@@ -165,6 +272,8 @@ def stop():
 
 def undo():
     stop()
+    if remote(f"grep -c '^{HOOK_MARK}' {POST}", check=False).strip() not in ("", "0"):
+        boot(["off"])   # the image's startup script as it was
     if (TOOLS / "launch_panel.sh").is_file():   # the launcher panel and the apps it started
         try:
             r = subprocess.run(["bash", str(TOOLS / "launch_panel.sh"), "stop", "-apps"], capture_output=True,
@@ -186,7 +295,7 @@ def undo():
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("install", "start", "status", "pointer", "mouse", "stop", "undo"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("install", "start", "boot", "status", "pointer", "mouse", "stop", "undo"):
         sys.exit(__doc__)
     if not os.environ.get("ON_LOGIN_PASSWORD"):
         sys.exit("set ON_LOGIN_PASSWORD")
@@ -195,6 +304,8 @@ def main():
         install(sys.argv[2] if len(sys.argv) > 2 else ROOT / "agent" / "build" / "aarch64le" / "opticnerve")
     elif cmd == "start":
         start(sys.argv[2:])
+    elif cmd == "boot":
+        boot(sys.argv[2:])
     elif cmd in ("pointer", "mouse"):
         switch(cmd, sys.argv[2:])
     else:

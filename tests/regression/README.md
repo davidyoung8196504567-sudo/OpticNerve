@@ -68,5 +68,6 @@ second click opens it again, for Terminal and Gears; the demo panel tile opens o
 or `stop -apps` ends; `stop` leaves a started app running, `stop -apps` ends it; the close X ends the panel) and
 `test_key_chord` (ON-AG-004: with a Terminal opened from the launcher panel and logged in, text with q, n and x types
 as typed, Q held with N tapped switches apps, and Q and N held with X closes the Terminal). Marked `watched`, they run only when asked for, `python -m pytest --pi --watched -m watched`,
-and skip while any client is connected. `test_switches_need_root`, `test_mouse_not_held_without_a_viewer` and
+and skip while any client is connected. `test_switches_need_root`, `test_mouse_not_held_without_a_viewer`,
+`test_start_at_boot_hook` (skips unless `opticnerve_deploy.py boot on`) and
 `test_launch_panel_reads_the_configuration` change nothing and run with `--pi`.

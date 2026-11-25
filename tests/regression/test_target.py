@@ -327,6 +327,30 @@ def test_switches_need_root(target):
             agent(f"{name} {before}", root=True)  # as found, should the refusal have failed
 
 
+def test_start_at_boot_hook(target):
+    """`opticnerve_deploy.py boot on`: the image's post_startup.sh differs from its backup by our two lines only, before
+    its last step, and still parses; boot.sh is root's, not writable by others, parses, and starts serve with the
+    password file. Skips when the agent does not start at boot. Changes nothing."""
+    post, backup, boot = "/system/etc/startup/post_startup.sh", "/system/etc/startup/post_startup.sh.orig-opticnerve", \
+        "/data/opticnerve/etc/boot.sh"
+    rc, out = pi_ssh(f"grep -c '^# OpticNerve agent at boot' {post}")
+    if out.strip() == "0":
+        pytest.skip("the agent does not start at boot (opticnerve_deploy.py boot on)")
+    assert out.strip() == "1", out
+    rc, out = pi_ssh(f"diff -u {backup} {post}")   # the image's diff is unified anyway
+    added = [l for l in out.splitlines() if l.startswith("+") and not l.startswith("+++")]
+    assert added == ["+# OpticNerve agent at boot (host/tools/opticnerve_deploy.py boot on|off)",
+                     f"+[ -x {boot} ] && {boot} &"], out
+    assert not [l for l in out.splitlines() if l.startswith("-") and not l.startswith("---")], out
+    rc, out = pi_ssh(f"grep -B1 '^echo Process count' {post} | head -1; sh -n {post} && echo parses; ls -l {boot}; "
+                     f"sh -n {boot} && echo parses; grep -c 'exec /data/opticnerve/bin/opticnerve serve "
+                     f"-passfile=/data/opticnerve/etc/vncpasswd' {boot}")
+    lines = out.splitlines()
+    assert lines[0].startswith(f"[ -x {boot} ]"), out   # just before the image's last step
+    assert lines[1] == "parses" and lines[3] == "parses" and lines[4] == "1", out
+    assert lines[2].startswith("-rwxr-xr-x") and " root root " in lines[2], out
+
+
 def test_mouse_not_held_without_a_viewer(target):
     """Phase 2: with no client that gets the arrow, the agent does not hold the target's own mouse."""
     status = agent("status")

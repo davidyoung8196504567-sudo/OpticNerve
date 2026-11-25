@@ -111,10 +111,20 @@ python host/tools/opticnerve_deploy.py status
 ```
 
 Everything the agent needs lives in one folder on the Pi, `/data/opticnerve/`; nothing else on the target is changed.
-To take it all off again:
+To have the Pi start the agent each time it boots (optional; it starts nothing now):
 
 ```
-python host/tools/opticnerve_deploy.py undo        # stops the agent and deletes /data/opticnerve/
+python host/tools/opticnerve_deploy.py boot on -logintimeout=0   # with the options start takes
+python host/tools/opticnerve_deploy.py boot                      # says whether, and how, it starts at boot
+python host/tools/opticnerve_deploy.py boot off
+```
+
+`boot on` is the one change outside `/data/opticnerve/`: two lines near the end of the image's startup script,
+`/system/etc/startup/post_startup.sh` (kept as it was in `post_startup.sh.orig-opticnerve`), that run
+`/data/opticnerve/etc/boot.sh` after Screen is up; `boot off` takes them out again. To take it all off again:
+
+```
+python host/tools/opticnerve_deploy.py undo        # stops the agent, boot off, and deletes /data/opticnerve/
 ```
 
 **See the screen** with any VNC viewer at `<Pi address>:5901` and the VNC password, or with our tool:
@@ -244,7 +254,7 @@ settings are in [Configuration management](docs/CONFIG_MANAGEMENT.md)). `--dry` 
   while it holds the mouse, it ends itself and the mouse is the system's again; `slay -9 opticnerve` does the same by
   hand.
 - **Not addressed:** QNX security policies; encryption (VNC authentication is not meant for untrusted networks).
-- **Not included:** boot images (the agent is deployed onto the quick-start image as it is shipped); start at boot.
+- **Not included:** boot images (the agent is deployed onto the quick-start image as it is shipped).
 
 ## Future work
 
