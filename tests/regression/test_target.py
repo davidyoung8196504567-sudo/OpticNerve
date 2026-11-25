@@ -820,10 +820,10 @@ def type_text(target, text, rollover):
 @pytest.mark.watched
 def test_key_chord(target, tmp_path):
     """ON-AG-004, KC01 (typing is unchanged with the chord on) and KC02 (the chord switches and closes apps): with the
-    launcher panel up and a Terminal opened from it, a command with q, n and x typed with rollover and without reaches
-    the Terminal as typed; Q held with N tapped brings the panel to the front and again the Terminal (Alt+Tab); Q held,
-    N held and X (aimed at the Terminal with the switcher's frame) closes it and the panel is in front. Moves and
-    clicks the target's pointer and types (1920x1080 only)."""
+    launcher panel up and a Terminal opened from it (logged in as the login user), a command with q, n and x typed
+    with rollover and without reaches the Terminal as typed; Q held with N tapped brings the panel to the front and
+    again the Terminal (Alt+Tab); Q held, N held and X (aimed at the Terminal with the switcher's frame) closes it
+    and the panel is in front. Moves and clicks the target's pointer and types (1920x1080 only)."""
     launch_panel_skips(target)
     status = agent("status")
     if status_value(status, "chord") != "on":
@@ -855,6 +855,17 @@ def test_key_chord(target, tmp_path):
             time.sleep(0.5)
         assert apps_running("usr/bin/st"), "the Terminal did not start within 10 s"
         time.sleep(2)
+
+        # the image's Terminal starts at a login prompt: log in as the login user (the user name has q, n and x)
+        c = Client(target, [0])
+        try:
+            h = hand_on(target, c)
+            h.keys([ord(ch) for ch in os.environ["ON_LOGIN_USER"]] + [0xff0d])
+            time.sleep(1)
+            h.keys([ord(ch) for ch in os.environ["ON_LOGIN_PASSWORD"]] + [0xff0d])
+            time.sleep(2)
+        finally:
+            c.s.close()
 
         # KC01: typing, with and without rollover
         type_text(target, f"echo qnxuser qnx >> {out_file}", rollover=True)
