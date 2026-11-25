@@ -3,7 +3,7 @@
 
     python host/tools/opticnerve_deploy.py install [BINARY]   copy the agent to /data/opticnerve/ and set its password
                                                               (and the launcher panel, launch_panel, when BINARY's
-                                                              folder has one)
+                                                              folder has one, with its demo tile's icon in share/)
     python host/tools/opticnerve_deploy.py start [OPTION...]  start `opticnerve serve` as root (port 5901), with
                                                               serve's options, e.g. -logintimeout=0 (no login limit)
     python host/tools/opticnerve_deploy.py status             print the agent's status text
@@ -14,7 +14,7 @@
     python host/tools/opticnerve_deploy.py undo               stop the agent and delete /data/opticnerve/
 
 BINARY defaults to agent/build/aarch64le/opticnerve. Everything on the target lives in one folder,
-/data/opticnerve/ (bin/, etc/, var/); nothing else on the target is changed, and `vncserv` is not touched.
+/data/opticnerve/ (bin/, etc/, var/, share/); nothing else on the target is changed, and `vncserv` is not touched.
 Each step prints what it changed and the SHA-256 of each file it put there, for the record in
 docs/CONFIG_MANAGEMENT.md.
 
@@ -70,14 +70,22 @@ def install(binary):
         sys.exit("set ON_VNC_PASSWORD (without quotes or newlines)")
     want = sha256(binary)
     panel = binary.parent / "launch_panel"   # the launcher panel, from the same build, when there is one
+    icon = ROOT / "agent" / "demo" / "opticnerve_eye.png"   # its demo panel tile's icon
+    if panel.is_file() and not icon.is_file():
+        sys.exit(f"no icon at {icon}")
     remote(f"mkdir -p {STAGE} && chmod 700 {STAGE}")
     copy(binary, f"{STAGE}/opticnerve")
     if panel.is_file():
         copy(panel, f"{STAGE}/launch_panel")
+        copy(icon, f"{STAGE}/opticnerve_eye.png")
     PANEL = f"""rs slay -f launch_panel 2>/dev/null || true   # a running launcher panel is replaced, not copied over
         rs cp {STAGE}/launch_panel {DEST}/bin/launch_panel
         rs chown root:root {DEST}/bin/launch_panel
-        rs chmod 755 {DEST}/bin/launch_panel""" if panel.is_file() else ""
+        rs chmod 755 {DEST}/bin/launch_panel
+        rs mkdir -p {DEST}/share
+        rs cp {STAGE}/opticnerve_eye.png {DEST}/share/opticnerve_eye.png
+        rs chown root:root {DEST}/share/opticnerve_eye.png
+        rs chmod 644 {DEST}/share/opticnerve_eye.png""" if panel.is_file() else ""
     out = remote(f"""
         set -e
         rs mkdir -p {DEST}/bin {DEST}/etc {DEST}/var
@@ -104,6 +112,13 @@ def install(binary):
         if p_got != p_want:
             sys.exit(f"installed launch_panel differs: want {p_want}, target has {p_got!r}")
         print(f"installed {DEST}/bin/launch_panel (root, 755), SHA-256 {p_want}")
+        i_want = sha256(icon)
+        i_got = remote(f"sha256sum {DEST}/share/opticnerve_eye.png 2>/dev/null || "
+                       f"openssl dgst -sha256 -r {DEST}/share/opticnerve_eye.png")
+        i_got = i_got.split()[0] if i_got else ""
+        if i_got != i_want:
+            sys.exit(f"installed opticnerve_eye.png differs: want {i_want}, target has {i_got!r}")
+        print(f"installed {DEST}/share/opticnerve_eye.png (root, 644), SHA-256 {i_want}")
     print(f"password file {DEST}/etc/vncpasswd (root, 600); its content is not recorded")
     print(f"undo: python host/tools/opticnerve_deploy.py undo")
 

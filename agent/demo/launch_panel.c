@@ -15,7 +15,8 @@
  * used. Tiles are laid out by row and order, at most 4 to a line. Two extra tiles of ours are added when their
  * programs are on the target (-noextra: not): the OpticNerve demo panel (agent/demo/demo_panel.c, from
  * /data/home/qnxuser, as the user qnxuser through sudo, without its pointer marker and with no time limit) at the end
- * of row 1, and GTK4 Widget Factory at the end of row 2.
+ * of row 1, and GTK4 Widget Factory at the end of row 2. The demo panel's icon is the eye of the OpticNerve logo
+ * (agent/demo/opticnerve_eye.png, from docs/brand/opticnerve-eye.svg), installed with the panel.
  *
  * Clicks act as the close X of the demo panel: a press must start on a tile, the tile is highlighted while the
  * pointer is on it with the button held, and only a release on it starts the app. An app is started with
@@ -95,8 +96,8 @@ static char *const APP_ENV[] = { "PATH=/proc/boot:/system/bin", "ALSA_CONFIG_PAT
 
 /* Our extra tiles: each shown when its programs are there. */
 static const struct { const char *name, *exec, *icon, *program, *program2; int row; } EXTRA[] = {
-	{ "OpticNerve Demo Panel", "/usr/bin/sudo -u qnxuser /data/home/qnxuser/demo_panel -nomarker", "",
-	  "/data/home/qnxuser/demo_panel", "/usr/bin/sudo", 1 },
+	{ "OpticNerve Demo Panel", "/usr/bin/sudo -u qnxuser /data/home/qnxuser/demo_panel -nomarker",
+	  "/data/opticnerve/share/opticnerve_eye.png", "/data/home/qnxuser/demo_panel", "/usr/bin/sudo", 1 },
 	{ "Widget Factory", "GDK_BACKEND=qnx GSK_RENDERER=cairo /usr/bin/gtk4-widget-factory",
 	  "/usr/share/icons/qnx/cube_large_coral.png", "/usr/bin/gtk4-widget-factory", NULL, 2 },
 };
@@ -309,7 +310,7 @@ static void read_conf(int extra)
 
 /* ---- icons ---- */
 
-/* Loads each tile's icon as B, G, R, A and scales it once (box average) to fit ICON x ICON. */
+/* Loads each tile's icon as B, G, R, A and scales it once (box average, colour weighted by alpha) to fit ICON x ICON. */
 static void load_icons(void)
 {
 	img_lib_t ilib = NULL;
@@ -352,13 +353,19 @@ static void load_icons(void)
 					x1 = x0 + 1;
 				if (y1 <= y0)
 					y1 = y0 + 1;
+				/* colour weighted by alpha: transparent pixels (often black) must not darken the edges */
 				unsigned sum[4] = { 0, 0, 0, 0 }, n = 0;
 				for (unsigned sy = y0; sy < y1; sy++)
-					for (unsigned sx = x0; sx < x1; sx++, n++)
-						for (int c = 0; c < 4; c++)
-							sum[c] += img.access.direct.data[sy * img.access.direct.stride + sx * 4 + c];
-				for (int c = 0; c < 4; c++)
-					t->px[((size_t)y * t->iw + x) * 4 + c] = (uint8_t)(sum[c] / n);
+					for (unsigned sx = x0; sx < x1; sx++, n++) {
+						const uint8_t *s = img.access.direct.data + sy * img.access.direct.stride + sx * 4;
+						for (int c = 0; c < 3; c++)
+							sum[c] += s[c] * s[3];
+						sum[3] += s[3];
+					}
+				uint8_t *d = t->px + ((size_t)y * t->iw + x) * 4;
+				for (int c = 0; c < 3; c++)
+					d[c] = (uint8_t)(sum[3] ? sum[c] / sum[3] : 0);
+				d[3] = (uint8_t)(sum[3] / n);
 			}
 		free(img.access.direct.data);
 		printf("icon %s: %ux%u, shown at %dx%d\n", t->icon, img.w, img.h, t->iw, t->ih);

@@ -178,7 +178,8 @@ java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/
 `agent/demo/launch_panel.c` is the launcher panel: a full-screen panel with a tile for each app of the quick-start
 image's launcher configuration (Developer Desktop, Terminal, Readme, GTK4 Demo, Gears, Maze), one for our demo panel
 (`/data/home/qnxuser/demo_panel`, as the user qnxuser, without its pointer marker and with no time limit; each click
-starts another) and one for GTK4 Widget Factory. A click on a tile, from a viewer or a test, starts that app, as often as needed; Alt+Tab switches between
+starts another; its icon, the eye of the OpticNerve logo, is installed with the panel in `/data/opticnerve/share/`)
+and one for GTK4 Widget Factory. A click on a tile, from a viewer or a test, starts that app, as often as needed; Alt+Tab switches between
 the apps and the panel, and Alt+Tab+Del with Tab held closes the app selected. A viewer on a laptop keeps Alt+Tab for
 the laptop, so from a viewer the agent's key chord stands in for them: hold Q and tap N to switch (each N one step;
 the selected app comes to the front when Q is let go), and hold Q and N, then press X to close the selected app. Q must

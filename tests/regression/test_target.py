@@ -16,6 +16,7 @@ rather than disturb, while any client is connected to the agent (also one still 
 is running. The core test works in a folder of its own on the target and deletes it.
 """
 import os
+import shlex
 import socket
 import subprocess
 import sys
@@ -496,6 +497,11 @@ def test_launch_panel_reads_the_configuration(target):
     assert rc == 0, out
     names = [l.split("|")[0].split(" ", 2)[2] for l in out.splitlines() if "|" in l]
     assert names == launch_tiles_expected(), out
+    # every tile has an icon, and it is on the target (the demo panel's: installed with the panel)
+    icons = [l.rsplit("|", 1)[1] for l in out.splitlines() if "|" in l]
+    assert all(icons), out
+    rc, got = pi_ssh(" && ".join(f"test -r {shlex.quote(i)}" for i in icons) + " && echo ok")
+    assert "ok" in got, f"an icon is not on the target: {icons}\n{got}"
     work = f"ontest-lp-{uuid.uuid4().hex[:12]}"
     long_line = "Comment=" + "x" * 503 + "Exec=/bin/evil"   # 511 bytes, then a key that must not be read
     files = {
@@ -717,6 +723,10 @@ def test_launch_panel(target, tmp_path):
         # pidin does not list root's processes); the panel lists it while it runs; its close X ends it and the
         # launcher panel is in front again; and one started from the tile is ended by `stop -apps`
         if "OpticNerve Demo Panel" in where:
+            # its icon (the logo's eye) loaded at the panel's last start
+            eye = [l for l in pi_ssh("rs cat /data/opticnerve/var/launch.log")[1].splitlines()
+                   if l.startswith("icon /data/opticnerve/share/opticnerve_eye.png:")]
+            assert eye and "shown at" in eye[-1], f"the demo panel tile's icon did not load: {eye[-1:]}"
             demo = [SH, str(TOOLS / "demo_panel.sh"), "status"]
             for n, how in ((1, "close X"), (2, "stop -apps")):
                 click(where["OpticNerve Demo Panel"])
