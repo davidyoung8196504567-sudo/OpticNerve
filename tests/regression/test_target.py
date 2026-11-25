@@ -330,7 +330,7 @@ def test_switches_need_root(target):
 def test_start_at_boot_hook(target):
     """`opticnerve_deploy.py boot on`: the image's post_startup.sh differs from its backup by our two lines only, before
     its last step, and still parses; boot.sh is root's, not writable by others, parses, and starts serve with the
-    password file. Skips when the agent does not start at boot. Changes nothing."""
+    password file, and the launcher panel before it. Skips when the agent does not start at boot. Changes nothing."""
     post, backup, boot = "/system/etc/startup/post_startup.sh", "/system/etc/startup/post_startup.sh.orig-opticnerve", \
         "/data/opticnerve/etc/boot.sh"
     rc, out = pi_ssh(f"grep -c '^# OpticNerve agent at boot' {post}")
@@ -349,6 +349,13 @@ def test_start_at_boot_hook(target):
     assert lines[0].startswith(f"[ -x {boot} ]"), out   # just before the image's last step
     assert lines[1] == "parses" and lines[3] == "parses" and lines[4] == "1", out
     assert lines[2].startswith("-rwxr-xr-x") and " root root " in lines[2], out
+    panel = ("cd / && LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll /data/opticnerve/bin/launch_panel -daemon "
+             "< /dev/null >> /data/opticnerve/var/launch.log 2>&1) &")
+    rc, out = pi_ssh(f"grep -n -e 'launch_panel; then$' -e 'launch_panel -daemon' -e '^cd / && exec ' {boot}")
+    lines = out.splitlines()
+    # the guard, the panel's whole command (in the background), then the agent
+    assert len(lines) == 3 and lines[0].endswith("! pidin -f n | grep -q launch_panel; then") \
+        and lines[1].split(":", 1)[1].strip() == panel and "exec " in lines[2], out
 
 
 def test_mouse_not_held_without_a_viewer(target):

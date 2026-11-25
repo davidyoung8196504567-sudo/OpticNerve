@@ -111,7 +111,8 @@ python host/tools/opticnerve_deploy.py status
 ```
 
 Everything the agent needs lives in one folder on the Pi, `/data/opticnerve/`; nothing else on the target is changed.
-To have the Pi start the agent each time it boots (optional; it starts nothing now):
+To have the Pi start the agent each time it boots, with the launcher panel when it is installed (optional; it starts
+nothing now):
 
 ```
 python host/tools/opticnerve_deploy.py boot on -logintimeout=0   # with the options start takes

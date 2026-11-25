@@ -172,7 +172,9 @@ HOOK = f"{HOOK_MARK} (host/tools/opticnerve_deploy.py boot on|off)\\n[ -x {BOOT}
 def boot_state():
     return remote(f"""
         echo "hook lines in {POST}: $(grep -c '^{HOOK_MARK}' {POST})"
-        grep 'exec ' {BOOT} 2>/dev/null || echo 'no boot script'
+        grep -e 'exec ' -e 'launch_panel -daemon' {BOOT} 2>/dev/null || echo 'no boot script'
+        echo "launcher panels running: $(pidin -f n | grep -c launch_panel)"
+        rs tail -3 {DEST}/var/launch.log 2>/dev/null
     """, check=False)
 
 
@@ -196,14 +198,24 @@ def boot(args):
         return
     if args[0] == "on":
         opts = serve_options(args[1:])
-        log = f"{DEST}/var/serve.log"
+        log, panel_log = f"{DEST}/var/serve.log", f"{DEST}/var/launch.log"
         with tempfile.TemporaryDirectory() as tmp:   # boot.sh is written here and copied to the target
             script = Path(tmp) / "boot.sh"
             script.write_text(
                 "#!/bin/sh\n"
-                f"# Starts the OpticNerve agent at boot (as root), from the line `opticnerve_deploy.py boot on` added to\n"
+                f"# Starts the OpticNerve agent at boot (as root), and the launcher panel when it is installed, from the\n"
+                f"# line `opticnerve_deploy.py boot on` added to\n"
                 f"# {POST}. Written by that step; `boot off` deletes it.\n"
                 f"waitfor /dev/screen/ 30 || {{ echo \"boot: $(date): no /dev/screen, agent not started\" >> {log}; exit 1; }}\n"
+                "# The launcher panel, unless one runs (boot.sh run by hand): in the background, so it never holds up the\n"
+                "# agent, once the image's own launcher is up (up to 30 s), so the panel opens over it. Started as\n"
+                "# host/tools/launch_panel.sh start does; -daemon returns at once, and how it went is in launch.log.\n"
+                f"if [ -x {DEST}/bin/launch_panel ] && ! pidin -f n | grep -q launch_panel; then\n"
+                "\t(i=0; while [ $i -lt 30 ] && ! pidin -f n | grep -q demolauncher; do sleep 1; i=$((i + 1)); done\n"
+                f"\techo \"boot: $(date): launch_panel\" >> {panel_log}\n"
+                f"\tcd / && LD_LIBRARY_PATH=/proc/boot:/system/lib:/system/lib/dll {DEST}/bin/launch_panel -daemon "
+                f"< /dev/null >> {panel_log} 2>&1) &\n"
+                "fi\n"
                 "test -e /dev/opticnerve && exit 0   # an agent runs already\n"
                 f"echo \"boot: $(date): serve{opts}\" >> {log}\n"
                 f"cd / && exec {DEST}/bin/opticnerve serve -passfile={DEST}/etc/vncpasswd{opts} < /dev/null > /dev/null "
@@ -230,7 +242,8 @@ def boot(args):
             diff {POST_BACKUP} {POST} || true
         """)
         print(out)
-        print(f"boot on: {POST} starts {BOOT} (serve -passfile={DEST}/etc/vncpasswd{opts}); backup {POST_BACKUP}")
+        print(f"boot on: {POST} starts {BOOT} (serve -passfile={DEST}/etc/vncpasswd{opts}, and the launcher panel "
+              f"when installed); backup {POST_BACKUP}")
     elif args == ["off"]:
         out = remote(f"""
             set -e
