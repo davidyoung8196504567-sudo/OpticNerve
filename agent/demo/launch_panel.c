@@ -12,8 +12,10 @@
  *
  * DIR (default /system/etc/desktop_files) holds desktop.conf, whose [Launcher] groups name a .desktop file each
  * (DesktopFileName) and its place (Row, Order). Of a .desktop file, the [Desktop Entry] group's Name, Exec and Icon are
- * used. Tiles are laid out by row and order, at most 4 to a line. One extra tile of ours, GTK4 Widget Factory, is added
- * to row 2 when its program is on the target (-noextra: not).
+ * used. Tiles are laid out by row and order, at most 4 to a line. Two extra tiles of ours are added when their
+ * programs are on the target (-noextra: not): the OpticNerve demo panel (agent/demo/demo_panel.c, from
+ * /data/home/qnxuser, as the user qnxuser through sudo, without its pointer marker and with no time limit) at the end
+ * of row 1, and GTK4 Widget Factory at the end of row 2.
  *
  * Clicks act as the close X of the demo panel: a press must start on a tile, the tile is highlighted while the
  * pointer is on it with the button held, and only a release on it starts the app. An app is started with
@@ -91,10 +93,13 @@ static char *const APP_ENV[] = { "PATH=/proc/boot:/system/bin", "ALSA_CONFIG_PAT
 	"MM_INIT=/usr/lib/dll/mmedia", "OMXIL_COMPONENT_PATH=/usr/lib/dll/omxil", "PCI_HW_CONFIG_FILE=/proc/boot/pci_hw.cfg",
 	"VIMRUNTIME=/usr/share/vim/vim91", NULL };
 
-/* Our extra tile: shown when its program is there. */
-static const struct { const char *name, *exec, *icon, *program; } EXTRA = { "Widget Factory",
-	"GDK_BACKEND=qnx GSK_RENDERER=cairo /usr/bin/gtk4-widget-factory", "/usr/share/icons/qnx/cube_large_coral.png",
-	"/usr/bin/gtk4-widget-factory" };
+/* Our extra tiles: each shown when its programs are there. */
+static const struct { const char *name, *exec, *icon, *program, *program2; int row; } EXTRA[] = {
+	{ "OpticNerve Demo Panel", "/usr/bin/sudo -u qnxuser /data/home/qnxuser/demo_panel -nomarker", "",
+	  "/data/home/qnxuser/demo_panel", "/usr/bin/sudo", 1 },
+	{ "Widget Factory", "GDK_BACKEND=qnx GSK_RENDERER=cairo /usr/bin/gtk4-widget-factory",
+	  "/usr/share/icons/qnx/cube_large_coral.png", "/usr/bin/gtk4-widget-factory", NULL, 2 },
+};
 
 static double now_s(void)
 {
@@ -287,13 +292,15 @@ static void read_conf(int extra)
 			end_group(file, row, order);
 		fclose(f);
 	}
-	if (extra && access(EXTRA.program, X_OK) == 0) {
+	for (size_t i = 0; extra && i < sizeof(EXTRA) / sizeof(EXTRA[0]); i++) {
+		if (access(EXTRA[i].program, X_OK) != 0 || (EXTRA[i].program2 && access(EXTRA[i].program2, X_OK) != 0))
+			continue;
 		struct tile t;
 		memset(&t, 0, sizeof(t));
-		snprintf(t.name, sizeof(t.name), "%s", EXTRA.name);
-		snprintf(t.exec, sizeof(t.exec), "%s", EXTRA.exec);
-		snprintf(t.icon, sizeof(t.icon), "%s", EXTRA.icon);
-		t.row = 2;
+		snprintf(t.name, sizeof(t.name), "%s", EXTRA[i].name);
+		snprintf(t.exec, sizeof(t.exec), "%s", EXTRA[i].exec);
+		snprintf(t.icon, sizeof(t.icon), "%s", EXTRA[i].icon);
+		t.row = EXTRA[i].row;
 		t.order = 1000;
 		add_tile(&t);
 	}

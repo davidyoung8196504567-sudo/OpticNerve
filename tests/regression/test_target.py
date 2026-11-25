@@ -472,7 +472,14 @@ def test_demo_panel_close_x(target):
 
 
 LAUNCH = "/data/opticnerve/bin/launch_panel"
-LAUNCH_TILES = ["Developer Desktop", "Terminal", "Readme", "GTK4Demo", "Gears", "Maze", "Widget Factory"]
+LAUNCH_TILES = ["Developer Desktop", "Terminal", "Readme", "OpticNerve Demo Panel", "GTK4Demo", "Gears", "Maze",
+                "Widget Factory"]
+
+
+def launch_tiles_expected():
+    """LAUNCH_TILES, without the demo panel's tile where the target has no demo panel (or no sudo)."""
+    rc, _ = pi_ssh("test -x /data/home/qnxuser/demo_panel && test -x /usr/bin/sudo")
+    return [t for t in LAUNCH_TILES if rc == 0 or t != "OpticNerve Demo Panel"]
 
 
 def launch_panel_installed():
@@ -488,7 +495,7 @@ def test_launch_panel_reads_the_configuration(target):
     rc, out = pi_ssh(f"{LAUNCH} -list")
     assert rc == 0, out
     names = [l.split("|")[0].split(" ", 2)[2] for l in out.splitlines() if "|" in l]
-    assert names == LAUNCH_TILES, out
+    assert names == launch_tiles_expected(), out
     work = f"ontest-lp-{uuid.uuid4().hex[:12]}"
     long_line = "Comment=" + "x" * 503 + "Exec=/bin/evil"   # 511 bytes, then a key that must not be read
     files = {
@@ -602,15 +609,23 @@ def close_selected_app(target, looks_like, frames):
 
 
 PANEL_TITLE = (0x62, 0x3d, 0x0a)   # B, G, R of the launcher panel's title bar, as the client keeps them
+DEMO_COUNT_BOX = (0x20, 0x17, 0x0f)   # B, G, R of the demo panel's count box at (165, 285); the same title bar
 
 
-def launch_panel_in_front(target):
+def front_panel(target):
+    """Which of our panels is in front: "launcher", "demo" or None (both have the same title bar)."""
     c = Client(target, [0])
     c.request(0)
     assert c.update(10), "no frame"
-    front = c.pixel(100, 30) == PANEL_TITLE
+    title, box = c.pixel(100, 30), c.pixel(165, 285)
     c.s.close()
-    return front
+    if title != PANEL_TITLE:
+        return None
+    return "demo" if box == DEMO_COUNT_BOX else "launcher"
+
+
+def launch_panel_in_front(target):
+    return front_panel(target) == "launcher"
 
 
 def launch_tile_centres():
@@ -651,12 +666,14 @@ def tool_click(target, xy):
 
 @pytest.mark.watched
 def test_launch_panel(target, tmp_path):
-    """ON-AG-003, LP03 (each tile opens its app as often as needed), LP06 (running apps listed, never blocking) and
-    LP07 (stop and the close X): the launcher panel, driven by a test tool as an OculiX test drives it. A click on the
-    Terminal tile opens a Terminal, Alt+Tab+Del (aimed at it) closes it and the panel is in front again, and the next
-    click opens it again; the same for Gears; while an app runs the panel lists it, and when it has closed no more; a
-    click on a tile whose app runs starts a second one; `stop` leaves a started app running and `stop -apps` ends it;
-    the close X ends the panel. Moves and clicks the target's pointer and types (1920x1080 only)."""
+    """ON-AG-003, LP03 (each tile opens its app as often as needed), LP06 (running apps listed, never blocking), LP07
+    (stop and the close X), LP12 (the demo panel tile): the launcher panel, driven by a test tool as an OculiX test
+    drives it. A click on the Terminal tile opens a Terminal, Alt+Tab+Del (aimed at it) closes it and the panel is in
+    front again, and the next click opens it again; the same for Gears; while an app runs the panel lists it, and when
+    it has closed no more; the demo panel tile opens our demo panel as qnxuser, its close X ends it, and `stop -apps`
+    ends one started from the tile; a click on a tile whose app runs starts a second one; `stop` leaves a started app
+    running and `stop -apps` ends it; the close X ends the panel. Moves and clicks the target's pointer and types
+    (1920x1080 only)."""
     launch_panel_skips(target)
     panel = [SH, str(TOOLS / "launch_panel.sh")]
     apps = {"Terminal": ("usr/bin/st", lambda rgb: max(rgb) < 25),                                 # a black window
@@ -672,7 +689,7 @@ def test_launch_panel(target, tmp_path):
         rc, out = run(panel + ["start"], timeout=60)
         assert rc == 0 and "launcher panel started" in out, out
         where = launch_tile_centres()
-        assert set(LAUNCH_TILES) <= set(where), where
+        assert set(launch_tiles_expected()) <= set(where), where
         assert panel_in_front(), "the launcher panel is not on the screen"
         for name, (proc, looks_like) in apps.items():
             for n in (1, 2):   # opens it as often as needed
@@ -695,6 +712,38 @@ def test_launch_panel(target, tmp_path):
                 status = run(panel + ["status"])[1]
                 assert f"started by it: {name}" not in status, f"{name}, click {n}: still listed\n{status}"
                 time.sleep(3)   # past the panel's guard against a second start within 3 s
+
+        # LP12: the demo panel tile starts our demo panel as qnxuser (demo_panel.sh status runs as qnxuser, whose
+        # pidin does not list root's processes); the panel lists it while it runs; its close X ends it and the
+        # launcher panel is in front again; and one started from the tile is ended by `stop -apps`
+        if "OpticNerve Demo Panel" in where:
+            demo = [SH, str(TOOLS / "demo_panel.sh"), "status"]
+            for n, how in ((1, "close X"), (2, "stop -apps")):
+                click(where["OpticNerve Demo Panel"])
+                end = time.time() + 10
+                while "demo panel running" not in run(demo)[1] and time.time() < end:
+                    time.sleep(0.5)
+                assert "demo panel running" in run(demo)[1], f"demo panel {n}: did not start as qnxuser within 10 s"
+                time.sleep(2)
+                print(pi_ssh("rs pidin -f an | grep -E 'demo_panel|sudo'")[1])   # for the record: what runs
+                assert front_panel(target) == "demo", f"demo panel {n}: not in front"
+                assert "started by it: OpticNerve Demo Panel" in run(panel + ["status"])[1]
+                if how == "close X":
+                    click((1920 - 55, 55))   # the demo panel's X: it is in front (checked above)
+                    time.sleep(2)
+                    assert "no demo panel" in run(demo)[1], "the demo panel's close X did not end it"
+                    assert panel_in_front(), "the launcher panel is not in front after the demo panel closed"
+                    time.sleep(1)   # the panel looks at its apps every 0.5 s
+                    assert "started by it: OpticNerve Demo Panel" not in run(panel + ["status"])[1]
+                    time.sleep(3)   # past the panel's guard against a second start within 3 s
+                else:
+                    rc, out = run(panel + ["stop", "-apps"], timeout=60)
+                    assert "ended OpticNerve Demo Panel" in out and "still runs" not in out, out
+                    time.sleep(1)
+                    assert "no demo panel" in run(demo)[1], f"stop -apps did not end the demo panel\n{out}"
+                    rc, out = run(panel + ["start"], timeout=60)
+                    assert rc == 0 and "launcher panel started" in out, out
+                    time.sleep(2)
 
         # a running tile never blocks: Gears, then (past the guard, with Alt+Tab back to the panel) Gears again
         click(where["Gears"])
@@ -729,6 +778,7 @@ def test_launch_panel(target, tmp_path):
         assert "closed from the panel" in pi_ssh("rs tail -3 /data/opticnerve/var/launch.log")[1]
     finally:
         run(panel + ["stop", "-apps"], timeout=60)
+        run([SH, str(TOOLS / "demo_panel.sh"), "stop"], timeout=60)   # one from the tile, if stop -apps missed it
 
 
 def chord_close_selected_app(target, looks_like, frames):

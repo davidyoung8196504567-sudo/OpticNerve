@@ -1,7 +1,7 @@
 #!/bin/sh
 # Start or stop the launcher panel (agent/demo/launch_panel.c) on the target over SSH: a full-screen panel with a tile
-# for each app of the quick-start image's launcher configuration (and GTK4 Widget Factory); a click on a tile, from
-# a viewer or a test tool, starts that app.
+# for each app of the quick-start image's launcher configuration (and our demo panel and GTK4 Widget Factory); a
+# click on a tile, from a viewer or a test tool, starts that app.
 #
 #   sh host/tools/launch_panel.sh start          stop any launcher panel, then start one (no time limit)
 #   sh host/tools/launch_panel.sh stop           stop the panel; the apps it started keep running

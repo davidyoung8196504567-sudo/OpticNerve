@@ -64,7 +64,9 @@ target's own mouse, a test tool does not, `opticnerve mouse off` and the viewer 
 `test_demo_panel_close_x` (ON-AG-002: a press on the panel's X turns it red, sliding off before the release leaves the
 panel open, a click closes it; skips with a panel build from before the X) and `test_launch_panel` (ON-AG-003: a click
 on a launcher panel tile opens its app, Alt+Tab+Del aimed at the app closes it and the panel is in front again, and a
-second click opens it again, for Terminal and Gears; `stop` leaves a started app running, `stop -apps` ends it; the
-close X ends the panel). Marked `watched`, they run only when asked for, `python -m pytest --pi --watched -m watched`,
+second click opens it again, for Terminal and Gears; the demo panel tile opens our demo panel, which its own close X
+or `stop -apps` ends; `stop` leaves a started app running, `stop -apps` ends it; the close X ends the panel) and
+`test_key_chord` (ON-AG-004: with a Terminal opened from the launcher panel and logged in, text with q, n and x types
+as typed, Q held with N tapped switches apps, and Q and N held with X closes the Terminal). Marked `watched`, they run only when asked for, `python -m pytest --pi --watched -m watched`,
 and skip while any client is connected. `test_switches_need_root`, `test_mouse_not_held_without_a_viewer` and
 `test_launch_panel_reads_the_configuration` change nothing and run with `--pi`.
