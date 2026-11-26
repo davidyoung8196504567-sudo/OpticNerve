@@ -13,6 +13,8 @@
 
 [![OpticNerve demo video](https://img.youtube.com/vi/0gq-p9oGIgE/maxresdefault.jpg)](https://www.youtube.com/watch?v=0gq-p9oGIgE)
 
+*An early demo; a better one is on the way.*
+
 ## The problem
 
 The HMI on a car dashboard, an infusion pump or a factory panel is tested by hand far more often than it should be.
