@@ -7,6 +7,9 @@
 > Status: work in progress for the QNX Global Hackathon (November to December 2026). The agent builds for QNX 8.0
 > (aarch64le and x86_64) and runs on a Raspberry Pi 5 and on a QNX 8.0 QEMU target; OculiX sees and drives their
 > screens through it.
+>
+> Hackathon entry: <https://devpost.com/software/opticnerve>. The page becomes public once we submit the finished
+> project; until then the link leads to a Devpost login page.
 
 ## The problem
 
