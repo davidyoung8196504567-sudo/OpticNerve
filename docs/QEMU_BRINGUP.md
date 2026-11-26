@@ -213,8 +213,8 @@ Screen started this way does not survive a reboot of the guest; run the script a
 A first try on 2026-11-20 20:24 at 1280 x 768, with the agent started by hand, already captured the demo panel
 (cropped) and counted two clicks.
 
-**The image's own virgl Screen, from a tester** (Julien, in his comment of 2026-11-23 on OculiX
-[#505](https://github.com/oculix-org/Oculix/discussions/505)): with QEMU 6.2 and KVM on Windows 10 (WSL2 with
+**The image's own virgl Screen, from a tester** (Julien, in [his comment of 2026-11-23](https://github.com/oculix-org/Oculix/discussions/505#discussioncomment-19821365)
+on OculiX discussion #505): with QEMU 6.2 and KVM on Windows 10 (WSL2 with
 nested virtualization), the image's `graphics-virtio-virgl.conf` Screen ran with software OpenGL (llvmpipe).
 - At the default 1024 x 768, the agent captured the launcher.
 - At 1920 x 1080 (`xres`/`yres` on `virtio-vga-gl`), Screen took 12 to 13 s to start, frames arrived seconds late,
