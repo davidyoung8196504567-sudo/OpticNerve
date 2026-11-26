@@ -645,7 +645,8 @@ def close_selected_app(target, looks_like, frames):
     return sent, seen
 
 
-PANEL_TITLE = (0x62, 0x3d, 0x0a)   # B, G, R of the launcher panel's title bar, as the client keeps them
+PANEL_TITLE = (0x62, 0x3d, 0x0a)   # B, G, R of the panels' title bar at (1500, 30): clear of both titles, the mark
+                                   # at the launcher's left and the close box at the right; as the client keeps them
 DEMO_COUNT_BOX = (0x20, 0x17, 0x0f)   # B, G, R of the demo panel's count box at (165, 285); the same title bar
 
 
@@ -654,7 +655,7 @@ def front_panel(target):
     c = Client(target, [0])
     c.request(0)
     assert c.update(10), "no frame"
-    title, box = c.pixel(100, 30), c.pixel(165, 285)
+    title, box = c.pixel(1500, 30), c.pixel(165, 285)
     c.s.close()
     if title != PANEL_TITLE:
         return None
@@ -754,10 +755,10 @@ def test_launch_panel(target, tmp_path):
         # pidin does not list root's processes); the panel lists it while it runs; its close X ends it and the
         # launcher panel is in front again; and one started from the tile is ended by `stop -apps`
         if "OpticNerve Demo Panel" in where:
-            # its icon (the logo's eye) loaded at the panel's last start
-            eye = [l for l in pi_ssh("rs cat /data/opticnerve/var/launch.log")[1].splitlines()
-                   if l.startswith("icon /data/opticnerve/share/opticnerve_eye.png:")]
-            assert eye and "shown at" in eye[-1], f"the demo panel tile's icon did not load: {eye[-1:]}"
+            # the OpticNerve mark loaded at the panel's last start, twice: the tile's icon and the title bar's mark
+            log = pi_ssh("rs cat /data/opticnerve/var/launch.log")[1].splitlines()
+            mark = [l for l in log if l.startswith("image /data/opticnerve/share/opticnerve_mark.png")]
+            assert len(mark) >= 2 and all("shown at" in l for l in mark[-2:]), f"the mark did not load: {mark[-2:]}"
             demo = [SH, str(TOOLS / "demo_panel.sh"), "status"]
             for n, how in ((1, "close X"), (2, "stop -apps")):
                 click(where["OpticNerve Demo Panel"])

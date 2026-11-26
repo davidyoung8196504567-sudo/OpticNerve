@@ -15,8 +15,9 @@
  * used. Tiles are laid out by row and order, at most 4 to a line. Two extra tiles of ours are added when their
  * programs are on the target (-noextra: not): the OpticNerve demo panel (agent/demo/demo_panel.c, from
  * /data/home/qnxuser, as the user qnxuser through sudo, without its pointer marker and with no time limit) at the end
- * of row 1, and GTK4 Widget Factory at the end of row 2. The demo panel's icon is the eye of the OpticNerve logo
- * (agent/demo/opticnerve_eye.png, from docs/brand/opticnerve-eye.svg), installed with the panel.
+ * of row 1, and GTK4 Widget Factory at the end of row 2. The OpticNerve mark (the logo's eye and circuit traces,
+ * agent/demo/opticnerve_mark.png cut from docs/brand/opticnerve-logo-transparent.png, installed with the panel in
+ * /data/opticnerve/share/) is the demo panel's icon and stands at the left of the title bar.
  *
  * Clicks act as the close X of the demo panel: a press must start on a tile, the tile is highlighted while the
  * pointer is on it with the button held, and only a release on it starts the app. An app is started with
@@ -59,7 +60,9 @@
 #define TILE_W 400
 #define TILE_H 300
 #define TILE_GAP 40
-#define ICON 150
+#define ICON 150                      /* an icon is scaled down to fit ICON_W x ICON */
+#define ICON_W 300                    /* wider than high: room for a wide mark; square icons stay ICON x ICON */
+#define MARK "/data/opticnerve/share/opticnerve_mark.png"
 #define PER_LINE 4
 
 struct tile {
@@ -97,7 +100,7 @@ static char *const APP_ENV[] = { "PATH=/proc/boot:/system/bin", "ALSA_CONFIG_PAT
 /* Our extra tiles: each shown when its programs are there. */
 static const struct { const char *name, *exec, *icon, *program, *program2; int row; } EXTRA[] = {
 	{ "OpticNerve Demo Panel", "/usr/bin/sudo -u qnxuser /data/home/qnxuser/demo_panel -nomarker",
-	  "/data/opticnerve/share/opticnerve_eye.png", "/data/home/qnxuser/demo_panel", "/usr/bin/sudo", 1 },
+	  MARK, "/data/home/qnxuser/demo_panel", "/usr/bin/sudo", 1 },
 	{ "Widget Factory", "GDK_BACKEND=qnx GSK_RENDERER=cairo /usr/bin/gtk4-widget-factory",
 	  "/usr/share/icons/qnx/cube_large_coral.png", "/usr/bin/gtk4-widget-factory", NULL, 2 },
 };
@@ -310,7 +313,69 @@ static void read_conf(int extra)
 
 /* ---- icons ---- */
 
-/* Loads each tile's icon as B, G, R, A and scales it once (box average, colour weighted by alpha) to fit ICON x ICON. */
+static uint8_t *mark;                /* the title bar's mark, B, G, R, A, mark_w x mark_h, or NULL */
+static int mark_w, mark_h;
+
+/* Loads a PNG as B, G, R, A and scales it once (box average, colour weighted by alpha) to fit max_w x max_h; NULL
+ * if it cannot be loaded. */
+static uint8_t *load_image(img_lib_t ilib, const char *path, int max_w, int max_h, int *w, int *h)
+{
+	img_t img;
+	memset(&img, 0, sizeof(img));
+	img.format = IMG_FMT_PKLE_ARGB8888; /* B, G, R, A in memory, as the window */
+	img.flags = IMG_FORMAT;
+	int rc = img_load_file(ilib, path, NULL, &img);
+	if (rc != IMG_ERR_OK || !(img.flags & IMG_DIRECT) || !img.w || !img.h) {
+		printf("image %s: not loaded (%d)\n", path, rc);
+		return NULL;
+	}
+	double scale = (double)max_w / img.w < (double)max_h / img.h ? (double)max_w / img.w : (double)max_h / img.h;
+	if (scale > 1)
+		scale = 1;
+	*w = (int)(img.w * scale + 0.5);
+	*h = (int)(img.h * scale + 0.5);
+	if (*w < 1)
+		*w = 1;
+	if (*h < 1)
+		*h = 1;
+	uint8_t *px = malloc((size_t)*w * *h * 4);
+	if (!px) {
+		printf("image %s: not loaded (no memory)\n", path);
+		free(img.access.direct.data);
+		return NULL;
+	}
+	for (int y = 0; y < *h; y++)
+		for (int x = 0; x < *w; x++) {
+			unsigned x0 = (unsigned)(x / scale), x1 = (unsigned)((x + 1) / scale);
+			unsigned y0 = (unsigned)(y / scale), y1 = (unsigned)((y + 1) / scale);
+			if (x1 > img.w)
+				x1 = img.w;
+			if (y1 > img.h)
+				y1 = img.h;
+			if (x1 <= x0)
+				x1 = x0 + 1;
+			if (y1 <= y0)
+				y1 = y0 + 1;
+			/* colour weighted by alpha: transparent pixels (often black) must not darken the edges */
+			unsigned sum[4] = { 0, 0, 0, 0 }, n = 0;
+			for (unsigned sy = y0; sy < y1; sy++)
+				for (unsigned sx = x0; sx < x1; sx++, n++) {
+					const uint8_t *s = img.access.direct.data + sy * img.access.direct.stride + sx * 4;
+					for (int c = 0; c < 3; c++)
+						sum[c] += s[c] * s[3];
+					sum[3] += s[3];
+				}
+			uint8_t *d = px + ((size_t)y * *w + x) * 4;
+			for (int c = 0; c < 3; c++)
+				d[c] = (uint8_t)(sum[3] ? sum[c] / sum[3] : 0);
+			d[3] = (uint8_t)(sum[3] / n);
+		}
+	free(img.access.direct.data);
+	printf("image %s: %ux%u, shown at %dx%d\n", path, img.w, img.h, *w, *h);
+	return px;
+}
+
+/* Loads each tile's icon and the title bar's mark. */
 static void load_icons(void)
 {
 	img_lib_t ilib = NULL;
@@ -318,58 +383,10 @@ static void load_icons(void)
 		fprintf(stderr, "launch_panel: no image library: tiles without icons\n");
 		return;
 	}
-	for (int i = 0; i < ntiles; i++) {
-		struct tile *t = &tiles[i];
-		if (!t->icon[0])
-			continue;
-		img_t img;
-		memset(&img, 0, sizeof(img));
-		img.format = IMG_FMT_PKLE_ARGB8888; /* B, G, R, A in memory, as the window */
-		img.flags = IMG_FORMAT;
-		int rc = img_load_file(ilib, t->icon, NULL, &img);
-		if (rc != IMG_ERR_OK || !(img.flags & IMG_DIRECT) || !img.w || !img.h) {
-			printf("icon %s: not loaded (%d)\n", t->icon, rc);
-			continue;
-		}
-		double scale = (double)ICON / (img.w > img.h ? img.w : img.h);
-		if (scale > 1)
-			scale = 1;
-		t->iw = (int)(img.w * scale + 0.5);
-		t->ih = (int)(img.h * scale + 0.5);
-		if (t->iw < 1)
-			t->iw = 1;
-		if (t->ih < 1)
-			t->ih = 1;
-		t->px = malloc((size_t)t->iw * t->ih * 4);
-		for (int y = 0; t->px && y < t->ih; y++)
-			for (int x = 0; x < t->iw; x++) {
-				unsigned x0 = (unsigned)(x / scale), x1 = (unsigned)((x + 1) / scale);
-				unsigned y0 = (unsigned)(y / scale), y1 = (unsigned)((y + 1) / scale);
-				if (x1 > img.w)
-					x1 = img.w;
-				if (y1 > img.h)
-					y1 = img.h;
-				if (x1 <= x0)
-					x1 = x0 + 1;
-				if (y1 <= y0)
-					y1 = y0 + 1;
-				/* colour weighted by alpha: transparent pixels (often black) must not darken the edges */
-				unsigned sum[4] = { 0, 0, 0, 0 }, n = 0;
-				for (unsigned sy = y0; sy < y1; sy++)
-					for (unsigned sx = x0; sx < x1; sx++, n++) {
-						const uint8_t *s = img.access.direct.data + sy * img.access.direct.stride + sx * 4;
-						for (int c = 0; c < 3; c++)
-							sum[c] += s[c] * s[3];
-						sum[3] += s[3];
-					}
-				uint8_t *d = t->px + ((size_t)y * t->iw + x) * 4;
-				for (int c = 0; c < 3; c++)
-					d[c] = (uint8_t)(sum[3] ? sum[c] / sum[3] : 0);
-				d[3] = (uint8_t)(sum[3] / n);
-			}
-		free(img.access.direct.data);
-		printf("icon %s: %ux%u, shown at %dx%d\n", t->icon, img.w, img.h, t->iw, t->ih);
-	}
+	for (int i = 0; i < ntiles; i++)
+		if (tiles[i].icon[0])
+			tiles[i].px = load_image(ilib, tiles[i].icon, ICON_W, ICON, &tiles[i].iw, &tiles[i].ih);
+	mark = load_image(ilib, MARK, W / 4, TITLE_H - 20, &mark_w, &mark_h);
 	img_lib_detach(ilib);
 }
 
@@ -402,14 +419,15 @@ static void layout(void)
 	}
 }
 
-static void blit_icon(const struct tile *t, int x0, int y0)
+/* Draws a B, G, R, A image of w x h at x0,y0, blended by its alpha over what is there. */
+static void blit(const uint8_t *px, int w, int h, int x0, int y0)
 {
-	for (int y = 0; y < t->ih; y++)
-		for (int x = 0; x < t->iw; x++) {
+	for (int y = 0; y < h; y++)
+		for (int x = 0; x < w; x++) {
 			int sx = x0 + x, sy = y0 + y;
 			if (sx < 0 || sy < 0 || sx >= W || sy >= H)
 				continue;
-			const uint8_t *s = t->px + ((size_t)y * t->iw + x) * 4;
+			const uint8_t *s = px + ((size_t)y * w + x) * 4;
 			uint8_t *d = fb + (size_t)sy * stride + (size_t)sx * 4;
 			for (int c = 0; c < 3; c++)
 				d[c] = (uint8_t)((s[c] * s[3] + d[c] * (255 - s[3])) / 255);
@@ -442,7 +460,9 @@ static void draw(void)
 {
 	fill(0, 0, W, H, 0x1c2430);
 	fill(0, 0, W, TITLE_H, 0x0a3d62);
-	text(60, 27, 8, "OpticNerve Launcher", 0xffffff);
+	if (mark) /* the mark at the left, the title after it */
+		blit(mark, mark_w, mark_h, 30, (TITLE_H - mark_h) / 2);
+	text(mark ? 30 + mark_w + 30 : 60, 27, 8, "OpticNerve Launcher", 0xffffff);
 	if (lit == -2)
 		fill(CLOSE_X, 0, TITLE_H, TITLE_H, 0xe81123);
 	for (int d = 0; d < 40; d++) { /* the X, as the demo panel's */
@@ -463,7 +483,7 @@ static void draw(void)
 		fill(t->x, t->y, TILE_W, TILE_H, i == lit ? 0x3a86ff : 0x5a5a5a);
 		fill(t->x + 3, t->y + 3, TILE_W - 6, TILE_H - 6, i == lit ? 0x3a86ff : 0x2f2f2f);
 		if (t->px)
-			blit_icon(t, t->x + (TILE_W - t->iw) / 2, t->y + 20 + (ICON - t->ih) / 2);
+			blit(t->px, t->iw, t->ih, t->x + (TILE_W - t->iw) / 2, t->y + 20 + (ICON - t->ih) / 2);
 		draw_name(t);
 		if (t->running)
 			text(t->x + 12, t->y + 12, 2, "Running", 0x2a9d8f);

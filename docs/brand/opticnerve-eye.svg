@@ -1,6 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="600" height="276" viewBox="-310 -142 620 284">
   <!-- The eye of the serious banner (banner-serious.html), alone on a transparent background. The launcher panel's
-       demo panel tile shows it: agent/demo/opticnerve_eye.png, this at 600x276, trimmed to its drawing. -->
+       demo panel tile showed it until 2026-11-26 (as agent/demo/opticnerve_eye.png, this at 600x276, trimmed to its
+       drawing); since then the tile and the title bar show the logo's mark, agent/demo/opticnerve_mark.png. -->
   <defs>
     <radialGradient id="iris" cx="50%" cy="45%" r="60%">
       <stop offset="0" stop-color="#12324a"/>
