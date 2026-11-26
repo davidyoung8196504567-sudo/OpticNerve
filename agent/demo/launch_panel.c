@@ -30,7 +30,7 @@
  * held, closes the one selected (the window manager's keys; shown on the panel). A viewer on a laptop keeps Alt+Tab
  * for the laptop: from a viewer, the agent's key chord stands in for them (hold Q and tap N; hold Q and N, then press
  * X; agent/core/on_core.h). The display must be at least
- * 1760x1000 (two lines of tiles and the hint).
+ * 1760x1080 (two lines of tiles and the key boxes).
  *
  * Build (baseline SDP-BL-006): see agent/Makefile (-lscreen -limg).
  */
@@ -64,6 +64,8 @@
 #define ICON_W 300                    /* wider than high: room for a wide mark; square icons stay ICON x ICON */
 #define MARK "/data/opticnerve/share/opticnerve_mark.png"
 #define PER_LINE 4
+#define KEYS_H 160                    /* the key boxes along the bottom */
+#define KEY_H 38                      /* a key cap */
 
 struct tile {
 	char name[64], exec[EXEC_MAX + 1], icon[256];
@@ -395,7 +397,7 @@ static void load_icons(void)
 static int lit = -1;          /* the tile (or -2 the close box) pressed and under the pointer */
 
 /* Lines of tiles, a new one for each row and after PER_LINE tiles (fewer on a narrow display), each centred, under
- * its row's header; a tile that would not fit above the hint line is not shown (y -1). */
+ * its row's header; a tile that would not fit above the key boxes is not shown (y -1). */
 static void layout(void)
 {
 	int per = (W + TILE_GAP) / (TILE_W + TILE_GAP), y = 150 + 60, start = 0;
@@ -408,7 +410,7 @@ static void layout(void)
 		int x = (W - (n * TILE_W + (n - 1) * TILE_GAP)) / 2;
 		for (int j = start; j < start + n; j++, x += TILE_W + TILE_GAP) {
 			tiles[j].x = x;
-			tiles[j].y = y + TILE_H <= H - 90 ? y : -1;
+			tiles[j].y = y + TILE_H <= H - KEYS_H - 10 ? y : -1;
 			if (tiles[j].y < 0)
 				fprintf(stderr, "launch_panel: no room for %s: not shown\n", tiles[j].name);
 			else /* for a test tool: where to click */
@@ -456,6 +458,52 @@ static void draw_name(const struct tile *t)
 		text(t->x + (TILE_W - text_width(scale, b)) / 2, ty + step, scale, b, 0xffffff);
 }
 
+/* A key cap: the key's name in a box; returns the x after it. */
+static int keycap(int x, int y, const char *k)
+{
+	int w = text_width(3, k) + 22;
+	fill(x, y, w, KEY_H, 0x7a7a7a);
+	fill(x + 2, y + 2, w - 4, KEY_H - 4, 0x2f2f2f);
+	text(x + 11, y + (KEY_H - 21) / 2, 3, k, 0xffffff);
+	return x + w;
+}
+
+/* The keys that switch and close apps, in two boxes along the bottom: the target's own (its window manager's) and
+ * the agent's chord for a VNC viewer, whose laptop keeps Alt+Tab for itself. */
+static void draw_keys(void)
+{
+	static const struct {
+		const char *title;
+		unsigned colour;
+		const char *keys[2][4], *what[2];
+	} BOX[2] = {
+		{ "On The QNX Target Keyboard", 0x9fb3c8, { { "Alt", "Tab" }, { "Alt", "Hold Tab", "Del" } },
+		  { "Switch Apps", "Close The Selected App" } },
+		{ "From A VNC Viewer (OpticNerve)", 0x4cc9f0, { { "Hold Q", "Tap N" }, { "Hold Q", "N", "X" } },
+		  { "Switch Apps", "Close The Selected App" } },
+	};
+	int w = (W - 240) / 2, y0 = H - KEYS_H;
+	for (int b = 0; b < 2; b++) {
+		int x0 = 100 + b * (w + 40);
+		fill(x0, y0, w, 2, 0x3a4a5e); /* the box's outline */
+		fill(x0, y0 + KEYS_H - 12, w, 2, 0x3a4a5e);
+		fill(x0, y0, 2, KEYS_H - 10, 0x3a4a5e);
+		fill(x0 + w - 2, y0, 2, KEYS_H - 10, 0x3a4a5e);
+		text(x0 + 20, y0 + 14, 3, BOX[b].title, BOX[b].colour);
+		for (int r = 0; r < 2; r++) {
+			int x = x0 + 20, y = y0 + 50 + r * 48;
+			for (int k = 0; k < 4 && BOX[b].keys[r][k]; k++) {
+				if (k) {
+					text(x + 8, y + (KEY_H - 21) / 2, 3, "+", 0x9fb3c8);
+					x += 30;
+				}
+				x = keycap(x, y, BOX[b].keys[r][k]);
+			}
+			text(x + 18, y + (KEY_H - 21) / 2, 3, BOX[b].what[r], 0xffffff);
+		}
+	}
+}
+
 static void draw(void)
 {
 	fill(0, 0, W, H, 0x1c2430);
@@ -490,12 +538,7 @@ static void draw(void)
 	}
 	if (!ntiles)
 		text(160, 300, 8, "No Tiles In desktop.conf", 0xffd166);
-	static const char *const hint[2] = { "Alt+Tab Switches Apps    Alt+Tab+Del With Tab Held Closes The Selected App",
-		"From A Viewer: Hold Q And Tap N To Switch    Hold Q And N Then Press X To Close" };
-	for (int i = 0; i < 2; i++) {
-		int sc = text_width(3, hint[i]) <= W - 40 ? 3 : 2;
-		text((W - text_width(sc, hint[i])) / 2, H - 70 + i * 32, sc, hint[i], 0x9fb3c8);
-	}
+	draw_keys();
 }
 
 /* ---- apps ---- */
@@ -694,8 +737,8 @@ int main(int argc, char **argv)
 	free(displays);
 	W = size[0];
 	H = size[1];
-	if (W < 1760 || H < 1000) {
-		fprintf(stderr, "launch_panel: the display is %dx%d; at least 1760x1000 is needed\n", W, H);
+	if (W < 1760 || H < 1080) {
+		fprintf(stderr, "launch_panel: the display is %dx%d; at least 1760x1080 is needed\n", W, H);
 		return 1;
 	}
 	load_icons();

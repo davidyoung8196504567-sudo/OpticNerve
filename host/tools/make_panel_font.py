@@ -6,8 +6,8 @@
 NAME is the font's name for the header, SOURCE where the font file came from (both recorded in the header). Each
 panel `scale` used (2, 3, 5, 6, 8, 10, 12) becomes a size whose capital height is 7 x scale pixels, the height of the
 old 5x7 font, so positions on the panels stay as they were. Glyphs are 8-bit coverage, cropped to their ink; the
-characters are those the panels draw (letters, digits, + - : . and space; at scale 12, the counter's digits and minus
-sign only). --weight sets the Weight axis of a variable font; a font without one is an error. Needs Pillow. The
+characters are those the panels draw (letters, digits, + - : . ( ) and space; at scale 12, the counter's digits and
+minus sign only). --weight sets the Weight axis of a variable font; a font without one is an error. Needs Pillow. The
 output is deterministic for a given font file and Pillow/FreeType version, which the header records along with the
 font file's SHA-256 and copyright. The glyphs are a Modified Version of the font in the sense of the SIL Open Font
 License, so the header says it is under that licence (agent/demo/OFL.txt), not the repository's MIT licence.
@@ -24,7 +24,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont, features
 
-CHARS = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-:."
+CHARS = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+-:.()"
 SCALES = (2, 3, 5, 6, 8, 10, 12)
 ONLY = {12: " 0123456789-"}   # scale 12 is the demo panel's counter only: other characters have an advance, no ink
 TRACK = 0.04   # extra space after each letter, as a fraction of the capital height (mixed case needs little)
