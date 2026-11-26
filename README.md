@@ -11,6 +11,8 @@
 > Hackathon entry: <https://devpost.com/software/opticnerve>. The page becomes public once we submit the finished
 > project; until then the link leads to a Devpost login page.
 
+[![OpticNerve demo video](https://img.youtube.com/vi/0gq-p9oGIgE/maxresdefault.jpg)](https://www.youtube.com/watch?v=0gq-p9oGIgE)
+
 ## The problem
 
 The HMI on a car dashboard, an infusion pump or a factory panel is tested by hand far more often than it should be.
