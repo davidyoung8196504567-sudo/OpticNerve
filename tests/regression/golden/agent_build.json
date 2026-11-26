@@ -108,5 +108,14 @@
       "core_test": "cafe9ff0e92f3bfc0e786f0d881e4a9236a760437a2a8b2195f6cb6ee8bd8ecc",
       "launch_panel": "10fe05fbf859c6e6def165a2c0f80d846116c7b59a81c744199d019cf79f3c2a"
     }
+  },
+  "c3c6a72d202d72131190856f7047294464ac4feb": {
+    "commit": "89cdad0",
+    "aarch64le": {
+      "opticnerve": "373fd840f9ffc6f287376030c01b515ad54ba5ca8255efdfd73d7b90c464e89f",
+      "demo_panel": "290360464a71d9e08ff43f5cc5b1ae127e7a70bed8f6a2f965d08a2ddf121d87",
+      "core_test": "cafe9ff0e92f3bfc0e786f0d881e4a9236a760437a2a8b2195f6cb6ee8bd8ecc",
+      "launch_panel": "f94db0c11ca8af982efd82c36f8faae16df409136f748a48e936a3841e8ab096"
+    }
   }
 }
