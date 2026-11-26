@@ -159,7 +159,7 @@ try:
     hand_type("hello pi 5")
     sleep(0.5)
     text = " ".join(area(400, 505, 1360, 80).text().split())
-    check("typed text appears on the panel", text == "HELLO PI 5", 'OCR read "%s"' % text)
+    check("typed text appears on the panel", text == "hello pi 5", 'OCR read "%s"' % text)
 
     # A run leaves the panel as it found it, so runs can follow one another
     click_on("reset.png")

@@ -191,16 +191,16 @@ public class DemoTest {
         return new Pattern(f.getAbsolutePath()).similar(0.9); // OculiX resolves a relative path in its own image folder
     }
 
-    // OCR of a region with OculiX. The panel's letters are a blocky pixel font; Tesseract reads them at the sizes the
-    // panel uses, and not when scaled (tried on 2026-11-16: worse).
+    // OCR of a region with OculiX. The panel's text is anti-aliased Roboto, which Tesseract reads as drawn (the typed
+    // text keeps its case).
     static String read(int x, int y, int w, int h) {
         Region r = s.newRegion(x, y, w, h);
         return r.text().replaceAll("\\s+", " ").trim();
     }
 
     // The count is checked by image: the count box must match a reference picture of that number (host/demo/ref/),
-    // recorded once with -record and checked by eye. OCR guessed wrongly at the panel's single blocky digits, and the
-    // agent's frames are exact, so a reference picture is the reliable check. -record saves instead of checking.
+    // recorded once with -record and checked by eye. OCR guessed wrongly at the old panel's single blocky digits, and
+    // the agent's frames are exact, so a reference picture is the reliable check. -record saves instead of checking.
     static boolean record;
 
     static String countIs(int n) throws Exception {
@@ -446,9 +446,9 @@ public class DemoTest {
         handType("hello pi 5");
         settle();
         String typed = read(400, 505, 1360, 80);
-        for (long end = System.nanoTime() + 1_000_000_000L; !typed.equals("HELLO PI 5") && System.nanoTime() < end; )
+        for (long end = System.nanoTime() + 1_000_000_000L; !typed.equals("hello pi 5") && System.nanoTime() < end; )
             typed = read(400, 505, 1360, 80); // up to 1 s, as for the count
-        check("typed text appears on the panel", typed.equals("HELLO PI 5"), "OCR read \"" + typed + "\"");
+        check("typed text appears on the panel", typed.equals("hello pi 5"), "OCR read \"" + typed + "\"");
         shot("typed");
 
         if (showFailure && !record) {

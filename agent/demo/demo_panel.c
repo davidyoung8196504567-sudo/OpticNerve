@@ -1,14 +1,15 @@
 /*
  * demo_panel: the OpticNerve demo application. A full-screen QNX Screen application that looks like a small
  * instrument panel, for a test tool to see and drive: three buttons, a counter, a status lamp and a line of typed
- * text. Everything is drawn by this program, with a 5x7 bitmap font of our own.
+ * text. Everything is drawn by this program; the text with the font in panel_draw.h.
  *
  *   demo_panel [-nomarker] [SECS]      runs until killed, or for SECS seconds; -nomarker: no pointer marker
  *
  * The pointer marker is a ring at the pointer's latest position; a move redraws it at most 10 times a second (see
  * below).
  *
- * Buttons: "+1" adds one to the counter, "RESET" sets it to 0, clears the text line and turns the lamp green, "LAMP" switches the lamp between green and red.
+ * Buttons: "+1" adds one to the counter, "Reset" sets it to 0, clears the text line and turns the lamp green, "Lamp"
+ * switches the lamp between green and red.
  * An X in the top right corner of the title bar closes the panel, as in a windowed GUI: a press must start on it,
  * the box is red while the pointer is on it with the button held, and only a release on it closes.
  * Keys: letters, digits and space are added to the text line; Backspace deletes; Return clears it.
@@ -32,7 +33,7 @@ struct button {
 	const char *label;
 };
 static const struct button BUTTONS[3] = {
-	{ 160, 700, 420, 200, "+1" }, { 750, 700, 420, 200, "RESET" }, { 1340, 700, 420, 200, "LAMP" } };
+	{ 160, 700, 420, 200, "+1" }, { 750, 700, 420, 200, "Reset" }, { 1340, 700, 420, 200, "Lamp" } };
 
 /* The close box: the right end of the title bar, square. */
 #define TITLE_H 110
@@ -86,7 +87,7 @@ static void draw(void)
 	char buf[64];
 	fill(0, 0, W, H, 0x1c2430);                                   /* background */
 	fill(0, 0, W, TITLE_H, 0x0a3d62);                             /* title bar */
-	text(60, 27, 8, "OPTICNERVE DEMO PANEL", 0xffffff);
+	text(60, 27, 8, "OpticNerve Demo Panel", 0xffffff);
 	if (close_lit)
 		fill(CLOSE_X, 0, TITLE_H, TITLE_H, 0xe81123);
 	for (int d = 0; d < 40; d++) { /* the X: two strokes 40 px across, 4 px thick, in the middle of the close box */
@@ -94,20 +95,20 @@ static void draw(void)
 		fill(x0 + d - 1, y0 + d - 1, 4, 4, 0xffffff);
 		fill(x0 + 39 - d - 1, y0 + d - 1, 4, 4, 0xffffff);
 	}
-	text(160, 200, 8, "COUNT", 0x9fb3c8);
+	text(160, 200, 8, "Count", 0x9fb3c8);
 	snprintf(buf, sizeof(buf), "%d", counter);
 	fill(160, 280, 700, 180, 0x0f1720);
-	text(190, 330, 12, buf, 0xffd166); /* scale 12: OCR read larger blocky digits wrongly */
-	text(1100, 200, 8, "LAMP", 0x9fb3c8);
+	text(190, 330, 12, buf, 0xffd166); /* scale 12: with the old 5x7 font, OCR read larger digits wrongly */
+	text(1100, 200, 8, "Lamp", 0x9fb3c8);
 	fill(1100, 280, 180, 180, lamp_red ? 0xe63946 : 0x2a9d8f);
-	text(1320, 340, 8, lamp_red ? "RED" : "GREEN", 0xffffff);
-	text(160, 520, 6, "TEXT:", 0x9fb3c8);
+	text(1320, 340, 8, lamp_red ? "Red" : "Green", 0xffffff);
+	text(160, 520, 6, "Text:", 0x9fb3c8);
 	fill(400, 505, 1360, 80, 0x0f1720);
-	text(420, 514, 8, line, 0xffffff);
+	text(420, 512, 8, line, 0xffffff); /* descenders end inside the field (505..584) */
 	for (int i = 0; i < 3; i++) {
 		const struct button *b = &BUTTONS[i];
 		fill(b->x, b->y, b->w, b->h, 0x3a86ff);
-		int tw = (int)strlen(b->label) * 7 * 10 - 20;
+		int tw = text_width(10, b->label);
 		text(b->x + (b->w - tw) / 2, b->y + (b->h - 70) / 2, 10, b->label, 0xffffff);
 	}
 }
@@ -244,6 +245,10 @@ int main(int argc, char **argv)
 				  sym == ' ') && n < sizeof(line) - 1) {
 				line[n] = (char)sym;
 				line[n + 1] = 0;
+				if (text_width(8, line) > 1320) { /* the field: no letter past its right edge */
+					line[n] = 0;
+					goto redraw;
+				}
 			} else
 				goto redraw;
 			changed = 1;

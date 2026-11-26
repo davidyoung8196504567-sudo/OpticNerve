@@ -1,54 +1,23 @@
-/* panel_draw.h: the 5x7 font and the drawing helpers shared by the demo panel and the launcher panel. Included
- * once, by one .c file each (the definitions are static). The including file defines _QNX_SOURCE and includes
- * <stddef.h>/<string.h> first. */
+/* panel_draw.h: the font and the drawing helpers shared by the demo panel and the launcher panel. Included once, by
+ * one .c file each (the definitions are static). The including file defines _QNX_SOURCE and includes
+ * <stddef.h>/<string.h> first.
+ *
+ * Text is drawn with anti-aliased Roboto glyphs, rendered from the font file on the build host by
+ * host/tools/make_panel_font.py into panel_font_roboto.h, so the panels need no font library on the target and draw
+ * the same pixels every time. Roboto is a font of the QNX quick-start image's own, so the panels match the image's
+ * look, and it read best by OCR of the fonts tried (Inter, and the 5x7 font used before). */
 #ifndef PANEL_DRAW_H
 #define PANEL_DRAW_H
 
-/* 5x7 glyphs, one byte per row, bit 4 is the leftmost column. Drawn for this program. */
-static const char FONT_CHARS[] = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ+-:.";
-static const unsigned char FONT[][7] = {
-	{ 0, 0, 0, 0, 0, 0, 0 },                                 /* space */
-	{ 0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e },            /* 0, plain: OCR read a slashed one as 5 */
-	{ 0x04, 0x0c, 0x04, 0x04, 0x04, 0x04, 0x0e },            /* 1 */
-	{ 0x0e, 0x11, 0x01, 0x02, 0x04, 0x08, 0x1f },            /* 2 */
-	{ 0x1f, 0x02, 0x04, 0x02, 0x01, 0x11, 0x0e },            /* 3 */
-	{ 0x02, 0x06, 0x0a, 0x12, 0x1f, 0x02, 0x02 },            /* 4 */
-	{ 0x1f, 0x10, 0x1e, 0x01, 0x01, 0x11, 0x0e },            /* 5 */
-	{ 0x06, 0x08, 0x10, 0x1e, 0x11, 0x11, 0x0e },            /* 6 */
-	{ 0x1f, 0x01, 0x02, 0x04, 0x08, 0x08, 0x08 },            /* 7 */
-	{ 0x0e, 0x11, 0x11, 0x0e, 0x11, 0x11, 0x0e },            /* 8 */
-	{ 0x0e, 0x11, 0x11, 0x0f, 0x01, 0x02, 0x0c },            /* 9 */
-	{ 0x0e, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11 },            /* A */
-	{ 0x1e, 0x11, 0x11, 0x1e, 0x11, 0x11, 0x1e },            /* B */
-	{ 0x0e, 0x11, 0x10, 0x10, 0x10, 0x11, 0x0e },            /* C */
-	{ 0x1c, 0x12, 0x11, 0x11, 0x11, 0x12, 0x1c },            /* D */
-	{ 0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x1f },            /* E */
-	{ 0x1f, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10 },            /* F */
-	{ 0x0e, 0x11, 0x10, 0x17, 0x11, 0x11, 0x0f },            /* G */
-	{ 0x11, 0x11, 0x11, 0x1f, 0x11, 0x11, 0x11 },            /* H */
-	{ 0x0e, 0x04, 0x04, 0x04, 0x04, 0x04, 0x0e },            /* I */
-	{ 0x07, 0x02, 0x02, 0x02, 0x02, 0x12, 0x0c },            /* J */
-	{ 0x11, 0x12, 0x14, 0x18, 0x14, 0x12, 0x11 },            /* K */
-	{ 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x1f },            /* L */
-	{ 0x11, 0x1b, 0x15, 0x15, 0x11, 0x11, 0x11 },            /* M */
-	{ 0x11, 0x11, 0x19, 0x15, 0x13, 0x11, 0x11 },            /* N */
-	{ 0x0e, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e },            /* O */
-	{ 0x1e, 0x11, 0x11, 0x1e, 0x10, 0x10, 0x10 },            /* P */
-	{ 0x0e, 0x11, 0x11, 0x11, 0x15, 0x12, 0x0d },            /* Q */
-	{ 0x1e, 0x11, 0x11, 0x1e, 0x14, 0x12, 0x11 },            /* R */
-	{ 0x0f, 0x10, 0x10, 0x0e, 0x01, 0x01, 0x1e },            /* S */
-	{ 0x1f, 0x04, 0x04, 0x04, 0x04, 0x04, 0x04 },            /* T */
-	{ 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x0e },            /* U */
-	{ 0x11, 0x11, 0x11, 0x11, 0x11, 0x0a, 0x04 },            /* V */
-	{ 0x11, 0x11, 0x11, 0x15, 0x15, 0x15, 0x0a },            /* W */
-	{ 0x11, 0x11, 0x0a, 0x04, 0x0a, 0x11, 0x11 },            /* X */
-	{ 0x11, 0x11, 0x0a, 0x04, 0x04, 0x04, 0x04 },            /* Y */
-	{ 0x1f, 0x01, 0x02, 0x04, 0x08, 0x10, 0x1f },            /* Z */
-	{ 0x00, 0x04, 0x04, 0x1f, 0x04, 0x04, 0x00 },            /* + */
-	{ 0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x00 },            /* - */
-	{ 0x00, 0x0c, 0x0c, 0x00, 0x0c, 0x0c, 0x00 },            /* : */
-	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x0c, 0x0c },            /* . */
+struct pf_glyph {
+	short adv, x, y, w, h; /* advance; ink box from the pen (x) and from the top of the capitals (y) */
+	unsigned off;          /* the ink's first byte in PF_ALPHA, w x h coverage values row by row */
 };
+struct pf_size {
+	int scale;
+	const struct pf_glyph *g; /* one per PF_CHARS */
+};
+#include "panel_font_roboto.h"
 
 static unsigned char *fb;
 static int stride, W, H;
@@ -65,17 +34,58 @@ static void fill(int x, int y, int w, int h, unsigned rgb)
 		}
 }
 
-/* Draws text at x,y with each font pixel `scale` screen pixels square; unknown characters draw as space. */
+/* The glyphs for `scale`: the size whose capitals are 7 x scale pixels high; for a scale not rendered, the largest
+ * rendered one below it (the smallest for a scale below that). The largest size has ink for digits and minus only. */
+static const struct pf_glyph *glyphs(int scale)
+{
+	const struct pf_glyph *g = PF_SIZES[0].g;
+	for (size_t i = 0; i < sizeof(PF_SIZES) / sizeof(PF_SIZES[0]); i++)
+		if (PF_SIZES[i].scale <= scale)
+			g = PF_SIZES[i].g;
+	return g;
+}
+
+static const struct pf_glyph *glyph(const struct pf_glyph *g, char c)
+{
+	const char *at = c ? strchr(PF_CHARS, c) : NULL;
+	return &g[at ? at - PF_CHARS : 0]; /* unknown characters as space */
+}
+
+/* Width in pixels of s at `scale`, from the first pen position to the last letter's advance. */
+static int text_width(int scale, const char *s)
+{
+	const struct pf_glyph *g = glyphs(scale);
+	int w = 0;
+	for (; *s; s++)
+		w += glyph(g, *s)->adv;
+	return w;
+}
+
+/* Draws text with the top of its capitals at y and its first pen position at x, the capitals 7 x scale pixels high,
+ * blending the glyphs' coverage over what is already there. */
 static void text(int x, int y, int scale, const char *s, unsigned rgb)
 {
-	for (; *s; s++, x += 7 * scale) { /* two columns between letters: easier to read by OCR */
-		char c = (*s >= 'a' && *s <= 'z') ? (char)(*s - 32) : *s;
-		const char *at = strchr(FONT_CHARS, c);
-		int g = at && c ? (int)(at - FONT_CHARS) : 0;
-		for (int row = 0; row < 7; row++)
-			for (int col = 0; col < 5; col++)
-				if (FONT[g][row] & (0x10 >> col))
-					fill(x + col * scale, y + row * scale, scale, scale, rgb);
+	const struct pf_glyph *g = glyphs(scale);
+	const unsigned c[3] = { rgb & 0xff, (rgb >> 8) & 0xff, (rgb >> 16) & 0xff }; /* B, G, R as in memory */
+	for (; *s; s++) {
+		const struct pf_glyph *q = glyph(g, *s);
+		const unsigned char *a = PF_ALPHA + q->off;
+		for (int j = 0; j < q->h; j++) {
+			int py = y + q->y + j;
+			if (py < 0 || py >= H)
+				continue;
+			for (int i = 0; i < q->w; i++) {
+				int px = x + q->x + i;
+				unsigned k = a[j * q->w + i];
+				if (!k || px < 0 || px >= W)
+					continue;
+				unsigned char *p = fb + (size_t)py * stride + (size_t)px * 4;
+				for (int n = 0; n < 3; n++)
+					p[n] = (unsigned char)((c[n] * k + p[n] * (255 - k) + 127) / 255);
+				p[3] = 0xff;
+			}
+		}
+		x += q->adv;
 	}
 }
 

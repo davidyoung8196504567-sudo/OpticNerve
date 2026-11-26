@@ -10,6 +10,7 @@ QCC ?= qcc
 ARCH ?= aarch64le x86_64
 CFLAGS = -std=c11 -Wall -Wextra -Werror -O2 -Icore
 CORE = core/on_core.c core/on_des.c core/on_mouse.c
+PANEL = demo/panel_draw.h demo/panel_font_roboto.h
 
 all: $(foreach a,$(ARCH),build/$(a)/core_test build/$(a)/opticnerve build/$(a)/demo_panel build/$(a)/launch_panel)
 
@@ -23,11 +24,11 @@ build/%/opticnerve: qnx/main.c qnx/serve.c qnx/device.c qnx/cli.c qnx/mouse.c qn
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ qnx/main.c qnx/serve.c qnx/device.c qnx/cli.c qnx/mouse.c $(CORE) \
 		-Wl,-Bstatic -lhiddi -Wl,-Bdynamic -lscreen -lsocket
 
-build/%/demo_panel: demo/demo_panel.c demo/panel_draw.h
+build/%/demo_panel: demo/demo_panel.c $(PANEL)
 	mkdir -p $(dir $@)
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ demo/demo_panel.c -lscreen
 
-build/%/launch_panel: demo/launch_panel.c demo/panel_draw.h
+build/%/launch_panel: demo/launch_panel.c $(PANEL)
 	mkdir -p $(dir $@)
 	$(QCC) -Vgcc_nto$* $(CFLAGS) -o $@ demo/launch_panel.c -lscreen -limg
 

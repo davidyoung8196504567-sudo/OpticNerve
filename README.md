@@ -203,9 +203,10 @@ the laptop, so from a viewer the agent's key chord stands in for them: hold Q an
 the selected app comes to the front when Q is let go), and hold Q and N, then press X to close the selected app. Q must
 be down a moment (0.15 s) before N, and N must be let go (or pressed X) before Q: typing "qnx" still types qnx. A q
 typed on its own reaches the target when its key is let go. `opticnerve serve -nochord` turns the chord off. A tile
-shows RUNNING while an app the
-panel started from it runs. It is installed with the agent and started over SSH before a test run:
-`sh host/tools/launch_panel.sh start` (`stop`, `stop -apps`, `status`).
+shows Running while an app the
+panel started from it runs. It is installed with the agent and starts with it at boot after `boot on`, or over SSH:
+`sh host/tools/launch_panel.sh start` (`stop`, `stop -apps`, `status`). Both panels write their text in Roboto, one of
+the image's own fonts, from glyphs rendered on the build host by `host/tools/make_panel_font.py`.
 
 Every test and tool that sends input does it the way a hand does: the pointer glides to its target along a slightly
 curved path at about 60 pointer events a second (0.5 to 0.8 s), rests, and clicks with the button held 50 to 90 ms;
@@ -317,4 +318,5 @@ from the target than the VNC port once the application is on the screen.
 
 ## Licence
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). One exception: `agent/demo/panel_font_roboto.h` holds glyphs rendered from the Roboto
+font and is under the SIL Open Font License, Version 1.1 ([agent/demo/OFL.txt](agent/demo/OFL.txt)).

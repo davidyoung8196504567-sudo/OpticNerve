@@ -21,7 +21,7 @@
  * Clicks act as the close X of the demo panel: a press must start on a tile, the tile is highlighted while the
  * pointer is on it with the button held, and only a release on it starts the app. An app is started with
  * /system/bin/sh -c "<Exec>", from /, with a fixed environment (that of the image's launcher), in a session of its
- * own, its output to /dev/null. While anything of that session's process group runs, the tile shows RUNNING; this
+ * own, its output to /dev/null. While anything of that session's process group runs, the tile shows Running; this
  * is a hint and never stops another start (clicks on a tile in the 3 s after it started an app are ignored). The
  * running groups are written to FILE (default /dev/shmem/opticnerve-launch.state, gone at a reboot) for
  * launch_panel.sh stop -apps; a new panel keeps the entries of groups that still run. An X in the top right corner of
@@ -416,36 +416,33 @@ static void blit_icon(const struct tile *t, int x0, int y0)
 		}
 }
 
-/* The tile's name in capitals, on at most two lines broken at a space, at scale 6 if it fits, else 5. */
+/* The tile's name as configured: on one line at scale 6 if it fits, else on two lines broken at the first space (or
+ * one line if it has none) at scale 5, the lines 10 x scale apart so the first line's descenders clear the second. */
 static void draw_name(const struct tile *t)
 {
 	char a[sizeof(t->name)], b[sizeof(t->name)] = "";
 	memcpy(a, t->name, sizeof(a)); /* name is a terminated string of that size */
-	for (char *p = a; *p; p++)
-		if (*p >= 'a' && *p <= 'z')
-			*p = (char)(*p - 32);
-	int scale = 6;
-	if ((int)strlen(a) * 7 * scale - 2 * scale > TILE_W - 20) {
+	int scale = 6, step = 0;
+	if (text_width(scale, a) > TILE_W - 20) {
 		char *sp = strchr(a, ' ');
 		if (sp) {
 			*sp = 0;
 			memcpy(b, sp + 1, strlen(sp + 1) + 1);
 		}
-	}
-	int la = (int)strlen(a), lb = (int)strlen(b), longest = la > lb ? la : lb;
-	if (longest * 7 * scale - 2 * scale > TILE_W - 20)
 		scale = 5;
+		step = 10 * scale;
+	}
 	int ty = t->y + 20 + ICON + 20;
-	text(t->x + (TILE_W - (la * 7 * scale - 2 * scale)) / 2, ty, scale, a, 0xffffff);
-	if (lb)
-		text(t->x + (TILE_W - (lb * 7 * scale - 2 * scale)) / 2, ty + 9 * scale, scale, b, 0xffffff);
+	text(t->x + (TILE_W - text_width(scale, a)) / 2, ty, scale, a, 0xffffff);
+	if (*b)
+		text(t->x + (TILE_W - text_width(scale, b)) / 2, ty + step, scale, b, 0xffffff);
 }
 
 static void draw(void)
 {
 	fill(0, 0, W, H, 0x1c2430);
 	fill(0, 0, W, TITLE_H, 0x0a3d62);
-	text(60, 27, 8, "OPTICNERVE LAUNCHER", 0xffffff);
+	text(60, 27, 8, "OpticNerve Launcher", 0xffffff);
 	if (lit == -2)
 		fill(CLOSE_X, 0, TITLE_H, TITLE_H, 0xe81123);
 	for (int d = 0; d < 40; d++) { /* the X, as the demo panel's */
@@ -459,8 +456,8 @@ static void draw(void)
 		if (t->y < 0)
 			continue;
 		if (t->row != last_row) {
-			const char *h = t->row == 1 ? "QNX APPS" : "QNX SAMPLE APPLICATIONS";
-			text((W - ((int)strlen(h) * 35 - 10)) / 2, t->y - 50, 5, h, 0x9fb3c8);
+			const char *h = t->row == 1 ? "QNX Apps" : "QNX Sample Applications";
+			text((W - text_width(5, h)) / 2, t->y - 50, 5, h, 0x9fb3c8);
 			last_row = t->row;
 		}
 		fill(t->x, t->y, TILE_W, TILE_H, i == lit ? 0x3a86ff : 0x5a5a5a);
@@ -469,15 +466,15 @@ static void draw(void)
 			blit_icon(t, t->x + (TILE_W - t->iw) / 2, t->y + 20 + (ICON - t->ih) / 2);
 		draw_name(t);
 		if (t->running)
-			text(t->x + 12, t->y + 12, 2, "RUNNING", 0x2a9d8f);
+			text(t->x + 12, t->y + 12, 2, "Running", 0x2a9d8f);
 	}
 	if (!ntiles)
-		text(160, 300, 8, "NO TILES IN DESKTOP.CONF", 0xffd166);
-	static const char *const hint[2] = { "ALT+TAB SWITCHES APPS    ALT+TAB+DEL WITH TAB HELD CLOSES THE SELECTED APP",
-		"FROM A VIEWER: HOLD Q AND TAP N TO SWITCH    HOLD Q AND N THEN PRESS X TO CLOSE" };
+		text(160, 300, 8, "No Tiles In desktop.conf", 0xffd166);
+	static const char *const hint[2] = { "Alt+Tab Switches Apps    Alt+Tab+Del With Tab Held Closes The Selected App",
+		"From A Viewer: Hold Q And Tap N To Switch    Hold Q And N Then Press X To Close" };
 	for (int i = 0; i < 2; i++) {
-		int n = (int)strlen(hint[i]), sc = n * 7 * 3 - 6 <= W - 40 ? 3 : 2;
-		text((W - (n * 7 * sc - 2 * sc)) / 2, H - 70 + i * 32, sc, hint[i], 0x9fb3c8);
+		int sc = text_width(3, hint[i]) <= W - 40 ? 3 : 2;
+		text((W - text_width(sc, hint[i])) / 2, H - 70 + i * 32, sc, hint[i], 0x9fb3c8);
 	}
 }
 
