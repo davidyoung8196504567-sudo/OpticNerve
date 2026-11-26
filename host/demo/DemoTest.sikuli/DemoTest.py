@@ -129,7 +129,31 @@ def shows(box, want, other, wait):
     return m is not None and box.exists(Pattern(other).similar(0.95), 0) is None, \
         "score %.4f" % m.getScore() if m else "not found"
 
+# Over VNC, the demo panel must be on the screen before anything is searched (#505: a run began on an all-black
+# frame): 1920 x 1080, the title bar's colour at (1500, 30), the lamp red or green. Up to 30 s.
+def not_panel(img):
+    if img.getWidth() != 1920 or img.getHeight() != 1080:
+        return "the frame is %dx%d, not 1920x1080" % (img.getWidth(), img.getHeight())
+    t, l = img.getRGB(1500, 30) & 0xffffff, img.getRGB(1190, 370) & 0xffffff
+    if t != 0x0a3d62:
+        return "the title bar is #%06x, not #0a3d62" % t
+    r, g = l >> 16, (l >> 8) & 0xff
+    if not (r > 200 and g < 100) and not (g > 130 and r < 100):
+        return "the lamp is #%06x, neither red nor green" % l
+    return None
+
 try:
+    if vnc is not None:
+        why, end = "no frame", time.time() + 30
+        while time.time() < end:
+            why = not_panel(vnc.capture().getImage())
+            if why is None:
+                break
+            sleep(0.25)
+        check("the demo panel is on the screen", why is None, why or "1920x1080, title bar and lamp seen")
+        if why is not None:  # nothing else is checked on a screen that is not the panel
+            print("1 FAILED: the demo panel is on the screen")
+            raise SystemExit(1)
     m = scr.exists(Pattern("reset.png").similar(0.90), 3)
     check("find the RESET button by image", m is not None, "score %.4f" % m.getScore() if m else "not found")
     if m:

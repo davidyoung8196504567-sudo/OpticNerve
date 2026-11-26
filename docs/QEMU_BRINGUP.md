@@ -213,6 +213,18 @@ Screen started this way does not survive a reboot of the guest; run the script a
 A first try on 2026-11-20 20:24 at 1280 x 768, with the agent started by hand, already captured the demo panel
 (cropped) and counted two clicks.
 
+**The image's own virgl Screen, from a tester** (Julien, in his comment of 2026-11-23 on OculiX
+[#505](https://github.com/oculix-org/Oculix/discussions/505)): with QEMU 6.2 and KVM on Windows 10 (WSL2 with
+nested virtualization), the image's `graphics-virtio-virgl.conf` Screen ran with software OpenGL (llvmpipe).
+- At the default 1024 x 768, the agent captured the launcher.
+- At 1920 x 1080 (`xres`/`yres` on `virtio-vga-gl`), Screen took 12 to 13 s to start, frames arrived seconds late,
+  and DemoTest failed 4 of 6 checks in 31.4 s.
+- On our virtual display instead (above), DemoTest passed 5 of 6 in 21.1 s on a 2017 dual-core Core i3; the failure
+  was the OCR of the panel's old 5x7 font, since replaced by Roboto.
+
+His tip, which we have not tried: on Windows 11, `nestedVirtualization=true` in `.wslconfig` gives WSL a `/dev/kvm`,
+so the guest could run with KVM there instead of the emulated CPU.
+
 ## 9. Reach the guest from the Windows host
 
 The guest's network (192.168.122.0/24) is NAT behind UBUNTU24, so the Windows host reaches it through an SSH tunnel

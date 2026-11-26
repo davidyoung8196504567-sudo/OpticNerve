@@ -76,7 +76,7 @@ what it cannot learn from pixels alone.
 | The target | Raspberry Pi 5 with the QNX 8.0 quick-start image (package `quickstart.rpi5` 0.5.0.00050, image 20260902), on the network, with its `qnxuser` login | Pi 5, image as shipped |
 | Or a QEMU target | The QNX 8.0 QEMU quick-start image (package `quickstart.qemu` 0.5.0.00050) on an Ubuntu 24.04 host with QEMU; see [QEMU bring-up](docs/QEMU_BRINGUP.md) | QEMU 8.2.2 on Ubuntu 24.04, emulated CPU |
 | Host tools | Python 3 with `cryptography` and `Pillow`; `ssh`, `scp` and `bash` | Python 3.14 on Windows (Git Bash) |
-| OculiX | OculiX 4.0.0 (`oculixapi-4.0.0-<os>.jar`) and Java 17 or newer; for VNC, `tigervnc-java-oculix` 2.0.4 first on the classpath (configuration ON-VNC-1, below) | Temurin 25.0.4+7 |
+| OculiX | OculiX 4.0.0 (`oculixapi-4.0.0-<os>.jar`) and Java 17 or newer; for VNC, `tigervnc-java-oculix` 2.0.4 first on the classpath (configuration ON-VNC-1, below). Development builds of OculiX 5.0.0 (not released) carry the TigerVNC client inside: their complete jar alone on the classpath | Temurin 25.0.4+7 |
 
 ## Build
 
@@ -143,7 +143,8 @@ python host/tools/vnc_snapshot.py - - frame.png      # the agent and password fr
 
 **Drive it from OculiX** (configuration ON-VNC-1):
 
-- classpath: `tigervnc-java-oculix-2.0.4.jar` first, then `oculixapi-4.0.0-<os>.jar`;
+- classpath: `tigervnc-java-oculix-2.0.4.jar` first, then `oculixapi-4.0.0-<os>.jar`; with a development build of
+  OculiX 5.0.0 (not released), its complete jar alone, no TigerVNC jar in front;
 - before the first connection, limit the security types: `SecurityClient.secTypes.setParam("VncAuth,None")`;
 - connect with `VNCScreen.start(host, 5901, password, 10, 1000)`;
 - send Enter as `type("\r")`, and use the `Mouse.*` constants for buttons.
@@ -153,6 +154,7 @@ complete examples:
 
 ```
 java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/spikes/probe/ReadOnlyProbe.java <Pi address> "$ON_VNC_PASSWORD" out 5901
+java -cp oculixapi-5.0.0-complete-win.jar host/spikes/probe/ReadOnlyProbe.java <Pi address> "$ON_VNC_PASSWORD" out 5901   # 5.0.0 development build
 ```
 
 (`:` instead of `;` between the jars on Linux and macOS.)
@@ -191,6 +193,7 @@ through the agent:
 
 ```
 java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out [-slow] [-fail] [-brief] [-repeat=N] [-cols=N]
+java -cp oculixapi-5.0.0-complete-win.jar host/demo/DemoTest.java <Pi address> "$ON_VNC_PASSWORD" demo-out   # 5.0.0 development build, same options
 ```
 
 `agent/demo/launch_panel.c` is the launcher panel: a full-screen panel with a tile for each app of the quick-start
@@ -217,7 +220,8 @@ no faster mode (`tests/regression/test_hand.py` checks that no test sends input 
 
 `host/demo/DemoTest.sikuli` is the same test as an OculiX IDE script, checked only by pictures and OCR as a test made
 in the IDE is. Open it in the OculiX 4.0.0 IDE, started with the TigerVNC jar first (`java -cp
-"tigervnc-java-oculix-2.0.4.jar;oculixide-4.0.0-windows.jar" org.sikuli.ide.Sikulix`), with `ON_HOST` and
+"tigervnc-java-oculix-2.0.4.jar;oculixide-4.0.0-windows.jar" org.sikuli.ide.Sikulix`), or in a development build of
+the 5.0.0 IDE, its complete jar alone (`java -cp oculixide-5.0.0-complete-win.jar org.sikuli.ide.Sikulix`), with `ON_HOST` and
 `ON_VNC_PASSWORD` set; or set `ON_LOCAL_SCREEN=N` to run it on monitor N, where a VNC viewer shows the Pi full screen
 at 100 % (checked with TigerVNC 1.16.2's viewer, 2026-11-19).
 

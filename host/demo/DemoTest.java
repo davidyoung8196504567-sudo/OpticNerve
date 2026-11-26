@@ -227,6 +227,33 @@ public class DemoTest {
         return null;
     }
 
+    // The demo panel's title bar colour at (1500, 30), right of its title (agent/demo/demo_panel.c).
+    static final int TITLE_BAR = 0x0a3d62;
+
+    // Why img is not the demo panel, or null if it is: 1920 x 1080, the title bar's colour, the lamp red or green.
+    static String notPanel(BufferedImage img) {
+        if (img.getWidth() != 1920 || img.getHeight() != 1080)
+            return "the frame is " + img.getWidth() + "x" + img.getHeight() + ", not 1920x1080";
+        int t = img.getRGB(1500, 30) & 0xffffff, l = img.getRGB(1190, 370) & 0xffffff;
+        if (t != TITLE_BAR)
+            return String.format("the title bar is #%06x, not #%06x", t, TITLE_BAR);
+        int r = l >> 16, g = (l >> 8) & 0xff;
+        if (!(r > 200 && g < 100) && !(g > 130 && r < 100))
+            return String.format("the lamp is #%06x, neither red nor green", l);
+        return null;
+    }
+
+    // Polls captures for up to secs seconds until the demo panel is on the screen; the last reason if it never is.
+    static String waitForPanel(int secs) throws Exception {
+        String why = "no frame";
+        for (long end = System.nanoTime() + secs * 1_000_000_000L; System.nanoTime() < end; Thread.sleep(250)) {
+            why = notPanel(s.capture().getImage());
+            if (why == null)
+                return null;
+        }
+        return "not on the screen after " + secs + " s: " + why;
+    }
+
     static String lamp() {
         Color c = s.newLocation(1190, 370).getColor();
         if (c.getRed() > 200 && c.getGreen() < 100) return "RED";
@@ -273,6 +300,18 @@ public class DemoTest {
         boolean framed = s != null && s.capture() != null; // a frame arrived, not just an object returned
         check("connect to the OpticNerve agent", framed, target(a[0]) + ":" + vncPort() + (framed ? "" : ", no frame"));
         if (!framed) return;
+        // Before any pattern is cut from the screen: the demo panel must be on it. A run that started on an all-black
+        // frame once cut its patterns from black and "found" RESET at 1.0000 (#505).
+        BufferedImage black = new BufferedImage(1920, 1080, BufferedImage.TYPE_INT_RGB);   // all black, as in #505
+        String b = notPanel(black), small = notPanel(new BufferedImage(1280, 768, BufferedImage.TYPE_INT_RGB));
+        check("an all-black or wrong-size frame is not the panel", b != null && small != null,
+            "black: " + b + "; 1280x768: " + small);
+        String why = waitForPanel(30);
+        check("the demo panel is on the screen", why == null, why == null ? "1920x1080, title bar and lamp seen" : why);
+        if (why != null) {
+            ImageIO.write(s.capture().getImage(), "png", new File(out, "not_on_screen.png"));
+            return;
+        }
         shot("start");
 
         plus = cut(160, 700, 420, 200, "plus");
