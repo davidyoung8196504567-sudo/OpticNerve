@@ -153,6 +153,14 @@ cat ~/qnx805/images/qemu/qnx_sdp8.0_qemu_quickstart_20260902.tar.gz.* | tar -xzf
 This gives `qemu/` with `local/` (options and snippets) and `output/` (`ifs.bin`, `disk-qemu.vmdk` and the 48 GB
 `disk-qemu` it points to). Everything is already built, so `mkqnximage --run` boots it without a build.
 
+Give `disk-qemu.vmdk` a `CID=` line before its `parentCID=ffffffff` line, for example `CID=6f707469`. QEMU
+writes a new CID into this 512-byte descriptor in every session that writes to the disk. With no `CID=` line it adds
+a `parentCID=` line instead, and after about 20 sessions the extent line at the end is cut off: QEMU then gives the
+guest an empty disk, the guest stops at "Mounting file systems" (`mount: Can't mount /boot (type qnx6)` in
+`output/qemu.out`) and its window stays at "Booting from ROM...". Check after a session:
+`grep -ac parentCID output/disk-qemu.vmdk` is 1 and the last line is `RW 99271161 FLAT "disk-qemu" 0`. A cut-off
+descriptor can be written again with that line, since the data in `disk-qemu` is not touched.
+
 Check the network setup first (it also prints what is missing):
 
 ```
