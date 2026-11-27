@@ -387,6 +387,28 @@ What it takes:
 its Python setup, some minutes) before its launcher; SSH to the guest answers only after them. They run once
 (`/usr/etc/startup/first_startup_checks.lock`).
 
+**Manual testing in the QEMU window.** With this Screen, QEMU's own window on VMUbuntu24's desktop shows the guest's
+display (on the virtual display of step 8 it stays black), so the guest can be used by hand there with no VNC viewer:
+
+- Keyboard and mouse there go to the guest's emulated keyboard and mouse, not through our agent: use the target's own
+  keys (Alt+Tab, Alt+Tab+Del), not the viewer's Q+N chord. Click into the window to give it the keyboard (so GNOME
+  does not take Alt+Tab); Ctrl+Alt+G lets go again, Ctrl+Alt+F toggles QEMU full screen.
+- Neither OculiX nor the agent sees that input, so nothing done there is recorded; record tests through the OculiX
+  viewer as before. Both can be open at once: they show the same screen.
+- **At 1:1.** QEMU scales the guest's 1920 x 1080 down to fit its window, which on the VM's default desktop (it
+  follows the VMware window, 1280 x 800 here) is smaller. For every pixel 1:1, either:
+  - **VM desktop 1920 x 1080, QEMU full screen in it:** in VMware, View > Autosize > Autofit Guest off (else VMware
+    Tools sets the VM's resolution back to the window's size); in Ubuntu, Settings > Displays > Resolution
+    1920 x 1080 (60 Hz), Apply, Keep Changes (kept in `~/.config/monitors.xml`, so across reboots); then Ctrl+Alt+F
+    in the QEMU window. The VMware window, or VMware full screen, must show the VM's 1920 x 1080 without scaling:
+    View > Stretch Guest off. Any host monitor of 1920 x 1080 or more will do.
+  - **VM desktop larger than 1920 x 1080**, e.g. VMware full screen with Autofit Guest on, on a 2560 x 1440 monitor:
+    the QEMU window then fits at 1920 x 1080 with the Ubuntu desktop around it. With Windows display scaling (150 %
+    on the ROG's 2560 x 1440 panel), VMware's VM Settings > Display > "Automatically adjust user interface size in
+    the virtual machine" may scale Ubuntu up and shrink the room again; turn it off if the window comes out scaled.
+
+  Check from the VM: `xrandr | head -3` (the `current` size).
+
 Checked 2026-11-27 with a reboot of the VM, nothing touched: QEMU 10.1.2 under KVM 30 s after the reboot command, the
 agent 57 s after it, our launcher panel on top; from its tiles the Developer Desktop, Terminal, Gears and Maze opened.
 **Undo:** `sudo rm -r /opt/qemu-10.1.2 ~/opticnerve-work/build`; the build packages with `apt remove`. The run script
