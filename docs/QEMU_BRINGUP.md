@@ -232,8 +232,20 @@ panel on top, and DemoTest passed.
 
 **What the virtual display cannot run:** it has no OpenGL, so the applications that need it do not start there:
 the Developer Desktop (its compositor wants GL), Gears and Maze (`eglGetDisplay` finds no display). Their tiles on the
-launcher panel start a process that ends at once. Terminal, Readme, the GTK4 demos and our demo panel draw without
+launcher panel start a process that ends at once. Terminal, Readme, the GTK4 demo, Widget Factory (below) and our demo panel draw without
 GL and run. The GL applications need a GL-capable Screen, the image's virgl configuration (above).
+
+**Widget Factory needs compiled GSettings schemas.** On the guest it exited about 3 s after its window opened, with
+`GLib-GIO-ERROR: No GSettings schemas are installed on the system`; the guest has the schema sources in
+`/usr/share/glib-2.0/schemas/` but no `gschemas.compiled` there. Compile them once, as root on the guest:
+
+```sh
+glib-compile-schemas /usr/share/glib-2.0/schemas
+```
+
+This writes `/usr/share/glib-2.0/schemas/gschemas.compiled` (79517 bytes, SHA-256 `a9e6d15c...`, the same as the Pi's
+file); undo: delete it. Done on VMUbuntu24's guest 2026-11-27: Widget Factory opened from its tile and closed with its
+own close button, back to our launcher panel.
 
 **The key chord on the guest** (2026-11-27, after the window manager was added to `guest_screen.sh`): Q held, then N,
 switched between our launcher panel and Terminal both ways; Q+N+X closed the app selected by the switch, as Alt+Tab+Del
