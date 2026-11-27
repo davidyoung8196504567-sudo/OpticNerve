@@ -207,7 +207,9 @@ asks for QEMU 10 and virglrenderer 1.1.1 built from source. UBUNTU24 has Ubuntu'
 `graphics-virtual-display.conf` (1280 x 768) at the Pi 5's 1920 x 1080 instead, `host/qemu/graphics-virtual-1080.conf`.
 At the Pi's size, `demo_panel` and the tests' positions and reference pictures are the same as on the Pi.
 `host/qemu/guest_screen.sh` stops the agent and `demo_panel`, restarts Screen with that file and drops Screen's
-privileges, as the image's startup does. On the guest, with both files in `/data/home/qnxuser/qemu/`:
+privileges, as the image's startup does, then starts the image's window manager (`fullscreen-winmgr`, which takes
+Alt+Tab and Alt+Tab+Del, so the agent's Q+N chord) and its launcher (`demolauncher`) again, since they were clients of
+the Screen it replaced, and waits for the launcher's window so that our launcher panel opens over it. On the guest, with both files in `/data/home/qnxuser/qemu/`:
 
 ```
 sudo sh /data/home/qnxuser/qemu/guest_screen.sh
@@ -227,6 +229,15 @@ puts `guest_screen.sh` and its configuration in the guest's `/data/opticnerve/et
 then starts the agent and the launcher panel as on the Pi. Checked on VMUbuntu24 2026-11-27 with two reboots of the
 VM, nothing touched: the agent served the 1920 x 1080 display about 80 s after the reboot command, with the launcher
 panel on top, and DemoTest passed.
+
+**What the virtual display cannot run:** it has no OpenGL, so the applications that need it do not start there:
+the Developer Desktop (its compositor wants GL), Gears and Maze (`eglGetDisplay` finds no display). Their tiles on the
+launcher panel start a process that ends at once. Terminal, Readme, the GTK4 demos and our demo panel draw without
+GL and run. The GL applications need a GL-capable Screen, the image's virgl configuration (above).
+
+**The key chord on the guest** (2026-11-27, after the window manager was added to `guest_screen.sh`): Q held, then N,
+switched between our launcher panel and Terminal both ways; Q+N+X closed the app selected by the switch, as Alt+Tab+Del
+does on the Pi. After an app closes, the window manager brings the image's launcher to the front; Q+N brings ours back.
 
 A first try on 2026-11-20 20:24 at 1280 x 768, with the agent started by hand, already captured the demo panel
 (cropped) and counted two clicks.
