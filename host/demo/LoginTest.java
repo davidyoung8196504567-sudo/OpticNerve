@@ -67,9 +67,11 @@ public class LoginTest {
     // 90 ms, 80 to 150 ms apart. A drag holds the button along such a path. Each key is held 40 to 80 ms and comes 60
     // to 180 ms after the last, one character at a time (typed at full speed, a Developer Desktop application got some
     // characters out of order and lost others, 2026-11-17); wheel notches come 60 to 150 ms apart. The agent does not
-    // report where the pointer is, so the first move of a run starts at the bottom centre of the screen.
+    // report where the pointer is, so the first move of a run starts at the bottom centre of the screen. With glides false
+    // (a test's choice), the pointer jumps to the target in one move and clicks without the rest; keys keep their pace.
     static final java.util.Random hand = new java.util.Random();
     static int handX = -1, handY = -1;
+    static boolean glides = true;
     static { org.sikuli.basics.Settings.MoveMouseDelay = 0; }
 
     static void rest(double lo, double hi) throws InterruptedException {
@@ -82,6 +84,12 @@ public class LoginTest {
         x = Math.max(0, Math.min(w - 1, x));
         y = Math.max(0, Math.min(h - 1, y));
         if (handX < 0) { handX = w / 2; handY = h - 1; }
+        if (!glides) {
+            s.getRobot().mouseMove(x, y);
+            handX = x;
+            handY = y;
+            return;
+        }
         double dist = Math.hypot(x - handX, y - handY), dur = 0, cx = x, cy = y;
         int steps = 1;
         if (dist >= 1) {
@@ -106,7 +114,7 @@ public class LoginTest {
 
     static void handClick(int x, int y) throws Exception {
         glide(x, y);
-        rest(0.08, 0.2);
+        if (glides) rest(0.08, 0.2);
         org.sikuli.basics.Settings.ClickDelay = 0.05 + hand.nextDouble() * 0.04;
         s.click(s.newLocation(handX, handY));
     }
@@ -114,7 +122,7 @@ public class LoginTest {
     // A double click (n = 2) or a triple click (n = 3), each press held 50 to 90 ms, 80 to 150 ms apart.
     static void handClicks(int x, int y, int n) throws Exception {
         glide(x, y);
-        rest(0.08, 0.2);
+        if (glides) rest(0.08, 0.2);
         for (int i = 0; i < n; i++) {
             if (i > 0) rest(0.08, 0.15);
             s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
@@ -128,12 +136,12 @@ public class LoginTest {
 
     static void handDrag(int x1, int y1, int x2, int y2) throws Exception {
         glide(x1, y1);
-        rest(0.08, 0.2);
+        if (glides) rest(0.08, 0.2);
         s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
         try {
             rest(0.1, 0.2);
             glide(x2, y2);
-            rest(0.08, 0.2);
+            if (glides) rest(0.08, 0.2);
         } finally {
             s.getRobot().mouseUp(org.sikuli.script.Mouse.LEFT);
         }

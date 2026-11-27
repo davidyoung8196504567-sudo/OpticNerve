@@ -193,7 +193,11 @@ kill $(cat output/qemu.pid)                           # stop
 **With the host:** to start the guest whenever `tester` logs in to the host's desktop (the host's automatic login,
 so at every boot of the host), copy `host/qemu/qemu-autostart.sh` to `~/opticnerve-work/` (next to
 `qemu-run-tcg.sh`) and `host/qemu/opticnerve-qemu.desktop` to `~/.config/autostart/`. The script does nothing while
-a guest runs. Undo: delete the two files.
+a guest runs. It boots the guest under KVM (`QEMU_ACCEL=kvm`, log `output/run-kvm.log`) when the host's `/dev/kvm`
+can be opened, else with the emulated CPU (`output/run-tcg.log`): on VMUbuntu24, KVM since 2026-11-27 (the VM gets
+AMD-V from VMware once the Windows hypervisor is off); there, a VM reboot brought the agent up 71 s after the reboot
+command. Do not install it on UBUNTU24 as it is: that host has `/dev/kvm`, but its processor is too old for this image
+under KVM. Undo: delete the two files.
 
 The guest boots in under a minute and took 192.168.122.146 from libvirt's DHCP. Its users and passwords are in the
 login banner and the QNX guide (we use `qnxuser`, which may `sudo`). `sshd` starts about 40 s after boot; before

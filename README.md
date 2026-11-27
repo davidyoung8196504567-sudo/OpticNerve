@@ -214,8 +214,11 @@ the image's own fonts, from glyphs rendered on the build host by `host/tools/mak
 
 Every test and tool that sends input does it the way a hand does: the pointer glides to its target along a slightly
 curved path at about 60 pointer events a second (0.5 to 0.8 s), rests, and clicks with the button held 50 to 90 ms;
-keys come 60 to 180 ms apart (`host/tools/hand.py`, and the same model in each Java test and OculiX script). There is
-no faster mode (`tests/regression/test_hand.py` checks that no test sends input any other way). The one exception is
+keys come 60 to 180 ms apart (`host/tools/hand.py`, and the same model in each Java test and OculiX script;
+`tests/regression/test_hand.py` checks that no test sends input any other way). DemoTest is the exception for the
+pointer: it jumps straight to each target and clicks without the rest, and glides only with `-hand` or `-slow` (David,
+2026-11-27: the gliding pointer helped find the lag that the pointer trails caused, which is no longer needed); its
+keys keep their pace. The one exception is
 `host/spikes/oculix_input/OculixInputProbe.java`, a probe of OculiX's own input calls. `-slow` adds a pause after each caption, for recording; `-brief` prints only the PASS and FAIL lines.
 
 `host/demo/DemoTest.sikuli` is the same test as an OculiX IDE script, checked only by pictures and OCR as a test made

@@ -2,7 +2,7 @@
 // the OpticNerve agent, and checks what the panel shows. Each step prints PASS or FAIL; the exit status is the
 // number of failures.
 //
-//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST|- PASSWORD|- [OUTDIR] [-fail] [-slow] [-cols=N] [-brief] [-repeat=N]
+//   java -cp "tigervnc-java-oculix-2.0.4.jar;oculixapi-4.0.0-windows.jar" host/demo/DemoTest.java HOST|- PASSWORD|- [OUTDIR] [-fail] [-slow] [-cols=N] [-brief] [-repeat=N] [-hand]
 // A - for HOST or PASSWORD takes ON_HOST or ON_VNC_PASSWORD from the environment or the settings file
 // (host/tools/opticnerve.env.example); SSH goes to ON_SSH_HOST:ON_SSH_PORT (default HOST, port 22).
 //
@@ -13,8 +13,8 @@
 //
 // Before each step the test prints a caption line ("==> ..."), for the video's captions. -slow paces the run for
 // recording: a pause after each caption. -brief prints only the PASS and FAIL lines (no captions, no screenshots).
-// Every run moves, clicks and types the way a hand does (see glide below), so the demo panel's pointer marker
-// follows each move; there is no faster mode.
+// Keys are typed the way a hand does (see the hand below). The pointer jumps straight to each target, unless -hand
+// or -slow is given: then it glides the way a hand does, so the demo panel's pointer marker follows each move.
 // -repeat=N runs the checks N times on one connection. Every run ends with its number of checks and its time.
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -288,6 +288,7 @@ public class DemoTest {
         record = java.util.Arrays.asList(a).contains("-record");
         slow = java.util.Arrays.asList(a).contains("-slow");
         brief = java.util.Arrays.asList(a).contains("-brief");
+        glides = slow || java.util.Arrays.asList(a).contains("-hand");
         int repeat = 1;
         for (String x : a) if (x.startsWith("-repeat=")) repeat = Integer.parseInt(x.substring(8));
         for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));
@@ -347,9 +348,11 @@ public class DemoTest {
     // 90 ms, 80 to 150 ms apart. A drag holds the button along such a path. Each key is held 40 to 80 ms and comes 60
     // to 180 ms after the last, one character at a time (typed at full speed, a Developer Desktop application got some
     // characters out of order and lost others, 2026-11-17); wheel notches come 60 to 150 ms apart. The agent does not
-    // report where the pointer is, so the first move of a run starts at the bottom centre of the screen.
+    // report where the pointer is, so the first move of a run starts at the bottom centre of the screen. With glides false
+    // (a test's choice), the pointer jumps to the target in one move and clicks without the rest; keys keep their pace.
     static final java.util.Random hand = new java.util.Random();
     static int handX = -1, handY = -1;
+    static boolean glides = true;
     static { org.sikuli.basics.Settings.MoveMouseDelay = 0; }
 
     static void rest(double lo, double hi) throws InterruptedException {
@@ -362,6 +365,12 @@ public class DemoTest {
         x = Math.max(0, Math.min(w - 1, x));
         y = Math.max(0, Math.min(h - 1, y));
         if (handX < 0) { handX = w / 2; handY = h - 1; }
+        if (!glides) {
+            s.getRobot().mouseMove(x, y);
+            handX = x;
+            handY = y;
+            return;
+        }
         double dist = Math.hypot(x - handX, y - handY), dur = 0, cx = x, cy = y;
         int steps = 1;
         if (dist >= 1) {
@@ -386,7 +395,7 @@ public class DemoTest {
 
     static void handClick(int x, int y) throws Exception {
         glide(x, y);
-        rest(0.08, 0.2);
+        if (glides) rest(0.08, 0.2);
         org.sikuli.basics.Settings.ClickDelay = 0.05 + hand.nextDouble() * 0.04;
         s.click(s.newLocation(handX, handY));
     }
@@ -394,7 +403,7 @@ public class DemoTest {
     // A double click (n = 2) or a triple click (n = 3), each press held 50 to 90 ms, 80 to 150 ms apart.
     static void handClicks(int x, int y, int n) throws Exception {
         glide(x, y);
-        rest(0.08, 0.2);
+        if (glides) rest(0.08, 0.2);
         for (int i = 0; i < n; i++) {
             if (i > 0) rest(0.08, 0.15);
             s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
@@ -408,12 +417,12 @@ public class DemoTest {
 
     static void handDrag(int x1, int y1, int x2, int y2) throws Exception {
         glide(x1, y1);
-        rest(0.08, 0.2);
+        if (glides) rest(0.08, 0.2);
         s.getRobot().mouseDown(org.sikuli.script.Mouse.LEFT);
         try {
             rest(0.1, 0.2);
             glide(x2, y2);
-            rest(0.08, 0.2);
+            if (glides) rest(0.08, 0.2);
         } finally {
             s.getRobot().mouseUp(org.sikuli.script.Mouse.LEFT);
         }
