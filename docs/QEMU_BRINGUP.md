@@ -206,8 +206,8 @@ that port 22 refuses. `vncserv` listens on 5900.
 ## 8. Screen on a virtual display
 
 The image starts Screen with `graphics-virtio-virgl.conf`, the virtio GPU with 3D (virgl), for which the guide
-asks for QEMU 10 and virglrenderer 1.1.1 built from source. UBUNTU24 has Ubuntu's QEMU 8.2.2 and virglrenderer
-1.0.0, so there we run Screen on a virtual display in memory, with no GPU (VMUbuntu24 runs the image's OpenGL
+asks for QEMU 10 and virglrenderer 1.1.1 built from source. UBUNTU24 runs the guest on the emulated CPU, with no GPU
+we have set up for it, so there we run Screen on a virtual display in memory (VMUbuntu24 runs the image's OpenGL
 Screen since 2026-11-27: [The image's OpenGL Screen on VMUbuntu24](#the-images-opengl-screen-on-vmubuntu24)): the
 image's own `graphics-virtual-display.conf` (1280 x 768) at the Pi 5's 1920 x 1080 instead,
 `host/qemu/graphics-virtual-1080.conf`.
@@ -326,9 +326,10 @@ over SSH from the Windows host:
 - Steps 3 to 5 as written (`usermod -aG kvm,libvirt tester`, `systemctl enable --now libvirtd.socket libvirtd`,
   `/etc/qemu/bridge.conf`, setuid bridge helper). The `default` network was active at once.
 - Step 7: the image unpacked to `~/opticnerve-work/qemu-quickstart-20260902/` (the disk then 80 % full: 20 GB free of
-  98 GB). The VM has no KVM (VMware without nested virtualization, as the Windows hypervisor is on), so the guest runs
-  with `host/qemu/qemu-run-tcg.sh` too, here with 2 CPUs (`-smp` defaults to the host's count). It booted in about
-  40 s and took 192.168.122.146 again.
+  98 GB). The VM had no KVM then (VMware without nested virtualization, as the Windows hypervisor was on), so the
+  guest ran with `host/qemu/qemu-run-tcg.sh` too, with 2 CPUs (`-smp` defaults to the host's count). It booted in
+  about 40 s and took 192.168.122.146 again. Since 2026-11-27 the VM has KVM and 8 CPUs, and the guest runs the
+  image's OpenGL Screen: [below](#the-images-opengl-screen-on-vmubuntu24).
 - Steps 8 to 10 as written: `host/qemu/tunnel.sh` now reaches VMUbuntu24 by default (`ON_QEMU_HOST`), the agent
   (`4c5ee62a...`) reported `display 1 (1920x1080), port 5901`.
 
@@ -378,7 +379,8 @@ What it takes:
 4. **The run script's settings for this Screen** (`host/qemu/qemu-run-tcg.sh`, always on): the guest CPU's physical
    address size 36 bits (`-cpu host,host-phys-bits=off,phys-bits=36`; QEMU warns that it differs from the host's 45
    bits) and the GPU's display at 1920 x 1080 (`virtio-vga-gl,xres=1920,yres=1080`). `qemu-autostart.sh` runs it under
-   KVM with `QEMU_BIN=/opt/qemu-10.1.2/bin/qemu-system-x86_64` when that exists.
+   KVM with `QEMU_BIN=/opt/qemu-10.1.2/bin/qemu-system-x86_64` when that exists. The emulated-CPU line (UBUNTU24)
+   has the same two settings (`-cpu Haswell-noTSX,phys-bits=36`) and has not been run with them yet.
 5. **The guest's `screen.sh`** (step 8, `guest_boot.sh on`) keeps this Screen when `/dev/dri/card0` exists.
 
 **The first boot with this Screen** runs the image's first-start checks in a terminal window (setting the clock, then
