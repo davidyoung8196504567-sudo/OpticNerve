@@ -1,6 +1,7 @@
 #!/bin/sh
-# On the QNX QEMU guest: start Screen on the 1920 x 1080 virtual display, then the OpticNerve agent and the launcher
-# panel, at every boot of the guest, with no step by hand (docs/QEMU_BRINGUP.md, step 8).
+# On the QNX QEMU guest: at every boot of the guest, with no step by hand, keep the image's Screen when it has OpenGL
+# (virgl) or start Screen on the 1920 x 1080 virtual display instead, then start the OpticNerve agent and the launcher
+# panel (docs/QEMU_BRINGUP.md, step 8).
 #
 #   sh host/qemu/guest_boot.sh on [OPTION...]   put guest_screen.sh and its configuration in the guest's
 #                                               /data/opticnerve/etc/ (as screen.sh, which the agent's boot.sh runs

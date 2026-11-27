@@ -207,8 +207,10 @@ that port 22 refuses. `vncserv` listens on 5900.
 
 The image starts Screen with `graphics-virtio-virgl.conf`, the virtio GPU with 3D (virgl), for which the guide
 asks for QEMU 10 and virglrenderer 1.1.1 built from source. UBUNTU24 has Ubuntu's QEMU 8.2.2 and virglrenderer
-1.0.0, so there we run Screen on a virtual display in memory, with no GPU: the image's own
-`graphics-virtual-display.conf` (1280 x 768) at the Pi 5's 1920 x 1080 instead, `host/qemu/graphics-virtual-1080.conf`.
+1.0.0, so there we run Screen on a virtual display in memory, with no GPU (VMUbuntu24 runs the image's OpenGL
+Screen since 2026-11-27: [The image's OpenGL Screen on VMUbuntu24](#the-images-opengl-screen-on-vmubuntu24)): the
+image's own `graphics-virtual-display.conf` (1280 x 768) at the Pi 5's 1920 x 1080 instead,
+`host/qemu/graphics-virtual-1080.conf`.
 At the Pi's size, `demo_panel` and the tests' positions and reference pictures are the same as on the Pi.
 `host/qemu/guest_screen.sh` stops the agent and `demo_panel`, restarts Screen with that file and drops Screen's
 privileges, as the image's startup does, then starts the image's window manager (`fullscreen-winmgr`, which takes
@@ -232,7 +234,8 @@ puts `guest_screen.sh` and its configuration in the guest's `/data/opticnerve/et
 `opticnerve_deploy.py boot on -logintimeout=0`. The agent's `boot.sh` runs `etc/screen.sh` first when there is one,
 then starts the agent and the launcher panel as on the Pi. Checked on VMUbuntu24 2026-11-27 with two reboots of the
 VM, nothing touched: the agent served the 1920 x 1080 display about 80 s after the reboot command, with the launcher
-panel on top, and DemoTest passed.
+panel on top, and DemoTest passed. `screen.sh` keeps the image's Screen instead when it came up with OpenGL
+(`/dev/dri/card0` exists; below), and then only waits for the image's launcher, so that ours opens on top.
 
 **What the virtual display cannot run:** it has no OpenGL, so the applications that need it do not start there:
 the Developer Desktop (its compositor wants GL), Gears and Maze (`eglGetDisplay` finds no display). Their tiles on the
@@ -335,3 +338,55 @@ mode 10.6 s per run over 5 runs. For comparison, the same test on the Pi 5: 12.7
 then every run moves it the way a hand does, so runs take longer.)
 
 The agent also builds on VMUbuntu24 (2026-11-21, `make -C agent` with `source ~/qnx805/qnxsdp-env.sh`, at commit ea74ca5): all six binaries (`opticnerve`, `demo_panel`, `core_test` for aarch64le and x86_64) are byte-identical to the Windows host's builds of the same sources, SHA-256 `5fdef8a0...` (aarch64le agent, the one on the Pi) and `4c5ee62a...` (x86_64 agent, the one in the QEMU guest).
+
+## The image's OpenGL Screen on VMUbuntu24
+
+Since 2026-11-27 the guest on VMUbuntu24 runs the image's own Screen (`graphics-virtio-virgl.conf`: the virtio GPU,
+OpenGL through virglrenderer to the VM's GPU), so the GL applications run too: the Developer Desktop, Gears and Maze.
+What it takes:
+
+1. **KVM in the VM.** On the Windows host the hypervisor off (Hyper-V, Virtual Machine Platform, Windows Hypervisor
+   Platform, Memory Integrity and VBS; WSL2 then no longer runs), and in VMware the VM's "Virtualize Intel VT-x/EPT or
+   AMD-V/RVI" on. Check in the VM: `/dev/kvm` exists, `grep -c svm /proc/cpuinfo` (AMD) is not 0.
+2. **GL in the VM.** VMware's "Accelerate 3D graphics" on (`mks.enable3d`). Check as `tester` on the desktop:
+   `glxinfo -B` (package `mesa-utils`) names `SVGA3D`, not `llvmpipe`. Ubuntu's Mesa (25.2.8) is enough.
+3. **QEMU 10.1.2 with virglrenderer 1.1.1**, as the QNX guide recommends, built into its own prefix
+   `/opt/qemu-10.1.2` so the system's QEMU 8.2.2 stays as it is. (The system's QEMU 8.2.2 also runs this Screen with
+   step 4; we use QEMU 10, as the guide does.) Build packages: `build-essential meson ninja-build pkg-config
+   python3-venv python3-pip flex bison libglib2.0-dev libpixman-1-dev libepoxy-dev libdrm-dev libgbm-dev libsdl2-dev
+   libx11-dev libslirp-dev libcap-ng-dev libattr1-dev zlib1g-dev libzstd-dev libaio-dev`. In
+   `~/opticnerve-work/build/`:
+
+   ```sh
+   wget https://download.qemu.org/qemu-10.1.2.tar.xz https://download.qemu.org/qemu-10.1.2.tar.xz.sig
+   gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys CEACC9E15534EBABB82D3FA03353C9CEF108B584
+   gpg --verify qemu-10.1.2.tar.xz.sig qemu-10.1.2.tar.xz          # Good signature from "Michael Roth ..."
+   wget -O virglrenderer-1.1.1.tar.gz        https://gitlab.freedesktop.org/virgl/virglrenderer/-/archive/1.1.1/virglrenderer-1.1.1.tar.gz
+   P=/opt/qemu-10.1.2
+   tar xzf virglrenderer-1.1.1.tar.gz && cd virglrenderer-1.1.1
+   meson setup build --prefix=$P --libdir=lib -Dbuildtype=release -Dvenus=false -Dvideo=false -Dtests=false
+   ninja -C build && sudo ninja -C build install && cd ..
+   tar xJf qemu-10.1.2.tar.xz && cd qemu-10.1.2
+   PKG_CONFIG_PATH=$P/lib/pkgconfig ./configure --prefix=$P --target-list=x86_64-softmmu --enable-kvm        --enable-opengl --enable-sdl --enable-virglrenderer --enable-slirp --extra-ldflags="-Wl,-rpath,$P/lib"        --disable-docs                                                # the summary: VirGL support YES 1.1.1
+   make -j8 && sudo make install
+   sudo mkdir -p $P/etc/qemu && echo 'allow virbr0' | sudo tee $P/etc/qemu/bridge.conf
+   sudo chmod u+s $P/libexec/qemu-bridge-helper     # this QEMU's own bridge helper and bridge.conf (step 5)
+   ```
+
+   Venus (Vulkan) is left out, so the LunarG Vulkan SDK is not needed. `ldd $P/bin/qemu-system-x86_64` shows
+   `libvirglrenderer.so.1 => /opt/qemu-10.1.2/lib/...`.
+4. **The run script's settings for this Screen** (`host/qemu/qemu-run-tcg.sh`, always on): the guest CPU's physical
+   address size 36 bits (`-cpu host,host-phys-bits=off,phys-bits=36`; QEMU warns that it differs from the host's 45
+   bits) and the GPU's display at 1920 x 1080 (`virtio-vga-gl,xres=1920,yres=1080`). `qemu-autostart.sh` runs it under
+   KVM with `QEMU_BIN=/opt/qemu-10.1.2/bin/qemu-system-x86_64` when that exists.
+5. **The guest's `screen.sh`** (step 8, `guest_boot.sh on`) keeps this Screen when `/dev/dri/card0` exists.
+
+**The first boot with this Screen** runs the image's first-start checks in a terminal window (setting the clock, then
+its Python setup, some minutes) before its launcher; SSH to the guest answers only after them. They run once
+(`/usr/etc/startup/first_startup_checks.lock`).
+
+Checked 2026-11-27 with a reboot of the VM, nothing touched: QEMU 10.1.2 under KVM 30 s after the reboot command, the
+agent 57 s after it, our launcher panel on top; from its tiles the Developer Desktop, Terminal, Gears and Maze opened.
+**Undo:** `sudo rm -r /opt/qemu-10.1.2 ~/opticnerve-work/build`; the build packages with `apt remove`. The run script
+then runs the system's QEMU 8.2.2, which brings up this Screen too (step 4); without step 4's settings the guest falls
+back to the virtual display.
