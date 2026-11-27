@@ -34,6 +34,7 @@ the settings: `python host/tools/vnc_snapshot.py - - frame.png`. That keeps the 
 | `ON_VNC_PASSWORD` | The agent's VNC password | none: needed for VNC |
 | `ON_AGENT_POINTER` | `0`: `opticnerve_deploy.py start` (and `boot on`) starts the agent with the pointer arrow off (`-nopointer`); `1`: on. Switch it on the running agent with `opticnerve_deploy.py pointer on\|off` | `1` |
 | `ON_AGENT_MOUSE` | `0`: `opticnerve_deploy.py start` (and `boot on`) starts the agent with the mouse hold off (`-nomouse`): it never holds the target's own mouse; `1`: it holds it while a viewer that gets the arrow is connected. Switch it on the running agent with `opticnerve_deploy.py mouse on\|off` | `1` |
+| `ON_HAND` | `1`: DemoTest's pointer glides to each target the way a hand does (`host/demo/DemoTest.java`, as with `-hand`, and `host/demo/DemoTest.sikuli`); otherwise it jumps straight there. Keys keep a hand's pace either way | none (no glide) |
 | `ON_QEMU_HOST` | The Linux host running the QEMU guest (`host/qemu/tunnel.sh`) | `10.30.1.104` |
 | `ON_GUEST` | The QEMU guest's address on that host | `192.168.122.146` |
 | `ON_UBUNTU_PASSWORD` | The `tester` login on `ON_QEMU_HOST` | none |
@@ -70,7 +71,7 @@ that the script reads with no parameter of its own.
 | `host/demo/DemoTest.java HOST PASSWORD ...` (and `DesktopTest`, `GtkDemoTest`, `LoginTest`, `ObstacleCourse`) | `HOST` or `-` | `-`: `ON_HOST` | |
 | | `PASSWORD` or `-` | `-`: `ON_VNC_PASSWORD` | |
 | | (none) | `ON_VNC_PORT`; SSH: `ON_SSH_HOST` (default `HOST`), `ON_SSH_PORT`, `ON_LOGIN_USER`, `ON_LOGIN_PASSWORD` | 5901; 22 |
-| `host/demo/DemoTest.sikuli`, `host/ide-tests/Template.sikuli` (OculiX IDE) | (none) | `ON_HOST`, `ON_VNC_PORT`, `ON_VNC_PASSWORD` | 5901 |
+| `host/demo/DemoTest.sikuli`, `host/ide-tests/Template.sikuli` (OculiX IDE) | (none) | `ON_HOST`, `ON_VNC_PORT`, `ON_VNC_PASSWORD`; `ON_HAND` (DemoTest only) | 5901 |
 | `host/demo/run_watched.sh NAME -- COMMAND` | (none) | `ON_HOST`, `ON_VNC_PORT`, `ON_VNC_PASSWORD`; SSH as `pi_ssh.sh` | |
 | `host/demo/video/take.sh` | (none) | `ON_HOST`; SSH as `pi_ssh.sh` | |
 | `host/qemu/tunnel.sh [stop]` | (none) | `ON_QEMU_HOST`, `ON_GUEST`, `ON_UBUNTU_PASSWORD` | `10.30.1.104`, `192.168.122.146` |

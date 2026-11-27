@@ -12,6 +12,9 @@
 #   - ON_LOCAL_SCREEN=N: the script works on this computer's monitor N (as OculiX numbers them, 0 = main), where a
 #     VNC viewer shows the Pi full screen at 100 % scale; its clicks and keys reach the Pi through the viewer.
 #
+# The pointer jumps straight to each target; ON_HAND=1 (in the environment or the settings file) makes it glide the
+# way a hand does, as host/demo/DemoTest.java's -hand does. Keys always keep a hand's pace.
+#
 # Every call goes to `scr`, the screen chosen above. A bare click("plus.png") would search and click this computer's
 # main screen.
 from java.lang import System, Class
@@ -62,15 +65,21 @@ def area(x, y, w, h):
 # MoveMouseDelay 0 so that OculiX adds no move of its own, and ClickDelay set each time (OculiX resets it after each
 # click; with 0 the press and the release go out together, and some applications miss such clicks). Each key is held
 # 40 to 80 ms and comes 60 to 180 ms after the last. The agent does not report where the pointer is, so the first
-# move starts at the bottom centre of the screen.
+# move starts at the bottom centre of the screen. With glides False (a script's choice), the pointer jumps to the
+# target in one move and clicks without the rest; keys keep their pace.
 import math, random, time
 hand = [None, None]
+glides = True
 Settings.MoveMouseDelay = 0
 
 def glide(x, y):
     Settings.MoveMouseDelay = 0
     left, top, w, h = scr.getX(), scr.getY(), scr.getW(), scr.getH()
     x, y = min(max(x, left), left + w - 1), min(max(y, top), top + h - 1)
+    if not glides:
+        scr.getRobot().mouseMove(x, y)
+        hand[0], hand[1] = x, y
+        return
     x0, y0 = (hand[0], hand[1]) if hand[0] is not None else (left + w // 2, top + h - 1)
     dist = math.hypot(x - x0, y - y0)
     steps, dur, cx, cy = 1, 0.0, x, y
@@ -96,7 +105,8 @@ def glide(x, y):
 
 def hand_click(x, y):
     glide(x, y)
-    time.sleep(random.uniform(0.08, 0.2))
+    if glides:
+        time.sleep(random.uniform(0.08, 0.2))
     Settings.ClickDelay = random.uniform(0.05, 0.09)
     scr.click(scr.newLocation(hand[0], hand[1]) if vnc else Location(hand[0], hand[1]))
 
@@ -115,6 +125,7 @@ def hand_type(text):
         finally:
             scr.keyUp(ch)
 # (end of the hand)
+glides = cfg("ON_HAND") == "1"
 
 failed = []
 def check(name, ok, detail):

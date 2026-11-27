@@ -36,15 +36,21 @@ scr = vnc
 # MoveMouseDelay 0 so that OculiX adds no move of its own, and ClickDelay set each time (OculiX resets it after each
 # click; with 0 the press and the release go out together, and some applications miss such clicks). Each key is held
 # 40 to 80 ms and comes 60 to 180 ms after the last. The agent does not report where the pointer is, so the first
-# move starts at the bottom centre of the screen.
+# move starts at the bottom centre of the screen. With glides False (a script's choice), the pointer jumps to the
+# target in one move and clicks without the rest; keys keep their pace.
 import math, random, time
 hand = [None, None]
+glides = True
 Settings.MoveMouseDelay = 0
 
 def glide(x, y):
     Settings.MoveMouseDelay = 0
     left, top, w, h = scr.getX(), scr.getY(), scr.getW(), scr.getH()
     x, y = min(max(x, left), left + w - 1), min(max(y, top), top + h - 1)
+    if not glides:
+        scr.getRobot().mouseMove(x, y)
+        hand[0], hand[1] = x, y
+        return
     x0, y0 = (hand[0], hand[1]) if hand[0] is not None else (left + w // 2, top + h - 1)
     dist = math.hypot(x - x0, y - y0)
     steps, dur, cx, cy = 1, 0.0, x, y
@@ -70,7 +76,8 @@ def glide(x, y):
 
 def hand_click(x, y):
     glide(x, y)
-    time.sleep(random.uniform(0.08, 0.2))
+    if glides:
+        time.sleep(random.uniform(0.08, 0.2))
     Settings.ClickDelay = random.uniform(0.05, 0.09)
     scr.click(scr.newLocation(hand[0], hand[1]) if vnc else Location(hand[0], hand[1]))
 

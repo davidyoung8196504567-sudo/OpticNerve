@@ -13,8 +13,8 @@
 //
 // Before each step the test prints a caption line ("==> ..."), for the video's captions. -slow paces the run for
 // recording: a pause after each caption. -brief prints only the PASS and FAIL lines (no captions, no screenshots).
-// Keys are typed the way a hand does (see the hand below). The pointer jumps straight to each target, unless -hand
-// or -slow is given: then it glides the way a hand does, so the demo panel's pointer marker follows each move.
+// Keys are typed the way a hand does (see the hand below). The pointer jumps straight to each target, unless -hand,
+// -slow or the setting ON_HAND=1 is given: then it glides the way a hand does, so the demo panel's pointer marker follows each move.
 // -repeat=N runs the checks N times on one connection. Every run ends with its number of checks and its time.
 import java.awt.Color;
 import java.awt.image.BufferedImage;
@@ -288,7 +288,7 @@ public class DemoTest {
         record = java.util.Arrays.asList(a).contains("-record");
         slow = java.util.Arrays.asList(a).contains("-slow");
         brief = java.util.Arrays.asList(a).contains("-brief");
-        glides = slow || java.util.Arrays.asList(a).contains("-hand");
+        glides = slow || java.util.Arrays.asList(a).contains("-hand") || "1".equals(cfg("ON_HAND", ""));
         int repeat = 1;
         for (String x : a) if (x.startsWith("-repeat=")) repeat = Integer.parseInt(x.substring(8));
         for (String x : a) if (x.startsWith("-cols=")) cols = Integer.parseInt(x.substring(6));

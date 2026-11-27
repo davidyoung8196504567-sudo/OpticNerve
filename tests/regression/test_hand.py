@@ -201,6 +201,33 @@ def test_ide_hand_glides(monkeypatch):
     assert all(0.06 <= s <= 0.18 for s in slept[0::2]) and all(0.04 <= s <= 0.08 for s in slept[1::2])
 
 
+def test_ide_hand_jumps_without_glides():
+    """glides = False (DemoTest.sikuli without ON_HAND=1): one move straight to the target, a click, no waiting."""
+    moves, clicks, slept = [], [], []
+
+    class Robot:
+        def mouseMove(self, x, y):
+            moves.append((x, y))
+
+    class Scr:
+        def getX(self): return 0
+        def getY(self): return 0
+        def getW(self): return 1920
+        def getH(self): return 1080
+        def getRobot(self): return Robot()
+        def newLocation(self, x, y): return (x, y)
+        def click(self, loc): clicks.append((loc, settings.ClickDelay))
+
+    settings = types.SimpleNamespace(MoveMouseDelay=0.5, ClickDelay=0)
+    g = {"Settings": settings, "scr": Scr(), "vnc": True, "Location": None}
+    exec(ide_block(IDE[0])[0], g)
+    g["time"] = types.SimpleNamespace(sleep=slept.append)
+    g["glides"] = False
+    g["hand_click"](2000, 800)
+    assert moves == [(1919, 800)] and slept == []
+    assert clicks == [((1919, 800), clicks[0][1])] and 0.05 <= clicks[0][1] <= 0.09
+
+
 # --- the Python tools --------------------------------------------------------------------------------------------
 
 def test_python_tools_send_input_only_through_the_hand():
