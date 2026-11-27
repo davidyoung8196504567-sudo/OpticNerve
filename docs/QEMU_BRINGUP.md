@@ -416,17 +416,23 @@ display (on the virtual display of step 8 it stays black), so the guest can be u
     ```ini
     [resolutionKMS]
     enable=false
-
-    [resolutionSet]
-    enable=false
     ```
 
-    and `sudo systemctl restart open-vm-tools` (log out and in for the desktop session's copy). Then in Ubuntu,
-    Settings > Displays > Resolution 1920 x 1080 (60 Hz), Apply, Keep Changes (kept in `~/.config/monitors.xml`, so
-    across reboots), and Ctrl+Alt+F in the QEMU window. The VMware window, or VMware full screen, must show the VM's 1920 x 1080 without scaling:
-    View > Stretch Guest off. Any host monitor of 1920 x 1080 or more will do.
+    and `sudo systemctl restart open-vm-tools`. With that off, the desktop session's `resolutionSet` plugin (which
+    stands aside only while `resolutionKMS` is on, and has no setting of its own) resizes the desktop at every login,
+    so set it aside too:
+
+    ```
+    P=/usr/lib/x86_64-linux-gnu/open-vm-tools/plugins/vmusr/libresolutionSet.so
+    sudo dpkg-divert --local --rename --divert $P.off-opticnerve --add $P
+    ```
+
+    (a package upgrade keeps it aside; undo: `sudo dpkg-divert --local --rename --remove $P`), then log out and in.
+    Then in Ubuntu, Settings > Displays > Resolution 1920 x 1080 (60 Hz), Apply, Keep Changes (kept in
+    `~/.config/monitors.xml`, so across reboots), and Ctrl+Alt+F in the QEMU window. The VMware window, or VMware
+    full screen, must show the VM's 1920 x 1080 without scaling: View > Stretch Guest off. Any host monitor of 1920 x 1080 or more will do.
   - **VM desktop larger than 1920 x 1080**, e.g. VMware full screen on a 2560 x 1440 monitor, with VMware Tools
-    following the window (the two settings above not set):
+    following the window (the setting and the diversion above not made):
     the QEMU window then fits at 1920 x 1080 with the Ubuntu desktop around it. With Windows display scaling (150 %
     on the ROG's 2560 x 1440 panel), VMware's VM Settings > Display > "Automatically adjust user interface size in
     the virtual machine" may scale Ubuntu up and shrink the room again; turn it off if the window comes out scaled.
