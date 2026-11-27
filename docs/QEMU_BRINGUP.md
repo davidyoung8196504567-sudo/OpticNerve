@@ -397,12 +397,24 @@ display (on the virtual display of step 8 it stays black), so the guest can be u
   viewer as before. Both can be open at once: they show the same screen.
 - **At 1:1.** QEMU scales the guest's 1920 x 1080 down to fit its window, which on the VM's default desktop (it
   follows the VMware window, 1280 x 800 here) is smaller. For every pixel 1:1, either:
-  - **VM desktop 1920 x 1080, QEMU full screen in it:** in VMware, View > Autosize > Autofit Guest off (else VMware
-    Tools sets the VM's resolution back to the window's size); in Ubuntu, Settings > Displays > Resolution
-    1920 x 1080 (60 Hz), Apply, Keep Changes (kept in `~/.config/monitors.xml`, so across reboots); then Ctrl+Alt+F
-    in the QEMU window. The VMware window, or VMware full screen, must show the VM's 1920 x 1080 without scaling:
+  - **VM desktop 1920 x 1080, QEMU full screen in it:** stop VMware Tools from setting the VM's resolution to the
+    VMware window's size. On VMUbuntu24 (open-vm-tools 13, `vmwgfx`) Workstation's View > Autosize > Autofit Guest
+    cannot be turned off; instead, in the VM's `/etc/vmware-tools/tools.conf` add
+
+    ```ini
+    [resolutionKMS]
+    enable=false
+
+    [resolutionSet]
+    enable=false
+    ```
+
+    and `sudo systemctl restart open-vm-tools` (log out and in for the desktop session's copy). Then in Ubuntu,
+    Settings > Displays > Resolution 1920 x 1080 (60 Hz), Apply, Keep Changes (kept in `~/.config/monitors.xml`, so
+    across reboots), and Ctrl+Alt+F in the QEMU window. The VMware window, or VMware full screen, must show the VM's 1920 x 1080 without scaling:
     View > Stretch Guest off. Any host monitor of 1920 x 1080 or more will do.
-  - **VM desktop larger than 1920 x 1080**, e.g. VMware full screen with Autofit Guest on, on a 2560 x 1440 monitor:
+  - **VM desktop larger than 1920 x 1080**, e.g. VMware full screen on a 2560 x 1440 monitor, with VMware Tools
+    following the window (the two settings above not set):
     the QEMU window then fits at 1920 x 1080 with the Ubuntu desktop around it. With Windows display scaling (150 %
     on the ROG's 2560 x 1440 panel), VMware's VM Settings > Display > "Automatically adjust user interface size in
     the virtual machine" may scale Ubuntu up and shrink the room again; turn it off if the window comes out scaled.
