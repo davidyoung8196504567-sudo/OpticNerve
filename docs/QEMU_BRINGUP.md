@@ -354,9 +354,10 @@ The agent also builds on VMUbuntu24 (2026-11-21, `make -C agent` with `source ~/
 
 ## The image's OpenGL Screen on VMUbuntu24
 
-Since 2026-11-27 the guest on VMUbuntu24 runs the image's own Screen (`graphics-virtio-virgl.conf`: the virtio GPU,
-OpenGL through virglrenderer to the VM's GPU), so the GL applications run too: the Developer Desktop, Gears and Maze.
-What it takes:
+The guest on VMUbuntu24 can run the image's own Screen (`graphics-virtio-virgl.conf`: the virtio GPU, OpenGL through
+virglrenderer to the VM's GPU), so the GL applications run too: the Developer Desktop, Gears and Maze. It is started
+on purpose, with `QEMU_GL=1` (step 4); the default, and what tests and recordings use, is the virtual display of
+step 8 (since 2026-11-27, David). What it takes:
 
 1. **KVM in the VM.** On the Windows host the hypervisor off (Hyper-V, Virtual Machine Platform, Windows Hypervisor
    Platform, Memory Integrity and VBS; WSL2 then no longer runs), and in VMware the VM's "Virtualize Intel VT-x/EPT or
@@ -388,10 +389,14 @@ What it takes:
 
    Venus (Vulkan) is left out, so the LunarG Vulkan SDK is not needed. `ldd $P/bin/qemu-system-x86_64` shows
    `libvirglrenderer.so.1 => /opt/qemu-10.1.2/lib/...`.
-4. **The run script's settings for this Screen** (`host/qemu/qemu-run-tcg.sh`, always on): the guest CPU's physical
-   address size 36 bits (`-cpu host,host-phys-bits=off,phys-bits=36`; QEMU warns that it differs from the host's 45
-   bits) and the GPU's display at 1920 x 1080 (`virtio-vga-gl,xres=1920,yres=1080`). `qemu-autostart.sh` runs it under
-   KVM with `QEMU_BIN=/opt/qemu-10.1.2/bin/qemu-system-x86_64` when that exists. The emulated-CPU line (UBUNTU24)
+4. **The run script's settings for this Screen** (`host/qemu/qemu-run-tcg.sh`): the guest CPU's physical address
+   size 36 bits (`-cpu host,host-phys-bits=off,phys-bits=36`, always set; QEMU warns that it differs from the host's
+   45 bits) and, with `QEMU_GL=1` only, the virtio GPU with OpenGL at 1920 x 1080
+   (`-device virtio-vga-gl,xres=1920,yres=1080 -display sdl,gl=on`). Without `QEMU_GL=1` the guest gets a plain VGA
+   card (`-vga std`) and no virtio GPU, so it has no `/dev/dri/card0` and `screen.sh` uses the virtual display.
+   `qemu-autostart.sh` runs it under KVM with `QEMU_BIN=/opt/qemu-10.1.2/bin/qemu-system-x86_64` when that exists, and
+   passes `QEMU_GL` on. To boot with this Screen once: sync in the guest, `kill $(cat output/qemu.pid)`, then on the
+   VM's desktop (or with its `DISPLAY`) `QEMU_GL=1 ~/opticnerve-work/qemu-autostart.sh`. The emulated-CPU line (UBUNTU24)
    has the same two settings (`-cpu Haswell-noTSX,phys-bits=36`) and has not been run with them yet.
 5. **The guest's `screen.sh`** (step 8, `guest_boot.sh on`) keeps this Screen when `/dev/dri/card0` exists.
 
@@ -399,7 +404,7 @@ What it takes:
 its Python setup, some minutes) before its launcher; SSH to the guest answers only after them. They run once
 (`/usr/etc/startup/first_startup_checks.lock`).
 
-**Manual testing in the QEMU window.** With this Screen, QEMU's own window on VMUbuntu24's desktop shows the guest's
+**Manual testing in the QEMU window.** With this Screen (`QEMU_GL=1`), QEMU's own window on VMUbuntu24's desktop shows the guest's
 display (on the virtual display of step 8 it stays black), so the guest can be used by hand there with no VNC viewer:
 
 - Keyboard and mouse there go to the guest's emulated keyboard and mouse, not through our agent: use the target's own
