@@ -1,0 +1,9 @@
+[Desktop Entry]
+# Starts the QNX QEMU guest when tester logs in to the desktop of the Linux host (VMUbuntu24), so the guest comes up
+# with the host: copy to ~/.config/autostart/ there, and qemu-autostart.sh to ~/opticnerve-work/
+# (docs/QEMU_BRINGUP.md, step 7).
+Type=Application
+Name=OpticNerve QEMU guest
+Exec=/home/tester/opticnerve-work/qemu-autostart.sh
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

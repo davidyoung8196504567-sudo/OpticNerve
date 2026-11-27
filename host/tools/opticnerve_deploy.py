@@ -165,6 +165,7 @@ def start(options):
 POST = "/system/etc/startup/post_startup.sh"
 POST_BACKUP = f"{POST}.orig-opticnerve"
 BOOT = f"{DEST}/etc/boot.sh"
+SCREEN_SH = f"{DEST}/etc/screen.sh"   # run by BOOT first when present (host/qemu/guest_boot.sh puts one there)
 HOOK_MARK = "# OpticNerve agent at boot"
 HOOK = f"{HOOK_MARK} (host/tools/opticnerve_deploy.py boot on|off)\\n[ -x {BOOT} ] && {BOOT} &\\n"
 
@@ -173,7 +174,7 @@ def boot_state():
     return remote(f"""
         echo "hook lines in {POST}: $(grep -c '^{HOOK_MARK}' {POST})"
         grep -e 'exec ' -e 'launch_panel -daemon' {BOOT} 2>/dev/null || echo 'no boot script'
-        echo "launcher panels running: $(pidin -f n | grep -c launch_panel)"
+        echo "launcher panels running: $(rs pidin -f n | grep -c launch_panel)"   # root's, so pidin as root
         rs tail -3 {DEST}/var/launch.log 2>/dev/null
     """, check=False)
 
@@ -206,6 +207,9 @@ def boot(args):
                 f"# Starts the OpticNerve agent at boot (as root), and the launcher panel when it is installed, from the\n"
                 f"# line `opticnerve_deploy.py boot on` added to\n"
                 f"# {POST}. Written by that step; `boot off` deletes it.\n"
+                "# A target whose image's own Screen does not suit keeps a script that restarts it in etc/screen.sh\n"
+                "# (the QEMU guest without a GPU: host/qemu/guest_boot.sh); it runs first.\n"
+                f"if [ -x {SCREEN_SH} ]; then echo \"boot: $(date): screen.sh\" >> {log}; {SCREEN_SH} >> {log} 2>&1; fi\n"
                 f"waitfor /dev/screen/ 30 || {{ echo \"boot: $(date): no /dev/screen, agent not started\" >> {log}; exit 1; }}\n"
                 "# The launcher panel, unless one runs (boot.sh run by hand): in the background, so it never holds up the\n"
                 "# agent, once the image's own launcher is up (up to 30 s), so the panel opens over it. Started as\n"

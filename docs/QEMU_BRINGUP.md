@@ -190,6 +190,11 @@ virsh -c qemu:///system net-dhcp-leases default      # the guest, MAC 52:54:00:c
 kill $(cat output/qemu.pid)                           # stop
 ```
 
+**With the host:** to start the guest whenever `tester` logs in to the host's desktop (the host's automatic login,
+so at every boot of the host), copy `host/qemu/qemu-autostart.sh` to `~/opticnerve-work/` (next to
+`qemu-run-tcg.sh`) and `host/qemu/opticnerve-qemu.desktop` to `~/.config/autostart/`. The script does nothing while
+a guest runs. Undo: delete the two files.
+
 The guest boots in under a minute and took 192.168.122.146 from libvirt's DHCP. Its users and passwords are in the
 login banner and the QNX guide (we use `qnxuser`, which may `sudo`). `sshd` starts about 40 s after boot; before
 that port 22 refuses. `vncserv` listens on 5900.
@@ -209,6 +214,19 @@ sudo sh /data/home/qnxuser/qemu/guest_screen.sh
 ```
 
 Screen started this way does not survive a reboot of the guest; run the script again after each boot.
+
+**At every boot of the guest**, with no step by hand: once the agent is installed (step 10), from the Windows host
+with the tunnel up,
+
+```
+sh host/qemu/guest_boot.sh on          # off: undo
+```
+
+puts `guest_screen.sh` and its configuration in the guest's `/data/opticnerve/etc/` (as `screen.sh`) and runs
+`opticnerve_deploy.py boot on -logintimeout=0`. The agent's `boot.sh` runs `etc/screen.sh` first when there is one,
+then starts the agent and the launcher panel as on the Pi. Checked on VMUbuntu24 2026-11-27 with two reboots of the
+VM, nothing touched: the agent served the 1920 x 1080 display about 80 s after the reboot command, with the launcher
+panel on top, and DemoTest passed.
 
 A first try on 2026-11-20 20:24 at 1280 x 768, with the agent started by hand, already captured the demo panel
 (cropped) and counted two clicks.
