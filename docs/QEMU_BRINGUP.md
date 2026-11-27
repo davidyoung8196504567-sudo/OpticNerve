@@ -5,6 +5,10 @@ the x86_64 build of the OpticNerve agent on a target that needs no board. Each s
 it, and how to undo it. Every change is also recorded in [CONFIG_MANAGEMENT.md](CONFIG_MANAGEMENT.md) (row "QEMU
 host: UBUNTU24").
 
+**UBUNTU24 is retired as a QEMU host (David, 2026-11-27).** The QEMU target now runs on VMUbuntu24 only ("The same
+on VMUbuntu24" and "The image's OpenGL Screen on VMUbuntu24" below). Steps 1 to 10 stay as the record of how it was
+done and as the base those sections build on. What they installed on UBUNTU24 is left there.
+
 Source for the QEMU side: QNX's "Quick Start Target Image (QSTI) for QEMU Guide" (QNX Everywhere documentation,
 pages updated 2026-09-24), which names Ubuntu 22.04 and 24.04 as hosts.
 
