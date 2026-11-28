@@ -206,11 +206,13 @@ public class LauncherTest {
     }
 
     // The chord as a viewer sends it, aimed: Q held 0.4 s, N held (its auto-repeat, sent as a second N down after
-    // 0.5 s, opens the switcher), then N let go and pressed again for each next window. Each step's middle thumbnail
-    // is saved and its mean colour taken. When a thumbnail comes round again the switcher has gone through all the
-    // windows: the one nearest in colour to the app (as captured when it opened) is the app's, if it is clearly the
-    // nearest, and X is pressed when the selection comes back to it. Returns what happened, for the report; xSent
-    // tells whether X went out.
+    // 0.5 s, opens the switcher), then N let go and pressed again for each next window. Each step's frame is saved
+    // and the middle thumbnail's mean colour taken. When the first step's thumbnail comes round again the switcher has
+    // gone through all the windows, and the window that was in front when the chord began (the app) is the one
+    // selected on the last step of the round (Alt+Tab's order: each Tab selects the next window, and a full round
+    // comes back to the one in front). X is pressed when the selection comes round to it again. The mean colour of
+    // the app's own frame did not aim reliably: Widget Factory's window, small on black, came nearer to the image's
+    // launcher (2026-11-27). Returns what happened, for the report; xSent tells whether X went out.
     static boolean xSent;
 
     static String chordClose(String name, double[] app) throws Exception {
@@ -242,17 +244,10 @@ public class LauncherTest {
                 if (!open) break;
                 if (period == 0 && step > 1 && dist(m, seen.get(0)) < 2) {
                     period = step - 1;
-                    // the app's thumbnail: nearest to the app's colour, and clearly nearer than any other window's
-                    int best = -1;
-                    double d1 = 1e9, d2 = 1e9;
-                    for (int i = 0; i < period; i++) {
-                        double d = dist(seen.get(i), app);
-                        if (d < d1) { d2 = d1; d1 = d; best = i; }
-                        else if (d < d2) d2 = d;
-                    }
-                    log.append(String.format(" [%d windows; nearest step %d at %.0f, next %.0f]", period, best + 1, d1, d2));
-                    if (period == 1 || d2 - d1 < 15) break;   // not sure which is the app: no X
-                    pick = best;
+                    pick = period - 1;   // the last step of the round: the window in front when the chord began
+                    log.append(String.format(" [%d windows; the app's is step %d, %.0f from the app's colour]",
+                            period, period, dist(seen.get(pick), app)));
+                    if (period == 1) break;   // only the app: X would close nothing else, but there is no round to read
                 }
                 if (period > 0 && pick >= 0 && (step - 1) % period == pick && dist(m, seen.get(pick)) < 2) {
                     handKey("x", true);
