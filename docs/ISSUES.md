@@ -1,7 +1,7 @@
 # Issues found by our testing
 
 Every defect our tests found in OculiX and in third-party VNC servers, with an internal ID for tracking.
-Started 2026-11-14. Three entries have full write-ups in [upstream/](upstream/).
+Started 2026-11-14. Four entries have full write-ups in [upstream/](upstream/).
 
 How issues are reported:
 
