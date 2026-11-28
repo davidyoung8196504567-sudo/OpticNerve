@@ -190,8 +190,44 @@ public class LauncherTest {
         return String.format("(%.0f,%.0f,%.0f)", m[0], m[1], m[2]);
     }
 
-    // The window switcher at 1920x1080: its strip of thumbnails, and the selected one in the middle of it.
-    static final int[] STRIP = {300, 475, 1620, 605}, MIDDLE = {800, 475, 1110, 605};
+    // The window switcher at 1920x1080: its strip of thumbnails, and the selected one in the middle of it; THUMB is that
+    // thumbnail inside its highlight frame (the whole screen of its window, shrunk to 352x160).
+    static final int[] STRIP = {300, 475, 1620, 605}, MIDDLE = {800, 475, 1110, 605}, THUMB = {779, 460, 1131, 620};
+
+    // A box of img as a 32x16 grid of mean colours, from every 2nd pixel each way: small enough that a whole screen and
+    // the switcher's thumbnail of it come out alike.
+    static double[] grid(BufferedImage img, int x0, int y0, int x1, int y1) {
+        double[] g = new double[32 * 16 * 3];
+        for (int j = 0; j < 16; j++)
+            for (int i = 0; i < 32; i++) {
+                double[] m = mean2(img, x0 + (x1 - x0) * i / 32, y0 + (y1 - y0) * j / 16,
+                        x0 + (x1 - x0) * (i + 1) / 32, y0 + (y1 - y0) * (j + 1) / 16);
+                System.arraycopy(m, 0, g, (j * 32 + i) * 3, 3);
+            }
+        return g;
+    }
+
+    static double[] mean2(BufferedImage img, int x0, int y0, int x1, int y1) {
+        double[] m = new double[3];
+        int n = 0;
+        for (int y = y0; y < y1; y += 2)
+            for (int x = x0; x < x1; x += 2) {
+                int p = img.getRGB(x, y);
+                m[0] += (p >> 16) & 0xff;
+                m[1] += (p >> 8) & 0xff;
+                m[2] += p & 0xff;
+                n++;
+            }
+        for (int k = 0; k < 3; k++) m[k] /= Math.max(n, 1);
+        return m;
+    }
+
+    // The mean difference of two grids, per colour channel (0 alike, 255 opposite).
+    static double gridDist(double[] a, double[] b) {
+        double d = 0;
+        for (int k = 0; k < a.length; k++) d += Math.abs(a[k] - b[k]);
+        return d / a.length;
+    }
 
     // Q held, N tapped, Q let go: one Alt+Tab, which brings the next window to the front.
     static void chordTap() throws Exception {
@@ -207,20 +243,26 @@ public class LauncherTest {
 
     // The chord as a viewer sends it, aimed: Q held 0.4 s, N held (its auto-repeat, sent as a second N down after
     // 0.5 s, opens the switcher), then N let go and pressed again for each next window. Each step's frame is saved
-    // and the middle thumbnail's mean colour taken. When the first step's thumbnail comes round again the switcher has
-    // gone through all the windows, and the window that was in front when the chord began (the app) is the one
-    // selected on the last step of the round (Alt+Tab's order: each Tab selects the next window, and a full round
-    // comes back to the one in front). X is pressed when the selection comes round to it again, if the other windows'
-    // thumbnails came round unchanged (the app's own may move, as Gears and Maze do). The mean colour of
-    // the app's own frame did not aim reliably: Widget Factory's window, small on black, came nearer to the image's
-    // launcher (2026-11-27). Returns what happened, for the report; xSent tells whether X went out.
+    // and the middle thumbnail's mean colour taken. The window that was in front when the chord began (the app) is the
+    // one selected on the last step of a round (Alt+Tab's order: each Tab selects the next window, and a full round
+    // comes back to the one in front), so with the windows counted beforehand (windows) it is selected first on step
+    // windows. X goes out there, on the first round, if the thumbnail is also the one most like the app's own screen
+    // (appGrid): nearer than 10, or at most 0.6 of the next nearest (the thumbnails of the 8 tiles' apps against the
+    // other windows' on the runs of 2026-11-27: 0.0 to 1.9 against 25 and more; Gears, which moves, 42 against 80;
+    // Maze, which moves more, 74 against 68). Otherwise the round is read: when the first step's thumbnail comes round
+    // again the switcher has gone through all the windows, and X is pressed when the selection comes round to the
+    // app's step again, if the other windows' thumbnails came round unchanged (the app's own may move, as Gears and
+    // Maze do). The mean colour of the app's own frame did not aim reliably: Widget Factory's window, small on black,
+    // came nearer to the image's launcher (2026-11-27). Returns what happened, for the report; xSent tells whether X
+    // went out.
     static boolean xSent;
 
-    static String chordClose(String name, double[] app) throws Exception {
+    static String chordClose(String name, double[] app, double[] appGrid, int windows) throws Exception {
         xSent = false;
         String tag = name.replace(' ', '_');
         double[] before = mean(frame(), STRIP[0], STRIP[1], STRIP[2], STRIP[3]);
         List<double[]> seen = new ArrayList<>();
+        List<Double> like = new ArrayList<>();
         StringBuilder log = new StringBuilder();
         int period = 0, pick = -1;
         boolean nDown = false, qDown = false;
@@ -241,8 +283,27 @@ public class LauncherTest {
                 boolean open = dist(mean(img, STRIP[0], STRIP[1], STRIP[2], STRIP[3]), before) > 2;
                 double[] m = mean(img, MIDDLE[0], MIDDLE[1], MIDDLE[2], MIDDLE[3]);
                 seen.add(m);
-                log.append(String.format(" %d:%s%s", step, rgb(m), open ? "" : "(no switcher)"));
+                double d = gridDist(grid(img, THUMB[0], THUMB[1], THUMB[2], THUMB[3]), appGrid);
+                like.add(d);
+                log.append(String.format(" %d:%s~%.0f%s", step, rgb(m), d, open ? "" : "(no switcher)"));
                 if (!open) break;
+                // The first round: X on step windows if its thumbnail is clearly the app's
+                if (step == windows && windows > 1) {
+                    double next = Double.MAX_VALUE;
+                    for (int i = 0; i < step - 1; i++) next = Math.min(next, like.get(i));
+                    if (d < next && (d < 10 || d < 0.6 * next)) {
+                        handKey("x", true);
+                        handKey("x", false);
+                        Thread.sleep(600);
+                        xSent = true;
+                        log.append(String.format(" X [first round: %d windows counted, the app's thumbnail %.0f against %.0f]",
+                                windows, d, next));
+                        handKey("n", false);
+                        nDown = false;
+                        break;
+                    }
+                    log.append(" [not clearly the app's: reading the round]");
+                }
                 if (period == 0 && step > 1 && dist(m, seen.get(0)) < 2) {
                     period = step - 1;
                     pick = period - 1;   // the last step of the round: the window in front when the chord began
@@ -401,7 +462,10 @@ public class LauncherTest {
 
         caption(name + ": closing it with the key chord (hold Q, then N; X on its thumbnail)");
         double[] appMean = mean(app, 0, 0, 1920, 1080);
-        String how = chordClose(name, appMean);
+        // The switcher's windows: our panel, the image's own launcher (the quick-start image keeps it running), and
+        // each app the panel started
+        int windows = 2 + running().size();
+        String how = chordClose(name, appMean, grid(app, 0, 0, 1920, 1080), windows);
         boolean gone = false;
         for (long end = System.nanoTime() + 10_000_000_000L; System.nanoTime() < end && !gone; Thread.sleep(500))
             gone = !running().containsKey(name);
