@@ -210,7 +210,8 @@ public class LauncherTest {
     // and the middle thumbnail's mean colour taken. When the first step's thumbnail comes round again the switcher has
     // gone through all the windows, and the window that was in front when the chord began (the app) is the one
     // selected on the last step of the round (Alt+Tab's order: each Tab selects the next window, and a full round
-    // comes back to the one in front). X is pressed when the selection comes round to it again. The mean colour of
+    // comes back to the one in front). X is pressed when the selection comes round to it again, if the other windows'
+    // thumbnails came round unchanged (the app's own may move, as Gears and Maze do). The mean colour of
     // the app's own frame did not aim reliably: Widget Factory's window, small on black, came nearer to the image's
     // launcher (2026-11-27). Returns what happened, for the report; xSent tells whether X went out.
     static boolean xSent;
@@ -249,7 +250,12 @@ public class LauncherTest {
                             period, period, dist(seen.get(pick), app)));
                     if (period == 1) break;   // only the app: X would close nothing else, but there is no round to read
                 }
-                if (period > 0 && pick >= 0 && (step - 1) % period == pick && dist(m, seen.get(pick)) < 2) {
+                // X when the selection is on the app's step again, and the round is still the one read: every other
+                // step since matched its window's thumbnail (an app's own thumbnail may move: Gears, Maze)
+                boolean inStep = true;
+                for (int i = period; i < step - 1 && period > 0; i++)
+                    if (i % period != pick && dist(seen.get(i), seen.get(i % period)) >= 2) inStep = false;
+                if (period > 0 && pick >= 0 && (step - 1) % period == pick && step > period && inStep) {
                     handKey("x", true);
                     handKey("x", false);
                     Thread.sleep(600);
