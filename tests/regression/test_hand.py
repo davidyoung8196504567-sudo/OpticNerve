@@ -17,7 +17,7 @@ sys.path.insert(0, str(ROOT / "host" / "tools"))
 import hand  # noqa: E402
 
 JAVA = ["host/demo/DemoTest.java", "host/demo/DesktopTest.java", "host/demo/GtkDemoTest.java",
-        "host/demo/LoginTest.java", "host/demo/ObstacleCourse.java", "host/spikes/s1/S1VncScreen.java"]
+        "host/demo/LoginTest.java", "host/demo/LauncherTest.java", "host/demo/ObstacleCourse.java", "host/spikes/s1/S1VncScreen.java"]
 IDE = ["host/demo/DemoTest.sikuli/DemoTest.py", "host/ide-tests/Template.sikuli/Template.py"]
 JSTART, JEND = "    // A hand on the mouse and keyboard", "    // (end of the hand)\n"
 PSTART, PEND = "# A hand on the mouse and keyboard", "# (end of the hand)\n"

@@ -447,6 +447,13 @@ public class DemoTest {
             s.wheel(direction, 1);
         }
     }
+    // One key held down (down true) or let go, after the hand's gap: for a chord, such as the agent's Q+N, whose keys
+    // overlap.
+    static void handKey(String k, boolean down) throws Exception {
+        rest(0.06, 0.18);
+        if (down) s.keyDown(k);
+        else s.keyUp(k);
+    }
     // (end of the hand)
 
     // A button found by image: a hand aims at it, not at its exact centre (within a quarter of its size).
